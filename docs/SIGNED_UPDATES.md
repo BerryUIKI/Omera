@@ -87,3 +87,25 @@ package downloads require the package manager. Legacy identity/import paths rema
 supported. Synthetic signatures and passing development CI do not establish this
 qualification. Record unavailable credentials, publication or platform access as
 explicit gates; never weaken verification to bypass them.
+
+### Installed-version qualification procedure
+
+Use disposable OS accounts and a synthetic library, keeping ordinary user data
+outside the test. Record both package versions, build commits, OS/architecture,
+artifact hashes, signature verification, and observed application behavior.
+
+1. Manually install the first build containing the reviewed trust key. Confirm
+   library records, saved preferences and legacy discovery/import with fixtures.
+2. From that installed application, discover a subsequent signed official release,
+   download it, and complete the platform installation flow. Confirm the displayed
+   new version after reopening and the same library/configuration/credential access.
+3. Repeat with a missing signature, altered installer and wrong-key signature.
+   Confirm installation is blocked and the manual release-page action remains usable.
+4. Verify Windows shortcuts/uninstall registration, macOS Developer ID/notarization
+   and Gatekeeper, and Linux AppImage/package behavior. Record staged restore and
+   legacy-source retention separately. Never clean up original data during testing.
+
+This procedure needs two versioned signed releases and Windows/macOS/Linux test
+environments. The current artifact-check workflow builds one repository version
+and does not exercise the installed application's release discovery or next-update
+path. No production or prerelease publication was performed by this remediation.
