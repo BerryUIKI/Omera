@@ -279,3 +279,11 @@ current application. Retain the current AutoTagModal and InspectorPane theme
 coverage instead of restoring obsolete assertions. The reconciled application
 and test sources are byte-equivalent to the approved `dev` candidate; the merge
 records the existing release history without rewriting it.
+
+### Latest owner testing decision — 2026-10-12
+
+The owner postponed further Windows Sandbox tests and reported that automatic
+updates were already tested with no issues. Record this as owner-reported success;
+the precise platform, old/new versions and exercised stages have not yet been
+provided. Do not repeat the deferred Sandbox test or infer full platform coverage.
+Continue the approved 0.4.4 release and its automated/package-signing gates.

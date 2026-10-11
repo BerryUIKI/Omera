@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release is published at the owner's request for further testing. Automated
 regressions and installer/signing checks are separate from native acceptance.
+The owner reports successful automatic-update testing with no issues; the exact
+platform/version pair has not yet been recorded. Windows Sandbox testing is
+postponed at the owner's request.
 The complete installed-update matrix on Windows x64, macOS Apple Silicon and
 Linux x64 remains pending, including library/settings preservation and official
 next-release discovery/download/install ([#256](https://github.com/BerryUIKI/Omera/issues/256)).
