@@ -1,6 +1,6 @@
 # Remaining review fixes
 
-Updated: 2026-10-11. Integration target: `dev`; `main` remains release-only.
+Updated: 2026-10-12. Integration target: `dev`; `main` remains release-only.
 
 This execution ledger supersedes the historical September dispatch status for the
 October review reports. The handoff ownership boundaries, migration safeguards,
@@ -32,7 +32,7 @@ required CI checks pass; delete only the merged task branch.
 | 13 | #263 | Configurable Table columns at ordinary/narrow widths, compatible persistence defaults | Merged #363; CI and synthetic browser checks passed |
 | 14 | #297 | Session masking toggle and guarded shortcut; reset temporary reveals on enabling masking; saved startup default stays explicit | Merged #364; CI and synthetic browser checks passed |
 | 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Merged #365–#369; all three CI platforms passed; issue closed |
-| 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Merged #370–#372; trust provisioned and six actual packages signed/verified; signed publication and installed next-version qualification remain release gates; issue stays open |
+| 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Merged #370–#376; six packages signed/verified, production macOS signing/notarization/Gatekeeper qualified, release preflight and Windows MSI dispatch fixed; signed publication and installed next-version qualification remain release gates; issue stays open |
 
 Safety and correctness precede convenience controls. Lock changes precede new
 background backup scheduling. Shared gallery/App changes proceed sequentially.
@@ -145,3 +145,13 @@ exercise localized text rather than English-only fixture fallbacks.
   in all seven languages, without promising a silent install or automatic restart
   on every platform. Public build inputs with surrounding whitespace are rejected
   before compilation because the runtime embeds the key verbatim.
+- Follow-up on 2026-10-12: #374 blocks mismatched versions, unintegrated tags and
+  published-asset overwrites. #375 adds a non-publishing production macOS gate;
+  [run 38159904889](https://github.com/BerryUIKI/Omera/actions/runs/38159904889)
+  passed Developer ID, notarization, stapling, mounted-app verification, Gatekeeper
+  and final update signatures. Downloaded bytes verified locally; existing tags
+  and release assets stayed unchanged. #376 dispatches MSI updates through the
+  system Windows Installer; local build, 262 frontend tests, 385 Rust tests,
+  formatting, strict all-target lint and the 160-command IPC inventory pass.
+  Each PR passed normal CI on all three platforms. Installed-next-version
+  acceptance and approved publication are still outstanding.

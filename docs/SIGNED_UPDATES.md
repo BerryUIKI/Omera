@@ -149,3 +149,21 @@ This procedure needs two versioned signed releases and Windows/macOS/Linux test
 environments. The current artifact-check workflow builds one repository version
 and does not exercise the installed application's release discovery or next-update
 path. No production or prerelease publication was performed by this remediation.
+Current application discovery uses GitHub's stable `releases/latest` endpoint;
+a draft or prerelease alone does not exercise that discovery path. Keep the
+installed-update and publication decisions explicit when planning the next stage.
+
+### Production macOS signing evidence — 2026-10-12
+
+[Qualification run 38159904889](https://github.com/BerryUIKI/Omera/actions/runs/38159904889)
+at `b01e9c233c59b748e3168977a424824d417630e0` passed Developer ID certificate
+validation, signing, app/DMG notarization, stapling, mounted-app verification,
+Gatekeeper and final update signing/streaming verification. Release uploads and
+publication were skipped; before/after API snapshots confirmed existing release
+assets and tags were unchanged. The downloaded canonical DMG also passed the
+production streaming verifier locally.
+
+The retained Omera 0.4.3 `Omera_macOS_aarch64.dmg` is 18,640,094 bytes, with SHA-256
+`a7169b70e37ccddb3ed72085a2308102bcb2ba9b5b90f140e592aa338cea8f00`.
+It is a short-lived qualification artifact, not a published successor or evidence
+of an installed application's next-version upgrade. #256 remains open.
