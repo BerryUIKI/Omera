@@ -220,3 +220,11 @@ qualification or provision a runtime silently and omit this failure.
 Prioritize Windows runtime packaging before retrying the installed matrix. Keep
 the original signed fixtures intact; record repaired package sources and hashes
 separately. Native startup must work on a clean profile without development tools.
+
+Windows runtime staging uses the installed Visual Studio redistributable CRT
+directory, checks the required DLL set, x64 PE headers and valid Microsoft
+Authenticode signatures before copying anything. Generated files stay outside
+Git. App-local deployment preserves the current-user installation model and
+avoids a separate machine-wide runtime prerequisite; it also makes runtime
+servicing part of Omera package updates. Follow Microsoft's
+[redistribution terms and deployment guidance](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
