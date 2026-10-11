@@ -1,6 +1,14 @@
 import type { en } from "./en";
 
 export const fr: typeof en = {
+  installer: {
+    runtimeTitle: "Composant Windows requis",
+    runtimeHelp: "Omera nécessite Microsoft Visual C++ x64. Ouvrez la page de téléchargement de Microsoft, installez le dernier redistribuable x64, puis revenez ici et choisissez Suivant. Windows peut demander une autorisation administrateur.",
+    runtimeDownload: "Ouvrir la page de téléchargement Microsoft",
+    runtimeMinimum: "Version minimale requise : {version}",
+    runtimeMissing: "Le composant x64 requis est toujours absent ou trop ancien. Installez ou réparez le redistribuable x64 de Microsoft avant de continuer.",
+    runtimeSilent: "Omera nécessite Microsoft Visual C++ x64. Installez le dernier redistribuable x64 depuis https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist et relancez l’installation.",
+  },
   review: {
     indexFailures: "Échec pour {count} images. Relancez l’indexation pour réessayer.",
     gallery: "Galerie d’images",
