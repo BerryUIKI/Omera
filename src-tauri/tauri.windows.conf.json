@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "windows/runtime/*.dll": ""
+    }
+  }
+}

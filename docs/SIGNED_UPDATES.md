@@ -228,3 +228,8 @@ Git. App-local deployment preserves the current-user installation model and
 avoids a separate machine-wide runtime prerequisite; it also makes runtime
 servicing part of Omera package updates. Follow Microsoft's
 [redistribution terms and deployment guidance](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
+
+The Windows build stages these files before Tauri resource validation. The
+platform configuration maps them beside the executable in both NSIS and MSI;
+other platforms do not bundle the Windows runtime. Build/sign repaired packages
+and repeat native startup before claiming this packaging fix is qualified.
