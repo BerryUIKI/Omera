@@ -26,7 +26,7 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 | Update DTOs | Rust `UpdateDownloadProgress` | `src/utils/updater.ts` |
 | Watcher events | `src-tauri/src/watcher.rs` | App refresh scheduling |
 
-[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 159 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 160 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
 
 Current commands are local Tauri IPC, not HTTP endpoints. Do not invent REST routes or expose these commands through a network server. Commands are restricted to the configured application WebView; IPC arguments still require backend validation.
 
@@ -317,3 +317,13 @@ lock. Exit stops new jobs; interruption is recovered with one-hour backoff on
 restart. No automatic retention/deletion is introduced. A status-only command
 will expose the eight domain fields; settings still use revision-checked
 `save_app_config`. Destination hashes exclude credentials and inactive providers.
+
+
+### Automatic backup status — implemented backend
+
+`cloud_backup_get_schedule_status` accepts no arguments and returns the eight
+`AutomaticBackupStatus` snake_case fields above. It reads only worker memory;
+configuration/credentials, database snapshotting and provider I/O stay on the
+background worker. The worker is registered at startup and stopped on app exit.
+The status command cannot enable backups; only saved configuration does that.
+The settings controls are a separate frontend follow-up.

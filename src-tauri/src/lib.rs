@@ -39,6 +39,8 @@ pub struct AppState {
     pub batch_tagger_cancel: Arc<AtomicBool>,
     /// Coordinator for legacy Berry data discovery, migration and cleanup.
     pub migration_coordinator: Arc<Mutex<legacy_migration::MigrationCoordinator>>,
+    /// Single opt-in automatic snapshot worker; status has its own short lock.
+    pub backup_worker: backup_scheduler::BackupWorker,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -101,6 +103,10 @@ pub fn run() {
                 tagger_cancel: Arc::new(AtomicBool::new(false)),
                 batch_tagger_cancel: Arc::new(AtomicBool::new(false)),
                 migration_coordinator: migration_coordinator.clone(),
+                backup_worker: backup_scheduler::BackupWorker::start(
+                    data_dir.clone(),
+                    database_path.clone(),
+                ),
             });
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -286,6 +292,7 @@ pub fn run() {
             commands::cloud_backup_create_snapshot,
             commands::cloud_backup_list_snapshots,
             commands::cloud_backup_restore_snapshot,
+            commands::cloud_backup_get_schedule_status,
             commands::cloud_sync_preview_namespace,
             commands::cloud_sync_start,
             commands::cloud_sync_cancel,
@@ -299,6 +306,13 @@ pub fn run() {
             commands::confirm_legacy_cleanup,
             commands::defer_legacy_cleanup,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(state) = app.try_state::<AppState>() {
+                    state.backup_worker.stop();
+                }
+            }
+        });
 }

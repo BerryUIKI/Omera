@@ -4372,6 +4372,14 @@ pub async fn send_to_webui(
     .map_err(|e| e.to_string())?
 }
 
+/// Read the automatic worker's in-memory status without waiting for provider I/O.
+#[tauri::command]
+pub fn cloud_backup_get_schedule_status(
+    state: State<'_, AppState>,
+) -> Result<omera_domain::AutomaticBackupStatus, String> {
+    state.backup_worker.status()
+}
+
 /// Test connectivity and latency to the configured cloud backup provider.
 #[tauri::command]
 pub async fn cloud_backup_test_connection(
