@@ -3793,11 +3793,12 @@ pub fn install_update(
 
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-        let mut cmd = Command::new(&installer_path);
-        if _is_silent {
-            cmd.arg("/S");
-        }
+        let system_root = std::env::var_os("SystemRoot");
+        let mut cmd = crate::update_installation::windows_installer_command(
+            p,
+            _is_silent,
+            system_root.as_deref(),
+        )?;
         cmd.spawn()
             .map_err(|e| format!("Failed to launch installer: {e}"))?;
         app.exit(0);
