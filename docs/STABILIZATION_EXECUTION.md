@@ -31,8 +31,8 @@ required CI checks pass; delete only the merged task branch.
 | 12 | #259 | Table stack expansion with scoped members and keyboard access | Merged #362; CI and synthetic browser checks passed |
 | 13 | #263 | Configurable Table columns at ordinary/narrow widths, compatible persistence defaults | Merged #363; CI and synthetic browser checks passed |
 | 14 | #297 | Session masking toggle and guarded shortcut; reset temporary reveals on enabling masking; saved startup default stays explicit | Merged #364; CI and synthetic browser checks passed |
-| 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Snapshot foundation merged #365; schedule policy merged #366; engine/worker merged #367–#368; settings implemented and checked |
-| 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Planned |
+| 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Merged #365–#369; all three CI platforms passed; issue closed |
+| 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Trust provisioned; signing/verifier tooling implemented; release integration and installed-platform qualification follow |
 
 Safety and correctness precede convenience controls. Lock changes precede new
 background backup scheduling. Shared gallery/App changes proceed sequentially.
