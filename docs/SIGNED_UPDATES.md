@@ -72,7 +72,7 @@ not establish installed-to-next-version acceptance or approve distribution.
 
 ## Signing and publication
 
-Before any build or release mutation, require the requested tag to match all three
+Before any publication build or release mutation, require the requested tag to match all three
 version manifests. The tag must already exist, resolve to the checked-out commit,
 and be included in `main`; a development checkout cannot create a release tag as a
 side effect. Existing published releases are immutable: retries may resume only
