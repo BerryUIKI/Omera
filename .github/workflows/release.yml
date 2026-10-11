@@ -414,6 +414,28 @@ jobs:
           node scripts/release-update-assets.mjs upload \
             "${{ matrix.target }}" "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
 
+      - name: Sign and verify final qualification installers
+        if: env.QUALIFICATION_ONLY == 'true'
+        env:
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/release-update-assets.mjs qualify \
+            "${{ matrix.target }}" "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
+          shasum -a 256 "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
+
+      - name: Preserve notarized macOS qualification installer
+        if: env.QUALIFICATION_ONLY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: notarized-macos-aarch64-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/${{ matrix.dmg_asset_name }}
+            ${{ runner.temp }}/${{ matrix.dmg_asset_name }}.minisig
+
   # ── Windows & Linux: no code-signing changes ─────────────────────────────────
   build-other:
     if: github.event_name != 'workflow_dispatch' || !inputs.qualification_only

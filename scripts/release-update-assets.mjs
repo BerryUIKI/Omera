@@ -19,10 +19,9 @@ export function requireCoverage(assets, target) {
   if (new Set(names).size !== names.length) throw new Error('Duplicate installer asset names');
 }
 
-export function uploadBundle(target, canonicalAsset) {
+function signedBundle(target, canonicalAsset) {
   validateInputs();
   if (!targets[target]) throw new Error('Unsupported release target');
-  requireDraftRelease();
   const roots = [resolve('target', target, 'release/bundle'), resolve('src-tauri/target', target, 'release/bundle')].filter(existsSync);
   if (roots.length !== 1) throw new Error('Expected exactly one bundle directory');
   const assets = collectInstallers(roots[0]);
@@ -36,6 +35,13 @@ export function uploadBundle(target, canonicalAsset) {
   }
   requireCoverage(assets, target);
   signAssets(assets);
+  return assets;
+}
+
+export function uploadBundle(target, canonicalAsset) {
+  validateInputs();
+  requireDraftRelease();
+  const assets = signedBundle(target, canonicalAsset);
   const env = { ...process.env };
   delete env.OMERA_UPDATE_SIGNING_KEY; delete env.OMERA_UPDATE_SIGNING_PASSWORD;
   const result = spawnSync('gh', ['release', 'upload', env.RELEASE_TAG,
@@ -47,11 +53,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const [command, argument, canonical] = process.argv.slice(2);
     if (command === 'upload') uploadBundle(argument, canonical);
+    else if (command === 'qualify') {
+      const assets = signedBundle(argument, canonical);
+      console.log(`Verified ${assets.length} final qualification installers; no release upload`);
+    }
     else if (command === 'verify' && argument && !canonical) {
       validateInputs(process.env, undefined, false);
       const assets = collectInstallers(resolve(argument));
       requireCoverage(assets);
       verifyAssets(assets);
-    } else throw new Error('Usage: release-update-assets.mjs upload <target> [canonical-dmg]|verify <download-directory>');
+    } else throw new Error('Usage: release-update-assets.mjs upload|qualify <target> [canonical-dmg]|verify <download-directory>');
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

@@ -63,6 +63,9 @@ publication. The build action receives neither a release tag nor a GitHub token;
 release uploads, Windows/Linux release jobs and publication are disabled. It signs
 the final DMG with the pinned update key and preserves the DMG/signature as a
 seven-day Actions artifact. It does not create a tag or release.
+The shared `release-update-assets.mjs qualify <target> [canonical-dmg]` command
+uses the same final-file inventory, naming, signing and streaming verification as
+release upload, with no GitHub API calls or release credentials.
 
 The build-only behavior is supported by
 [tauri-action's upload guard](https://github.com/tauri-apps/tauri-action/blob/v0/src/index.ts):
