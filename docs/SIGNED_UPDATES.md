@@ -233,3 +233,19 @@ opening an unexpected browser or interactive installer.
 MSI must also reject an unmet prerequisite with actionable official guidance;
 never start a nested MSI prerequisite transaction. Microsoft recommends
 [central runtime deployment for independent servicing](https://learn.microsoft.com/en-us/cpp/windows/deployment-in-visual-cpp).
+
+### Owner-approved 0.4.4 release plan — 2026-10-12
+
+The owner subsequently authorized a fresh version bump to 0.4.4, integration
+through `dev` into release-only `main`, and a public GitHub release with installers
+after the system prerequisite fixes. The owner will run further native tests.
+This decision supersedes the earlier publication deferral and the native-matrix
+ordering in the roadmap for this release only. It does not qualify an installed
+update or close #256. Keep the historical fixture branch separate from the release.
+
+Require automated regression checks, actual Windows installer compilation and
+the production signing/notarization/publication gates before publication. Release
+notes must disclose the pending installed-update matrix. NSIS guides interactive
+users to Microsoft's official runtime page and rechecks before continuing; silent
+and passive setup stop before replacing the existing app. MSI must stop before
+the installation transaction and permit uninstall even if the runtime is absent.
