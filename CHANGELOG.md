@@ -5,6 +5,47 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-10-12
+
+### Added
+
+- Opt-in automatic database/configuration snapshot backups, interval settings,
+  last-result feedback and restart/failure recovery. Media and external credentials
+  are not included in these snapshots.
+- Saved Table column preferences, expandable Table stacks, clearer selection
+  scope, prompt insights and a session masking shortcut.
+- Signed update installers with adjacent `.minisig` files, pinned verification
+  trust, fail-closed download/install checks and manual installation guidance.
+
+### Fixed
+
+- Windows setup now checks the required system Microsoft Visual C++ x64 runtime.
+  The EXE installer links to Microsoft's official download page and rechecks after
+  you install or repair the runtime. MSI explains the requirement and stops before
+  changing the installation. Runtime DLLs are not bundled; administrator approval
+  may be needed for Microsoft's runtime installer.
+- Legacy migration, staged restore, source retention, import collisions and
+  incomplete scans preserve existing data more reliably.
+- Transformation metadata/privacy, sidecar handling and derivative dimensions
+  stay consistent with published files. AVIF discovery no longer claims unsupported
+  managed-library decoding.
+- Cloud transfer limits, cancellation, root namespaces and checksum comparisons
+  handle concurrent and same-size changed files more reliably.
+- Settings save failures, stale forms, batch refresh, keyboard interaction,
+  localized feedback and table/gallery selection behavior are corrected.
+
+### Release testing
+
+This release is published at the owner's request for further testing. Automated
+regressions and installer/signing checks are separate from native acceptance.
+The complete installed-update matrix on Windows x64, macOS Apple Silicon and
+Linux x64 remains pending, including library/settings preservation and official
+next-release discovery/download/install ([#256](https://github.com/BerryUIKI/Omera/issues/256)).
+The clean Windows Sandbox 0.4.3 baseline failed startup because its system runtime
+was missing; 0.4.4 adds prerequisite guidance before installation.
+
+---
+
 ## [0.4.3] - 2026-10-05
 
 ### Phase 6 T4 Advanced Transform Controls, Resilient In-App Updater & Windows NSIS Integration
