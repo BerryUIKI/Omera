@@ -232,3 +232,14 @@ buffers). Local publication uses a synced temporary file and no-clobber atomic
 publication. UUID names prevent concurrent manual/automatic snapshots from
 colliding. Ordinary failures remove only the private spool and unpublished file.
 Backups contain the database and manifest, never user media or credentials.
+
+
+### Automatic backup worker
+
+One worker checks saved opt-in configuration every 30 seconds after the database
+opens; startup does not wait for its snapshot or provider I/O. It uses an
+independent database connection, never the application's shared database guard.
+Status reads use a separate short memory lock. Idle polls do not rewrite
+unchanged schedule state or resolve keyring credentials. Attempts are durably
+recorded before provider work; failure/restart backoff prevents tight retries.
+Application exit stops future attempts without blocking on an in-flight upload.

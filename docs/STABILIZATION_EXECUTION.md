@@ -31,7 +31,7 @@ required CI checks pass; delete only the merged task branch.
 | 12 | #259 | Table stack expansion with scoped members and keyboard access | Merged #362; CI and synthetic browser checks passed |
 | 13 | #263 | Configurable Table columns at ordinary/narrow widths, compatible persistence defaults | Merged #363; CI and synthetic browser checks passed |
 | 14 | #297 | Session masking toggle and guarded shortcut; reset temporary reveals on enabling masking; saved startup default stays explicit | Merged #364; CI and synthetic browser checks passed |
-| 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Snapshot foundation checked; scheduler next |
+| 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Snapshot foundation merged #365; schedule policy merged #366; worker/status implemented; settings integration next |
 | 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Planned |
 
 Safety and correctness precede convenience controls. Lock changes precede new
@@ -105,3 +105,11 @@ exercise localized text rather than English-only fixture fallbacks.
   failure cleanup, preserved destination/source data, and streamed S3/WebDAV
   provider paths/content lengths are covered. Automatic scheduling is not yet
   implemented by this foundation.
+
+- Automatic backup engine preparation on 2026-10-11: saved opt-in, real WAL-backed
+  local snapshot creation, restart/failure backoff, corrupt-state/config preservation,
+  destination identity and failed status-publication recovery tests pass. Build,
+  all 249 frontend tests, formatting, all-targets workspace clippy and workspace
+  Rust tests pass. Worker startup/exit and status IPC are now wired; the real
+  background-worker completion test passes. IPC inventory is 160 commands. The
+  settings GUI follows separately; #246 and #256 remain open.

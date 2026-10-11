@@ -3,7 +3,19 @@ use omera_domain::{
     AutomaticBackupStatus, BackupSchedule, CloudBackupConfig, CloudStorageProvider,
 };
 use sha2::{Digest, Sha256};
-use std::{io::Write, path::PathBuf};
+use std::{
+    io::Write,
+    path::PathBuf,
+    sync::{Arc, Condvar, Mutex},
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
+
+fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
 
 const STATE_FILE: &str = "automatic-backup-state.json";
 
@@ -144,6 +156,92 @@ impl BackupEngine {
             publish(self.schedule.status.clone());
         }
         Ok(())
+    }
+}
+
+pub struct BackupWorker {
+    status: Arc<Mutex<AutomaticBackupStatus>>,
+    stop: Arc<(Mutex<bool>, Condvar)>,
+}
+
+impl BackupWorker {
+    pub fn start(data_dir: PathBuf, database_path: PathBuf) -> Self {
+        let worker = Self {
+            status: Arc::new(Mutex::new(AutomaticBackupStatus::default())),
+            stop: Arc::new((Mutex::new(false), Condvar::new())),
+        };
+        let status = worker.status.clone();
+        let stop = worker.stop.clone();
+        let spawned = std::thread::Builder::new()
+            .name("omera-automatic-backup".into())
+            .spawn(move || {
+                let publish = |value| {
+                    if let Ok(mut state) = status.lock() {
+                        *state = value;
+                    }
+                };
+                let mut engine = match BackupEngine::open(data_dir.clone(), now()) {
+                    Ok(engine) => engine,
+                    Err(error) => {
+                        publish(AutomaticBackupStatus {
+                            last_error: Some(error),
+                            ..Default::default()
+                        });
+                        return;
+                    }
+                };
+                loop {
+                    if *stop.0.lock().unwrap_or_else(|e| e.into_inner()) {
+                        break;
+                    }
+                    let result = engine.poll(
+                        now(),
+                        publish,
+                        |preferences| create_snapshot(&data_dir, &database_path, preferences),
+                        now,
+                    );
+                    if let Err(error) = result {
+                        let mut value = engine.schedule.status.clone();
+                        value.running = false;
+                        value.enabled = false;
+                        value.next_due_at = None;
+                        value.last_error = Some(error);
+                        publish(value);
+                    }
+                    let guard = stop.0.lock().unwrap_or_else(|e| e.into_inner());
+                    let (guard, _) = stop
+                        .1
+                        .wait_timeout_while(guard, Duration::from_secs(30), |stopped| !*stopped)
+                        .unwrap_or_else(|e| e.into_inner());
+                    if *guard {
+                        break;
+                    }
+                }
+            });
+        if let Err(error) = spawned {
+            if let Ok(mut state) = worker.status.lock() {
+                state.last_error = Some(format!("Cannot start automatic backup worker: {error}"));
+            }
+        }
+        worker
+    }
+
+    pub fn status(&self) -> Result<AutomaticBackupStatus, String> {
+        self.status
+            .lock()
+            .map(|status| status.clone())
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn stop(&self) {
+        *self.stop.0.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        self.stop.1.notify_all();
+    }
+}
+
+impl Drop for BackupWorker {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -349,5 +447,35 @@ mod tests {
             serde_json::from_slice(&std::fs::read(root.path().join(STATE_FILE)).unwrap()).unwrap();
         assert_eq!(state.status.last_success_at, Some(110));
         assert_eq!(state.status.last_snapshot.as_deref(), Some("completed.zip"));
+    }
+
+    #[test]
+    fn background_worker_publishes_real_completion_without_blocking_status_reads() {
+        let root = tempfile::tempdir().unwrap();
+        let destination = root.path().join("backups");
+        let database = root.path().join("omera.db");
+        omera_storage::Database::connect(&database).unwrap();
+        save_preferences(root.path(), true, &destination);
+        let worker = BackupWorker::start(root.path().into(), database);
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let status = worker.status().unwrap();
+            if status.last_success_at.is_some() {
+                assert!(status.enabled);
+                assert!(!status.running);
+                assert!(destination.join(status.last_snapshot.unwrap()).is_file());
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "{status:?}");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        worker.stop();
+        // Allow the notified worker to release its private state before temp cleanup.
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while Arc::strong_count(&worker.stop) > 1 {
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(std::fs::read_dir(destination).unwrap().count(), 1);
     }
 }
