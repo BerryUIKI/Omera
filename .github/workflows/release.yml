@@ -8,14 +8,21 @@ on:
     inputs:
       tag_name:
         description: Release tag
-        required: true
+        required: false
+      qualification_only:
+        description: Check production macOS signing without creating a release
+        type: boolean
+        default: true
 
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.qualification_only && format('qualification-{0}', github.ref_name) || (github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name) }}
   cancel-in-progress: false
 
 permissions:
   contents: write
+
+env:
+  QUALIFICATION_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_only }}
 
 jobs:
   release-preflight:
@@ -25,10 +32,15 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Require synchronized package versions
+        run: node scripts/bump-version.mjs --check
       - name: Require a matching main-integrated tag and mutable draft
+        if: env.QUALIFICATION_ONLY != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
@@ -61,6 +73,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -205,7 +219,8 @@ jobs:
       - name: Build, sign, and notarize the application
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No release credentials or tag reach the action in qualification mode.
+          GITHUB_TOKEN: ${{ env.QUALIFICATION_ONLY != 'true' && secrets.GITHUB_TOKEN || '' }}
 
           APPLE_CERTIFICATE: ${{ secrets.MAC_SIGNING_CERT_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MAC_SIGNING_CERT_PASSWORD }}
@@ -215,7 +230,7 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_PATH: ${{ steps.notarization.outputs.key_path }}
         with:
-          tagName: ${{ env.RELEASE_TAG }}
+          tagName: ${{ env.QUALIFICATION_ONLY != 'true' && env.RELEASE_TAG || '' }}
           releaseName: 'Omera ${{ env.RELEASE_TAG }}'
           releaseBody: 'See [CHANGELOG.md](CHANGELOG.md) for full release details.'
           releaseDraft: true
@@ -389,6 +404,7 @@ jobs:
 
       # Sign final bytes after all notarization/stapling and canonical naming.
       - name: Sign and upload final macOS installers
+        if: env.QUALIFICATION_ONLY != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
@@ -398,8 +414,31 @@ jobs:
           node scripts/release-update-assets.mjs upload \
             "${{ matrix.target }}" "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
 
+      - name: Sign and verify final qualification installers
+        if: env.QUALIFICATION_ONLY == 'true'
+        env:
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/release-update-assets.mjs qualify \
+            "${{ matrix.target }}" "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
+          shasum -a 256 "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
+
+      - name: Preserve notarized macOS qualification installer
+        if: env.QUALIFICATION_ONLY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: notarized-macos-aarch64-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/${{ matrix.dmg_asset_name }}
+            ${{ runner.temp }}/${{ matrix.dmg_asset_name }}.minisig
+
   # ── Windows & Linux: no code-signing changes ─────────────────────────────────
   build-other:
+    if: github.event_name != 'workflow_dispatch' || !inputs.qualification_only
     name: Build ${{ matrix.os_name }} (${{ matrix.arch_name }})
     needs: release-preflight
     strategy:
@@ -504,6 +543,7 @@ jobs:
 
   # ── Promote draft to published once every platform passes ────────────────────
   publish-release:
+    if: github.event_name != 'workflow_dispatch' || !inputs.qualification_only
     name: Publish release
     needs:
       - build-macos
