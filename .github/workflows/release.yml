@@ -32,6 +32,7 @@ jobs:
 
     env:
       APP_NAME: Omera
+      OMERA_UPDATE_PUBLIC_KEY: ${{ vars.OMERA_UPDATE_PUBLIC_KEY }}
       RELEASE_TAG: >-
         ${{ github.event_name == 'workflow_dispatch'
             && inputs.tag_name
@@ -59,6 +60,18 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Validate embedded trust and signing custody
+        shell: bash
+        env:
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/update-signing.mjs check
+          pnpm build
+          cargo build -p omera --bin verify-update
+          node scripts/update-signing.mjs preflight
 
       # ── Preflight: validate Developer ID certificate ─────────────────────────
       - name: Validate Developer ID certificate
@@ -354,31 +367,16 @@ jobs:
           hdiutil detach "$mount_path" >/dev/null
           trap - EXIT
 
-      # ── Upload stapled DMG to the draft release ───────────────────────────────
-      - name: Upload stapled DMG to release
+      # Sign final bytes after all notarization/stapling and canonical naming.
+      - name: Sign and upload final macOS installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-
-          dmg_files=(
-            "target/${{ matrix.target }}/release/bundle/dmg/"*.dmg
-            "src-tauri/target/${{ matrix.target }}/release/bundle/dmg/"*.dmg
-          )
-          if (( ${#dmg_files[@]} == 0 )); then
-            echo "::error::No DMG files found."
-            exit 1
-          fi
-          dmg_path="${dmg_files[0]}"
-
-          final_path="$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
-          cp "$dmg_path" "$final_path"
-
-          gh release upload "$RELEASE_TAG" \
-            "$final_path" \
-            --clobber \
-            --repo "$GITHUB_REPOSITORY"
+          node scripts/release-update-assets.mjs upload \
+            "${{ matrix.target }}" "$RUNNER_TEMP/${{ matrix.dmg_asset_name }}"
 
   # ── Windows & Linux: no code-signing changes ─────────────────────────────────
   build-other:
@@ -399,6 +397,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     env:
+      OMERA_UPDATE_PUBLIC_KEY: ${{ vars.OMERA_UPDATE_PUBLIC_KEY }}
       RELEASE_TAG: >-
         ${{ github.event_name == 'workflow_dispatch'
             && inputs.tag_name
@@ -439,6 +438,18 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate embedded trust and signing custody
+        shell: bash
+        env:
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/update-signing.mjs check
+          pnpm build
+          cargo build -p omera --bin verify-update
+          node scripts/update-signing.mjs preflight
+
       - name: Build Tauri application
         uses: tauri-apps/tauri-action@v0
         env:
@@ -450,6 +461,25 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }}
+
+      - name: Sign and upload platform installers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/release-update-assets.mjs upload "${{ matrix.target }}"
+
+      - name: Preserve production verifier for publication gate
+        if: matrix.os_name == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-update-verifier
+          path: target/debug/verify-update
+          if-no-files-found: error
+          retention-days: 1
 
   # ── Promote draft to published once every platform passes ────────────────────
   publish-release:
@@ -466,6 +496,33 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Node.js for publication verification
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download production verifier
+        uses: actions/download-artifact@v4
+        with:
+          name: release-update-verifier
+          path: target/debug
+
+      - name: Verify every draft installer before publication
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OMERA_UPDATE_PUBLIC_KEY: ${{ vars.OMERA_UPDATE_PUBLIC_KEY }}
+          RELEASE_TAG: >-
+            ${{ github.event_name == 'workflow_dispatch'
+                && inputs.tag_name
+                || github.ref_name }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1
+          chmod +x target/debug/verify-update
+          gh release download "$RELEASE_TAG" --dir "$RUNNER_TEMP/signed-release" --repo "$GITHUB_REPOSITORY"
+          node scripts/release-update-assets.mjs verify "$RUNNER_TEMP/signed-release"
 
       - name: Extract release notes from CHANGELOG.md
         env:
