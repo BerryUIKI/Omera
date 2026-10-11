@@ -46,3 +46,23 @@ performs native installed-upgrade checks on those operating systems and records
 the version, hashes, restart, preferences, synthetic library and source retention.
 Do not substitute an unnotarized macOS artifact for the production-qualified DMG.
 These local installer pairs still leave official stable update discovery untested.
+
+## Evidence recorded so far
+
+- Local Windows 11 x64 NSIS build completed with embedded pinned update trust.
+  The application resource reports FileVersion/ProductVersion `0.4.4`.
+  The build started at fixture revision `0f61a82`; subsequent changes during the
+  build affected only this guide and the unexecuted account-preparation helper.
+  The 17,528,830-byte installer passed the production streaming verifier after
+  signing. SHA-256:
+  `b61db56fc69cd74765529ce87c7ca1e1b7038c0abfcc25c55f5dc6a461ee2000`.
+- All six copied 0.4.3 baseline packages verified again, including the production
+  notarized macOS DMG. Public packages and four repository-icon media fixtures
+  are retained in the owner's Downloads qualification folder; no private signing
+  credentials or ordinary library data were copied.
+- [Artifact run 38162255683](https://github.com/BerryUIKI/Omera/actions/runs/38162255683)
+  and [macOS qualification run 38162261453](https://github.com/BerryUIKI/Omera/actions/runs/38162261453)
+  were dispatched from fixture revision `b62b244`. Results are pending.
+- Native Windows installation has not run. The normal profile remains intact;
+  a disposable-account choice and the owner's administrator setup remain pending.
+  No macOS/Linux installed-upgrade result is claimed before the owner's tests.
