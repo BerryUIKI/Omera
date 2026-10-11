@@ -99,8 +99,10 @@ artifact hashes, signature verification, and observed application behavior.
 2. From that installed application, discover a subsequent signed official release,
    download it, and complete the platform installation flow. Confirm the displayed
    new version after reopening and the same library/configuration/credential access.
-3. Repeat with a missing signature, altered installer and wrong-key signature.
+3. Use controlled fixtures for missing signatures, altered installers and wrong-key
+   signatures, including disposable staged-file tampering before installation.
    Confirm installation is blocked and the manual release-page action remains usable.
+   Do not publish malformed or tampered packages as public release assets.
 4. Verify Windows shortcuts/uninstall registration, macOS Developer ID/notarization
    and Gatekeeper, and Linux AppImage/package behavior. Record staged restore and
    legacy-source retention separately. Never clean up original data during testing.
