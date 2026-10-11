@@ -333,3 +333,20 @@ Backup provider wire values are `local_path`, `webdav`, and `s3`, matching
 TypeScript and settings. Rust also accepts the historical `web_dav` spelling on
 read; new serialization uses `webdav`. This preserves earlier saved provider
 settings while allowing the existing GUI to submit WebDAV configurations.
+
+
+### Automatic backup settings contract
+
+The Cloud & Backup settings tab exposes an opt-in checkbox and 1–365 day
+interval. Edits remain drafts until the existing revision-checked Save succeeds;
+Cancel and failed saves do not change the worker. Status describes saved worker
+state independently of those drafts. The first attempt starts within the next
+30-second poll while the app is open; disabling stops future attempts and lets
+an in-flight snapshot finish. Backup scope is database/manifest only.
+
+The status read is polled every 30 seconds only while this settings tab is open.
+Polling is deduplicated, cleaned up on close/unmount, and discards responses from
+previous tab lifetimes. The UI shows running/disabled/waiting-to-retry states,
+last success/attempt, next due date, archive filename and errors in all seven
+locales. Status failures remain visible; they never enable backups or hide a
+failed settings save. No schedule mutation command is added.
