@@ -28,7 +28,8 @@ On 2026-10-11, no established update trust was present in the repository variabl
 secret names, checkout or build environment. A new encrypted key was provisioned
 after a signing probe passed the production streaming verifier. The reviewed
 public key is `src-tauri/update-public-key.txt`; repository signing inputs must
-match it. The recovery directory is `%USERPROFILE%/.codex/signing/omera-update-20261011`,
+match it verbatim, without surrounding whitespace: Rust embeds that build input
+without trimming it. The recovery directory is `%USERPROFILE%/.codex/signing/omera-update-20261011`,
 restricted to its owner. Its password is protected with Windows DPAPI for that
 account. Recovery requires that account and its profile; arrange an independently
 protected maintainer recovery copy before release qualification. This establishes
