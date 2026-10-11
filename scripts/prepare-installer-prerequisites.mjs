@@ -29,7 +29,7 @@ export function renderNsis(minimum) {
         .replaceAll('{version}', minimum)}"`);
     }
   }
-  return lines.join('\n') + '\n';
+  return '\uFEFF' + lines.join('\n') + '\n';
 }
 
 export function prepare() {
