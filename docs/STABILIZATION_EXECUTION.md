@@ -167,3 +167,6 @@ exercise localized text rather than English-only fixture fallbacks.
   authorized publishing 0.4.4 through `dev` and `main` after these fixes and the
   automated/production signing gates, with further native testing afterward.
   This is a release decision, not installed-update acceptance; #256 stays open.
+- Latest owner report on 2026-10-12: postpone further Sandbox testing; automatic
+  update testing completed with no issues. Exact platform/version coverage is
+  awaiting attribution. Continue the approved release without repeating that test.
