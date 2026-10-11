@@ -327,3 +327,9 @@ configuration/credentials, database snapshotting and provider I/O stay on the
 background worker. The worker is registered at startup and stopped on app exit.
 The status command cannot enable backups; only saved configuration does that.
 The settings controls are a separate frontend follow-up.
+
+
+Backup provider wire values are `local_path`, `webdav`, and `s3`, matching
+TypeScript and settings. Rust also accepts the historical `web_dav` spelling on
+read; new serialization uses `webdav`. This preserves earlier saved provider
+settings while allowing the existing GUI to submit WebDAV configurations.

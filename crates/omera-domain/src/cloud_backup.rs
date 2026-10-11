@@ -10,6 +10,7 @@ pub enum CloudStorageProvider {
     #[default]
     LocalPath,
     /// WebDAV server (Nextcloud, Synology DSM, QNAP, ownCloud, etc.).
+    #[serde(rename = "webdav", alias = "web_dav")]
     WebDav,
     /// S3-compatible object storage (AWS S3, Cloudflare R2, MinIO, Backblaze B2).
     S3,
@@ -135,6 +136,19 @@ pub struct CloudRestoreResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn webdav_provider_matches_frontend_and_reads_legacy_spelling() {
+        assert_eq!(
+            serde_json::to_string(&CloudStorageProvider::WebDav).unwrap(),
+            "\"webdav\""
+        );
+        for spelling in ["webdav", "web_dav"] {
+            let config: CloudBackupConfig =
+                serde_json::from_value(serde_json::json!({"provider": spelling})).unwrap();
+            assert_eq!(config.provider, CloudStorageProvider::WebDav);
+        }
+    }
 
     #[test]
     fn missing_legacy_schedule_matches_explicit_defaults() {
