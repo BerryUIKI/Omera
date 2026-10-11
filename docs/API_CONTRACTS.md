@@ -185,6 +185,15 @@ legacy mappings never authorize remote deletion or automatic adoption.
 
 `download_update({ url, filename })` resolves a staged installer path after signature verification in the working code. `install_update({ installerPath, silent })` revalidates the local installer and launches installation. Missing embedded trust configuration is an error; engineers must not add a bypass. Platform/architecture asset selection and renamed-repository trust remain lead-owned work.
 
+On Windows, verified NSIS EXE packages launch directly (`/S` only when silent).
+Verified MSI packages use the system Windows Installer with `/i`, `/norestart`
+and optional `/quiet`, following
+[Microsoft's installer options](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec).
+Keep paths as individual process arguments, including spaces and Unicode. Reject
+unsupported Windows package extensions before launching or exiting the app. The
+IPC request/response shape and both signature-verification points are unchanged.
+Command-plan tests do not establish successful installed-version upgrades.
+
 Subscribe to progress before starting an operation and always dispose listeners in `finally` and component teardown. Existing events are global and mostly lack operation IDs; concurrent unrelated jobs may interleave. Do not infer ownership by listening to every event. Adding operation IDs is an explicit cross-layer contract change, not a frontend-only patch.
 
 | Event | Current payload/source | Lifecycle rule |
