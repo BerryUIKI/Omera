@@ -262,6 +262,17 @@ export interface ExportSummary {
 
 export type CloudStorageProvider = "local_path" | "webdav" | "s3";
 
+export interface AutomaticBackupStatus {
+  enabled: boolean;
+  interval_days: number;
+  running: boolean;
+  last_attempt_at: number | null;
+  last_success_at: number | null;
+  next_due_at: number | null;
+  last_error: string | null;
+  last_snapshot: string | null;
+}
+
 export interface CloudBackupConfig {
   provider: CloudStorageProvider;
   local_path?: string | null;
