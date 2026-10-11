@@ -9,15 +9,35 @@ on:
       tag_name:
         description: Release tag
         required: true
-        default: v0.1.0
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
+  release-preflight:
+    name: Validate release version and destination
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Require a matching main-integrated tag and mutable draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+        run: node scripts/release-preflight.mjs check
+
   # ── macOS: Developer ID signing + notarization + Gatekeeper validation ──────
   build-macos:
     name: Build macOS (${{ matrix.arch_name }})
+    needs: release-preflight
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -381,6 +401,7 @@ jobs:
   # ── Windows & Linux: no code-signing changes ─────────────────────────────────
   build-other:
     name: Build ${{ matrix.os_name }} (${{ matrix.arch_name }})
+    needs: release-preflight
     strategy:
       fail-fast: false
       matrix:
@@ -518,6 +539,7 @@ jobs:
                 || github.ref_name }}
         run: |
           set -euo pipefail
+          node scripts/release-preflight.mjs draft
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1
           chmod +x target/debug/verify-update
@@ -554,6 +576,8 @@ jobs:
                 && inputs.tag_name
                 || github.ref_name }}
         run: |
+          set -euo pipefail
+          node scripts/release-preflight.mjs draft
           gh release edit "$RELEASE_TAG" \
             --notes-file release_notes.md \
             --draft=false \
