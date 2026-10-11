@@ -16,29 +16,19 @@ Omera 配備原生的雲端備份與增量差異同步引擎（`src-tauri/src/cl
 
 ---
 
-## 2. 熱 SQLite 快照備份機制 (`cloud_backup_create_snapshot`)
+## 2. 資料庫快照備份
 
-Omera 運用 SQLite 原生的 `VACUUM INTO` 指令來實現無縫熱備份：
+快照包含 `omera.db` 和 `manifest.json`，儲存圖庫記錄、標籤與評分，不包含媒體檔案、設定或憑證。在**設定 > 雲端備份**中設定目標，然後選擇**立即建立快照**進行手動備份。封存名稱唯一，本機發布採用原子操作。現有備份不會自動刪除。
 
-```mermaid
-sequenceDiagram
-    participant UI as Omera 前端介面
-    participant Rust as 後端 (cloud_backup.rs)
-    participant DB as SQLite WAL (omera.db)
-    participant Remote as 雲端儲存 (S3/WebDAV)
+### 自動備份
 
-    UI->>Rust: 發起備份快照請求
-    Rust->>DB: 執行 VACUUM INTO temp_snapshot.db (無鎖操作)
-    DB-->>Rust: 產出一致性時間點資料庫副本
-    Rust->>Rust: 打包為附帶 manifest.json 的 ZIP 封裝檔
-    Rust->>Remote: 串流上傳 (SigV4 / WebDAV PUT)
-    Remote-->>Rust: 上傳確認 (200 OK)
-    Rust-->>UI: 快照建立成功！
-```
+預設**關閉**，間隔為**七天**。啟用後選擇 **1–365 天**並**儲存設定**。取消或儲存失敗會保留原排程。Omera 執行時每 30 秒檢查，首次備份將在下次檢查開始；後續間隔從成功備份完成時計算。退出 Omera 會停止排程；關閉自動備份會停止後續工作，進行中的備份可完成。
 
-### 快照核心保障：
-- **全程無鎖 (Non-Locking)**：呼叫 SQLite 線上清空真空 API，備份期間您可以照常檢索、評分、批次標記或生成入庫，完全不受干擾。
-- **復原防護機制 (Rollback Safety)**：當從遠端快照執行還原時，Omera 會在覆蓋前自動於本地建立安全還原備份 (`omera.db.rollback`)，從容抵禦網路異常中斷或下載校驗失敗風險。
+**已儲存的排程**獨立於待儲存編輯顯示執行狀態、上次成功與嘗試、下次時間、封存和錯誤。失敗或中斷後等待**一小時**重試，重新啟動後也遵循此規則。更換目標會建立新排程，僅輪換憑證不改變時間。損壞的排程檔案會保留並暫停排程，修復後需重新啟動 Omera。
+
+### 還原
+
+還原會驗證快照，並暫存到下次應用啟動時啟用。請退出並重新啟動 Omera，僅重新整理視窗不足以啟用還原。啟動時會先將目前資料庫儲存為獨立的 `omera.pre-restore-<UUID>.db` 復原點，再以交易方式啟用快照。快照不能復原遺失的媒體或憑證。
 
 ---
 

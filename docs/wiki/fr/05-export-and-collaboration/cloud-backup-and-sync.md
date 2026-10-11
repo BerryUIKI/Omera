@@ -16,29 +16,19 @@ Configurez vos points de terminaison distants dans **Préférences > Sauvegarde 
 
 ---
 
-## 2. Sauvegarde d'instantanés SQLite à chaud (`cloud_backup_create_snapshot`)
+## 2. Instantanés de la base de données
 
-Omera effectue la sauvegarde de votre base de données à l'aide de l'instruction native SQLite `VACUUM INTO` :
+Les instantanés contiennent `omera.db` et `manifest.json`, avec les données de bibliothèque, étiquettes et notes. Médias, paramètres et identifiants sont exclus. Configurez une destination dans **Paramètres > Cloud et sauvegarde**, puis choisissez **Créer un instantané maintenant**. Les noms sont uniques ; la publication locale est atomique. Aucune sauvegarde existante n’est supprimée automatiquement.
 
-```mermaid
-sequenceDiagram
-    participant UI as Interface Omera Studio
-    participant Rust as Backend (cloud_backup.rs)
-    participant DB as SQLite WAL (omera.db)
-    participant Remote as Stockage Cloud (S3/WebDAV)
+### Sauvegardes automatiques
 
-    UI->>Rust: Demande de création d'instantané
-    Rust->>DB: VACUUM INTO temp_snapshot.db (Sans verrouillage)
-    DB-->>Rust: Copie cohérente de la base à l'instant T
-    Rust->>Rust: Empaquetage en ZIP avec manifest.json
-    Rust->>Remote: Téléversement en flux continu (SigV4 / WebDAV PUT)
-    Remote-->>Rust: Téléversement confirmé (200 OK)
-    Rust-->>UI: Instantané créé avec succès
-```
+Par défaut : **désactivées**, intervalle de **sept jours**. Activez, choisissez **1–365 jours**, puis **Enregistrer les préférences**. Annuler et un échec d’enregistrement conservent la planification enregistrée. Omera vérifie toutes les 30 secondes lorsqu’il fonctionne ; la première tentative commence à la prochaine vérification. L’intervalle suivant commence après une sauvegarde réussie. Fermer Omera arrête la planification. Désactiver arrête les futures tentatives ; celle en cours peut se terminer.
 
-### Garanties des instantanés :
-- **Sans interruption (Non-Locking)** : Utilise l'API de vacuum en ligne de SQLite. Vous pouvez continuer à parcourir, noter et générer des images sans aucune interruption de service.
-- **Sécurité de restauration (Rollback)** : Lors de la restauration d'un instantané distant, Omera génère automatiquement une copie locale de secours (`omera.db.rollback`) avant d'appliquer la sauvegarde distante, prévenant toute coupure réseau ou corruption de téléchargement.
+**Planification enregistrée** affiche séparément des modifications le statut, le dernier succès/essai, la prochaine date, l’archive et l’erreur. Un échec ou une interruption impose **une heure** d’attente, même après redémarrage. Changer de destination crée une nouvelle planification ; changer uniquement les identifiants conserve les dates. Un état corrompu est préservé et suspend la planification jusqu’à réparation et redémarrage.
+
+### Restauration
+
+La restauration valide l’instantané et le prépare pour le prochain démarrage. Fermez et relancez Omera ; actualiser la fenêtre ne suffit pas. La base actuelle est conservée dans `omera.pre-restore-<UUID>.db` avant l’activation transactionnelle. Les médias ou identifiants manquants ne sont pas restaurés.
 
 ---
 

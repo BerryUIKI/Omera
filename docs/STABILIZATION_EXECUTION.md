@@ -31,7 +31,7 @@ required CI checks pass; delete only the merged task branch.
 | 12 | #259 | Table stack expansion with scoped members and keyboard access | Merged #362; CI and synthetic browser checks passed |
 | 13 | #263 | Configurable Table columns at ordinary/narrow widths, compatible persistence defaults | Merged #363; CI and synthetic browser checks passed |
 | 14 | #297 | Session masking toggle and guarded shortcut; reset temporary reveals on enabling masking; saved startup default stays explicit | Merged #364; CI and synthetic browser checks passed |
-| 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Snapshot foundation merged #365; schedule policy merged #366; worker/status implemented; settings integration next |
+| 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Snapshot foundation merged #365; schedule policy merged #366; engine/worker merged #367–#368; settings implemented and checked |
 | 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Planned |
 
 Safety and correctness precede convenience controls. Lock changes precede new
@@ -113,3 +113,14 @@ exercise localized text rather than English-only fixture fallbacks.
   Rust tests pass. Worker startup/exit and status IPC are now wired; the real
   background-worker completion test passes. IPC inventory is 160 commands. The
   settings GUI follows separately; #246 and #256 remain open.
+
+- Automatic backup settings on 2026-10-11: build, 254 frontend tests, formatting,
+  all-targets workspace clippy and workspace Rust tests pass. A shared JSON fixture
+  verifies Rust status serialization and TypeScript fields separately from the
+  regenerated 160-command inventory. Production polling tests cover tab lifetimes,
+  deduplication, late replies, errors and cleanup. Revision/save-failure tests retain
+  drafts. Synthetic browser checks at 960 × 640 and 1600 × 950 verify Cancel,
+  successful Save/reopen, two-day saved status, failed Save, retry/status errors and
+  no panel overflow. Real worker tests use temporary SQLite/local targets; live
+  remote credentials/provider qualification is separate. Seven user guides explain
+  scheduling and startup restore without claiming media/credential backups.
