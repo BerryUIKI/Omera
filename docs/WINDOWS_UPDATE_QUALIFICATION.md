@@ -29,3 +29,13 @@ Private update-signing credentials stay outside this checkout and are not copied
 into the Windows test account. Preserve evidence outside the managed checkout
 before archiving it. Remove only task-owned fixtures after qualification; cleanup
 of the normal installed application or library is never part of this test.
+
+## Owner's macOS and Linux handoff
+
+Build the same 0.4.4 fixture through the non-publishing artifact workflow for
+Linux x64, and through the production macOS qualification-only workflow for
+Apple Silicon. Retain the corresponding signed 0.4.3 baseline packages. The owner
+performs native installed-upgrade checks on those operating systems and records
+the version, hashes, restart, preferences, synthetic library and source retention.
+Do not substitute an unnotarized macOS artifact for the production-qualified DMG.
+These local installer pairs still leave official stable update discovery untested.
