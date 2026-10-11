@@ -10,6 +10,7 @@ desktop.ini
 # --- Tauri ---
 src-tauri/gen/schemas/
 src-tauri/target/
+src-tauri/windows/generated/
 
 # --- Node / frontend ---
 node_modules/
