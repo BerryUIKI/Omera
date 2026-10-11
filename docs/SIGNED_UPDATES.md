@@ -192,3 +192,17 @@ the successor's full platform matrix, notarization or installed-update behavior.
 The earlier completed production macOS evidence above remains valid for its 0.4.3
 artifact. No successor release was published; #256's installed and official stable
 discovery/download/install acceptance remains outstanding.
+
+### Windows Sandbox qualification resumed — 2026-10-12
+
+The owner enabled Windows Sandbox and authorized resuming the Windows test.
+Use the retained signed 0.4.3 and 0.4.4 NSIS installers inside its disposable
+guest profile, with only the four synthetic media fixtures transferred from the
+host. Record fresh-install behavior, displayed versions, saved library/preferences,
+upgrade/restart behavior and shortcut/uninstall registration. No host Omera
+installation, personal library or signing credentials belong in the guest.
+
+Record results after observing the installed applications. A local NSIS upgrade
+does not qualify the official stable discovery/download/install path; #256 remains
+open for that acceptance and the owner-run macOS/Linux installed matrix. Do not
+publish a successor or integrate the fixture version as part of this test.
