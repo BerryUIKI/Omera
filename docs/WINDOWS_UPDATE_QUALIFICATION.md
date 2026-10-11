@@ -62,7 +62,11 @@ These local installer pairs still leave official stable update discovery unteste
   credentials or ordinary library data were copied.
 - [Artifact run 38162255683](https://github.com/BerryUIKI/Omera/actions/runs/38162255683)
   and [macOS qualification run 38162261453](https://github.com/BerryUIKI/Omera/actions/runs/38162261453)
-  were dispatched from fixture revision `b62b244`. Results are pending.
-- Native Windows installation has not run. The normal profile remains intact;
-  a disposable-account choice and the owner's administrator setup remain pending.
-  No macOS/Linux installed-upgrade result is claimed before the owner's tests.
+  were dispatched from fixture revision `b62b244`, then canceled at the owner's
+  request. The macOS artifact-only job completed before cancellation; it does not
+  establish Developer ID/notarization or native installed-upgrade acceptance.
+- The owner requested that update testing be skipped for now and Windows Sandbox
+  installed later. Native Windows installation has not run; no account or Sandbox
+  was created, and the normal profile remains intact. Account helpers are retained
+  for review only, with no setup or installer launch requested while testing is
+  deferred. No macOS/Linux installed-upgrade result is claimed.
