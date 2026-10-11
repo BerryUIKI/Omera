@@ -157,7 +157,7 @@ exercise localized text rather than English-only fixture fallbacks.
   acceptance and approved publication are still outstanding.
 - Owner decision on 2026-10-12: defer update testing and Windows Sandbox setup.
   A signed local Windows 0.4.4 fixture was built and retained with verified 0.4.3
-  baselines and synthetic media. No native installer, temporary account or Sandbox
-  was created/executed. The successor qualification runs were canceled after the
+  baselines and synthetic media. No native installation was performed, and no
+  temporary account or Sandbox was created. Qualification was canceled after the
   deferral; partial results do not establish platform acceptance. #256 stays open;
   see [SIGNED_UPDATES.md](SIGNED_UPDATES.md) for exact evidence and remaining gates.
