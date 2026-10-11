@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validateInputs, collectInstallers, publicKeyFile } from '../scripts/update-signing.mjs';
@@ -30,9 +30,14 @@ test('installer inventory excludes app internals and signature files', () => {
   const dir = mkdtempSync(join(tmpdir(), 'omera-signing-inventory-'));
   try {
     mkdirSync(join(dir, 'nsis')); mkdirSync(join(dir, 'Omera.app'));
+    mkdirSync(join(dir, 'appimage')); mkdirSync(join(dir, 'appimage/Omera.AppDir'));
+    symlinkSync(join(dir, 'Omera.app'), join(dir, 'appimage/Omera.AppDir/runtime'), process.platform === 'win32' ? 'junction' : 'dir');
     for (const name of ['Omera.dmg', 'Omera.AppImage', 'Omera.deb', 'Omera.rpm', 'Omera.msi', 'Omera.dmg.minisig']) writeFileSync(join(dir, name), name);
     writeFileSync(join(dir, 'nsis/Omera-setup.exe'), 'installer');
     writeFileSync(join(dir, 'Omera.app/internal.exe'), 'excluded');
     assert.deepEqual(collectInstallers(dir), ['Omera.AppImage', 'Omera.deb', 'Omera.dmg', 'Omera.msi', 'Omera.rpm', 'nsis/Omera-setup.exe'].map(p => join(dir, p)).sort());
+    symlinkSync(join(dir, 'Omera.app'), join(dir, 'linked-installer.exe'), process.platform === 'win32' ? 'junction' : 'dir');
+    assert.throws(() => collectInstallers(dir), /symbolic links/);
+    assert.equal(readFileSync(join(dir, 'Omera.app/internal.exe'), 'utf8'), 'excluded');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

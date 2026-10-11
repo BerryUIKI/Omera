@@ -1,0 +1,86 @@
+name: Signed installer artifact checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev]
+    paths:
+      - .github/workflows/signed-update-qualification.yml
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    # Release secrets are never exposed to fork PRs. No releases or tags are created.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    name: Signed artifact (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb,rpm
+    runs-on: ${{ matrix.os }}
+    env:
+      OMERA_UPDATE_PUBLIC_KEY: ${{ vars.OMERA_UPDATE_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - name: Install Linux build dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libssl-dev rpm
+      - name: Build production verifier and test signing custody
+        shell: bash
+        env:
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          node scripts/update-signing.mjs check
+          pnpm build
+          cargo build -p omera --bin verify-update
+          node scripts/update-signing.mjs preflight
+      - name: Build actual platform installers with embedded trust
+        run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Sign and verify actual installer bytes
+        env:
+          OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
+          OMERA_UPDATE_SIGNING_PASSWORD: ${{ secrets.OMERA_UPDATE_SIGNING_PASSWORD }}
+        run: node scripts/update-signing.mjs sign-bundle target/${{ matrix.target }}/release/bundle
+      - name: Preserve signed installers for manual qualification
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-installers-${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            target/${{ matrix.target }}/release/bundle/**/*.exe
+            target/${{ matrix.target }}/release/bundle/**/*.msi
+            target/${{ matrix.target }}/release/bundle/**/*.dmg
+            target/${{ matrix.target }}/release/bundle/**/*.AppImage
+            target/${{ matrix.target }}/release/bundle/**/*.deb
+            target/${{ matrix.target }}/release/bundle/**/*.rpm
+            target/${{ matrix.target }}/release/bundle/**/*.minisig
