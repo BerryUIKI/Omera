@@ -42,6 +42,10 @@ Exit: fresh install and supported Berry-to-Omera migrations pass, including skip
 
 Lead: verify signing configuration and real Windows/macOS/Linux target installers, plus Omera-to-next-Omera updates. Verify data, credentials, shortcuts, uninstall records and restore after update. Publish migration/recovery instructions and known limitations.
 
+The signed-update contract and current trust custody are documented in
+[SIGNED_UPDATES.md](SIGNED_UPDATES.md). Non-publishing signed artifact checks
+precede the installed-version matrix; neither alone authorizes release publication.
+
 Engineers: finish E11 QA evidence and run regression checks against the exact candidate commit. Do not infer success on untested architectures.
 
 Exit: required automated checks and platform/manual matrix pass; release blockers are resolved; only then integrate through `dev` to the release branch and publish. A renamed development build is not a qualified release.

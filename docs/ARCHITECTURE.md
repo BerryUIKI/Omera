@@ -97,6 +97,10 @@ The frontend is built with **Vue 3 Composition API** + **TypeScript** + **Vite**
   records callback success, not filesystem atomicity or rollback of partial IPC.
 - **Reactive i18n (`src/i18n/`)**: Lightweight reactive internationalization supporting 7 locales (`en`, `zh-CN`, `zh-TW`, `ja`, `de`, `fr`, `es`) and automatic OS language detection (`auto`).
 - **Updater (`src/utils/updater.ts` & `UpdateModal.vue`)**: SemVer comparison against GitHub Releases API with automated asset matching and release notes rendering.
+  Download and installation both use the streaming Minisign verifier in
+  `src-tauri/src/update_verification.rs`. Release tooling shares that verifier,
+  pins the public build input and verifies final draft installers before publication.
+  See [SIGNED_UPDATES.md](SIGNED_UPDATES.md) for key custody and qualification gates.
 - **Async Feature Surfaces**: Infrequent modals, drawers, managers, onboarding, and comparison views use dynamic component imports and are mounted only while open, keeping their JavaScript and scoped CSS out of the initial bundle.
 
 ### 3. Startup and Thumbnail Scheduling
