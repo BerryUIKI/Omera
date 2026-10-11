@@ -66,12 +66,17 @@ Section "-Omera runtime prerequisites"
 SectionEnd
 
 Function OmeraRuntimePage
+  Call OmeraCheckRuntime
   ClearErrors
   ${GetOptions} $CMDLINE "/P" $0
   ${IfNot} ${Errors}
+    ; Tauri can uninstall from its later passive reinstall page, before sections.
+    ${If} $OmeraRuntimeReady != 1
+      SetErrorLevel 1603
+      Quit
+    ${EndIf}
     Abort
   ${EndIf}
-  Call OmeraCheckRuntime
   ${If} $OmeraRuntimeReady == 1
     Abort
   ${EndIf}

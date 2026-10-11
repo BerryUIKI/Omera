@@ -48,6 +48,12 @@ SectionEnd
         assert.equal(result.error, undefined);
         assert.equal(result.status, expected);
         assert.equal(fs.existsSync(marker), expected === 0);
+        if (expected === 1603) {
+          const passive = spawnSync(exe, ['/P'], { windowsHide: true });
+          assert.equal(passive.error, undefined);
+          assert.equal(passive.status, 1603);
+          assert.equal(fs.existsSync(marker), false);
+        }
       }
     } finally {
       assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
