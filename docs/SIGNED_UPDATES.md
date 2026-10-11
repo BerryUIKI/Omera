@@ -1,7 +1,7 @@
 # Signed update delivery
 
 Updated: 2026-10-11. Lead-owned follow-up for #256; integration targets `dev`.
-This contract precedes implementation. It does not authorize publishing a release.
+This contract precedes release integration. It does not authorize publishing a release.
 
 ## Trust and custody
 
@@ -23,6 +23,27 @@ the Tauri CLI's encoded encrypted-key format. Never commit private keys, passwor
 or generated secret logs. A local recovery copy, if provisioned, lives outside the
 checkout with owner-only access and a password protected by the owner's OS account.
 Normal CI tests use a disposable test key, never the release private key.
+
+On 2026-10-11, no established update trust was present in the repository variables,
+secret names, checkout or build environment. A new encrypted key was provisioned
+after a signing probe passed the production streaming verifier. The reviewed
+public key is `src-tauri/update-public-key.txt`; repository signing inputs must
+match it. The recovery directory is `%USERPROFILE%/.codex/signing/omera-update-20261011`,
+restricted to its owner. Its password is protected with Windows DPAPI for that
+account. Recovery requires that account and its profile; arrange an independently
+protected maintainer recovery copy before release qualification. This establishes
+initial trust and does not rotate a previously trusted installed application.
+
+`cargo build -p omera --bin verify-update` builds the CLI that shares the app's
+verifier. `node scripts/update-signing.mjs check` validates inputs; `preflight`
+signs and verifies a disposable custody probe. `sign-bundle <directory>` signs
+supported installer files, excluding `.app` internals; `sign <asset>...` handles
+renamed final assets. `verify <asset>...` needs public trust only. Set
+`OMERA_UPDATE_VERIFIER` when the CLI lives outside `target/debug`.
+
+`node scripts/test-update-signing.mjs` exercises a disposable encrypted key and
+an artifact larger than three streaming buffers. CI runs it on all three OSes;
+the release key is never supplied to normal PR tests.
 
 ## Signing and publication
 
