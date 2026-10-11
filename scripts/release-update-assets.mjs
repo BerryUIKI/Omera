@@ -3,6 +3,7 @@ import { resolve, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { collectInstallers, signAssets, validateInputs, verifyAssets } from './update-signing.mjs';
+import { requireDraftRelease } from './release-preflight.mjs';
 
 const targets = {
   'x86_64-pc-windows-msvc': /x64.*\.exe$/i,
@@ -21,8 +22,7 @@ export function requireCoverage(assets, target) {
 export function uploadBundle(target, canonicalAsset) {
   validateInputs();
   if (!targets[target]) throw new Error('Unsupported release target');
-  if (!/^v\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(process.env.RELEASE_TAG || ''))
-    throw new Error('Expected a versioned release tag');
+  requireDraftRelease();
   const roots = [resolve('target', target, 'release/bundle'), resolve('src-tauri/target', target, 'release/bundle')].filter(existsSync);
   if (roots.length !== 1) throw new Error('Expected exactly one bundle directory');
   const assets = collectInstallers(roots[0]);

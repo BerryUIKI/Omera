@@ -69,6 +69,11 @@ draft status immediately before signed uploads and promotion. These checks prepa
 the release path; they do not authorize creating tags, integrating into `main`, or
 publishing a release. Installed-platform qualification remains required below.
 
+`node scripts/release-preflight.mjs check` performs the read-only tag/version,
+`main` ancestry and release-state checks using authenticated GitHub API reads.
+`draft` requires an existing draft for upload/promotion. The dispatch form has no
+default tag; select the release tag explicitly and run from its exact commit.
+
 Validate trust inputs before building. Sign final installer bytes only, after
 macOS signing, notarization, stapling and any renaming. Convert the Tauri CLI's
 encoded `.sig` output to plain `.minisig`; these formats are not interchangeable.
