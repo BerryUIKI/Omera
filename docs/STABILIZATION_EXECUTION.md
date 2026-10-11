@@ -161,3 +161,9 @@ exercise localized text rather than English-only fixture fallbacks.
   temporary account or Sandbox was created. Qualification was canceled after the
   deferral; partial results do not establish platform acceptance. #256 stays open;
   see [SIGNED_UPDATES.md](SIGNED_UPDATES.md) for exact evidence and remaining gates.
+- Subsequent owner decision on 2026-10-12: Windows Sandbox is available. The
+  signed 0.4.3 baseline installed, but startup failed with missing MSVCP140_1.dll.
+  System runtime detection and assisted installation now take priority. The owner
+  authorized publishing 0.4.4 through `dev` and `main` after these fixes and the
+  automated/production signing gates, with further native testing afterward.
+  This is a release decision, not installed-update acceptance; #256 stays open.
