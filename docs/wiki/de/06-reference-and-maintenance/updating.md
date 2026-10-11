@@ -1,56 +1,19 @@
-# Aktualisierung & Anwendungslebenszyklus
+# Omera aktualisieren
 
-Omera verfügt über eine integrierte, leise Aktualisierungsfunktion, die Verbesserungen und Fehlerbehebungen bereitstellt, ohne Ihren Arbeitsablauf zu unterbrechen oder Ihre Daten zu gefährden.
+Omera kann nach Veröffentlichungen suchen und ein geprüftes Installationspaket herunterladen. Die Installation erfordert Ihre Aktion; die Schritte hängen vom Betriebssystem ab.
 
----
+## Nach Updates suchen
 
-## 1. Nach Updates suchen
+Wählen Sie **Hilfe > Nach Updates suchen**. Die Prüfung beim Start lässt sich unter **Einstellungen > Allgemein** umschalten. Lesen Sie vor der Installation die Versionshinweise.
 
-### Automatische Prüfung beim Start:
-Standardmäßig fragt Omera beim Start der Anwendung die GitHub-Releases-API ab:
-- Ist eine neuere Version verfügbar, erscheint ein Benachrichtigungs-Badge im Menü **Hilfe**.
-- Dieses Verhalten lässt sich unter **Einstellungen > Allgemein > Beim Start nach Updates suchen** an- oder abschalten.
+## Herunterladen und installieren
 
-### Manuelle Prüfung:
-Sie können jederzeit manuell nach neuen Versionen suchen:
-- Wählen Sie in der oberen Menüleiste **Hilfe > Nach Updates suchen...**.
+1. Wählen Sie den automatischen Download, um das Paket aus der offiziellen GitHub-Veröffentlichung zu laden.
+2. Omera prüft die Signatur vor dem Angebot zur Installation und erneut vor dem Start des Installationsprogramms. Ein Fehler erlaubt keine Installation.
+3. Unter Windows kann der EXE-Installer die gewählte stille Installation verwenden. Unter macOS öffnet Omera das geprüfte DMG; schließen Sie die Installation ab und öffnen Sie Omera erneut. Unter Linux wird ein AppImage gestartet; DEB/RPM-Pakete benötigen den Paketmanager. Ein automatischer Neustart ist nicht auf jeder Plattform garantiert.
 
----
+Fehlen die Vertrauenskonfiguration oder die Signatur, oder schlägt die Prüfung fehl, öffnen Sie mit **Im Browser herunterladen** oder **GitHub Releases** die [offizielle Release-Seite](https://github.com/BerryUIKI/Omera/releases). Wählen Sie das Paket für Ihr Betriebssystem und Ihre Architektur und installieren Sie es nach dessen Anleitung. Deaktivieren Sie die Prüfung nicht und verwenden Sie keine nicht vertrauenswürdigen Spiegelserver. Ältere Builds ohne Update-Vertrauen benötigen zunächst ein manuelles Upgrade auf einen vertrauenswürdigen Build.
 
-## 2. Das Aktualisierungsfenster (`UpdateModal.vue`)
+## Bibliothek behalten
 
-Wird eine neue Version gefunden, öffnet sich das Update-Fenster:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│ Neue Version verfügbar: v0.3.1                                     [✕] │
-├────────────────────────────────────────────────────────────────────────┤
-│ Eine neue Version von Omera ist verfügbar (Aktuell: v0.3.0). │
-│                                                                        │
-│ Versionshinweise:                                                      │
-│ • Optimierter ComfyUI-Videometadaten-Parser für HunyuanVideo.          │
-│ • Verbesserte Latenz bei Keyset-Cursor-Seitenaufrufen (100k+ Dateien). │
-│ • 10-Sterne-Bewertungsauswahl in der Stapelaktionsleiste ergänzt.      │
-├────────────────────────────────────────────────────────────────────────┤
-│ Download-Fortschritt:                                                  │
-│ [██████████████████████████░░░░░░░░░░] 68% (12,4 MB / 18,2 MB · 4 MB/s)│
-├────────────────────────────────────────────────────────────────────────┤
-│ [ Abbrechen ]                        [ 🚀 Automatisch aktualisieren ]  │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### Installationsablauf:
-1. Klicken Sie auf **„🚀 Automatisch laden & aktualisieren“**.
-2. Omera lädt das passende Release-Paket direkt von GitHub Releases in einen temporären Staging-Ordner.
-3. Nach Abschluss des Downloads bittet Omera um einen Neustart der Anwendung.
-4. Das Installationsprogramm führt eine nahtlose stille Aktualisierung durch und startet Omera direkt in der neuen Version.
-
----
-
-## 3. Garantien zur Datenerhaltung
-
-Ein Upgrade von Omera **berührt niemals Ihre persönlichen Daten**:
-
-- **Sichere Datenbank**: Ihre SQLite-Datenbank `omera.db`, eigene Alben, Farb-Tags, Bewertungen und Stapelzuordnungen liegen im AppData-Verzeichnis Ihres Betriebssystems (`%APPDATA%`, `~/Library/Application Support` oder `~/.config`) — vollständig getrennt von den ausführbaren Anwendungsdateien.
-- **Inkrementelle Schema-Migrationen**: Bringt eine neue Version strukturelle Datenbankänderungen mit, führt das Rust-Backend beim ersten Start automatisch **abwärtskompatible Schema-Migrationen** über `PRAGMA user_version` aus. Tabellen werden schrittweise erweitert, bestehende Einträge bleiben unangetastet.
-- **Dauerhafte Einstellungen**: Ihre Konfiguration in `config.json`, das Vorschaubild-Budget und alle Ordnerpfade bleiben über alle Aktualisierungen hinweg zuverlässig erhalten.
+Programmdateien und Benutzerdaten werden getrennt gespeichert. Halten Sie vor einem Upgrade eine aktuelle Datenbanksicherung vor und bewahren Sie Originalmedien und Einstellungen auf. Schemamigrationen beim Start werden nur ergänzt; vor Version 1.0 bleiben Erkennung und Import älterer Daten unterstützt. Löschen Sie beim Upgrade keine Anwendungsdaten oder ursprünglichen Altdaten.

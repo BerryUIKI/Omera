@@ -1,56 +1,19 @@
-# Actualizaciones y ciclo de vida
+# Actualizar Omera
 
-Omera cuenta con un actualizador automático silencioso y directo sobre la instalación actual, diseñado para incorporar mejoras y correcciones sin interrumpir su trabajo ni poner en riesgo sus datos.
+Omera puede buscar versiones y descargar un instalador verificado. La instalación requiere tu intervención; los pasos dependen del sistema operativo.
 
----
+## Buscar actualizaciones
 
-## 1. Búsqueda de actualizaciones
+Selecciona **Ayuda > Buscar actualizaciones**. La comprobación al iniciar se activa o desactiva en **Preferencias > General**. Lee las notas de la versión antes de instalar.
 
-### Comprobación automática al inicio:
-De manera predeterminada, Omera consulta la API de GitHub Releases cuando se abre la aplicación:
-- Si hay una versión más reciente disponible, se muestra un indicador en el menú **Ayuda**.
-- Puede activar o desactivar este comportamiento en **Preferencias > General > Buscar actualizaciones al inicio**.
+## Descargar e instalar
 
-### Comprobación manual:
-Puede buscar actualizaciones de forma manual en cualquier momento:
-- Seleccione **Ayuda > Buscar actualizaciones...** en la barra de menús superior.
+1. Selecciona la descarga automática para obtener el paquete de la publicación oficial en GitHub.
+2. Omera verifica su firma antes de ofrecer la instalación y de nuevo antes de iniciar el instalador. Un error no autoriza la instalación.
+3. En Windows, el instalador EXE puede usar la opción de instalación silenciosa elegida. En macOS, Omera abre el DMG verificado; completa la instalación y vuelve a abrir Omera. En Linux se inicia un AppImage; los paquetes DEB/RPM requieren el gestor de paquetes. El reinicio automático no está garantizado en todas las plataformas.
 
----
+Si falta la configuración de confianza o la firma, o falla la verificación, utiliza **Descargar en el navegador** o **GitHub Releases** para abrir la [página oficial de versiones](https://github.com/BerryUIKI/Omera/releases). Elige el paquete para tu sistema y arquitectura y sigue sus instrucciones de instalación manual. No desactives la verificación ni uses un servidor espejo no fiable. Las versiones antiguas sin confianza de actualización requieren primero una actualización manual a una compilación de confianza.
 
-## 2. Ventana de actualización directa (`UpdateModal.vue`)
+## Conservar la biblioteca
 
-Cuando se detecta una nueva versión, se abre la ventana de **Actualización**:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│ Nueva versión disponible: v0.3.1                                   [✕] │
-├────────────────────────────────────────────────────────────────────────┤
-│ Hay una nueva versión de Omera disponible (Actual: v0.3.0).   │
-│                                                                        │
-│ Notas de la versión:                                                   │
-│ • Analizador optimizado de metadatos de vídeo ComfyUI para HunyuanVideo.│
-│ • Menor latencia en paginación profunda Keyset para más de 100k fotos. │
-│ • Selector de puntuación de 10 estrellas en la barra flotante de lotes.│
-├────────────────────────────────────────────────────────────────────────┤
-│ Progreso de la descarga:                                               │
-│ [██████████████████████████░░░░░░░░░░] 68% (12,4 MB / 18,2 MB · 4 MB/s)│
-├────────────────────────────────────────────────────────────────────────┤
-│ [ Cancelar ]                             [ ⚡ Instalar y reiniciar ahora ]│
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### Proceso de instalación:
-1. Haga clic en **«🚀 Descargar & actualizar automáticamente»** o **«⚡ Instalar y reiniciar ahora»**.
-2. Omera descarga el paquete oficial correspondiente a su sistema operativo directamente desde GitHub Releases a una carpeta temporal.
-3. Una vez finalizada la descarga, Omera solicita reiniciar la aplicación.
-4. El actualizador nativo se aplica de forma silenciosa sobre la instalación existente y reinicia automáticamente Omera.
-
----
-
-## 3. Garantías de preservación de datos
-
-Actualizar Omera **nunca modifica ni borra sus datos de usuario**:
-
-- **Seguridad de la base de datos**: Su base de datos `omera.db`, álbumes personalizados, etiquetas de colores, puntuaciones y relaciones de pilas de ráfagas se encuentran almacenados en el directorio AppData del usuario (`%APPDATA%`, `~/Library/Application Support` o `~/.config`), de forma totalmente independiente a los binarios de la aplicación.
-- **Migraciones de esquema de adición exclusiva (Append-Only)**: Cuando una nueva versión introduce novedades en la estructura de datos, el backend en Rust de Omera ejecuta **migraciones incrementales** al arrancar mediante `PRAGMA user_version`. Las migraciones añaden columnas o índices sin reescribir ni eliminar los registros existentes.
-- **Ajustes permanentes**: Su archivo de preferencias `config.json`, el presupuesto de caché de miniaturas y las rutas de las carpetas se mantienen intactos tras cada actualización.
+Los archivos del programa y los datos personales se almacenan por separado. Mantén una copia reciente de la base de datos antes de actualizar, además de los medios originales y los ajustes. Las migraciones de esquema al iniciar se añaden sin modificar las ya aplicadas. Antes de la versión 1.0 se mantienen la detección y la importación de datos antiguos. No elimines datos de la aplicación ni fuentes antiguas durante la actualización.

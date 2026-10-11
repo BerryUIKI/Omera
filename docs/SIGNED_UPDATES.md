@@ -28,7 +28,8 @@ On 2026-10-11, no established update trust was present in the repository variabl
 secret names, checkout or build environment. A new encrypted key was provisioned
 after a signing probe passed the production streaming verifier. The reviewed
 public key is `src-tauri/update-public-key.txt`; repository signing inputs must
-match it. The recovery directory is `%USERPROFILE%/.codex/signing/omera-update-20261011`,
+match it verbatim, without surrounding whitespace: Rust embeds that build input
+without trimming it. The recovery directory is `%USERPROFILE%/.codex/signing/omera-update-20261011`,
 restricted to its owner. Its password is protected with Windows DPAPI for that
 account. Recovery requires that account and its profile; arrange an independently
 protected maintainer recovery copy before release qualification. This establishes
@@ -87,3 +88,27 @@ package downloads require the package manager. Legacy identity/import paths rema
 supported. Synthetic signatures and passing development CI do not establish this
 qualification. Record unavailable credentials, publication or platform access as
 explicit gates; never weaken verification to bypass them.
+
+### Installed-version qualification procedure
+
+Use disposable OS accounts and a synthetic library, keeping ordinary user data
+outside the test. Record both package versions, build commits, OS/architecture,
+artifact hashes, signature verification, and observed application behavior.
+
+1. Manually install the first build containing the reviewed trust key. Confirm
+   library records, saved preferences and legacy discovery/import with fixtures.
+2. From that installed application, discover a subsequent signed official release,
+   download it, and complete the platform installation flow. Confirm the displayed
+   new version after reopening and the same library/configuration/credential access.
+3. Use controlled fixtures for missing signatures, altered installers and wrong-key
+   signatures, including disposable staged-file tampering before installation.
+   Confirm installation is blocked and the manual release-page action remains usable.
+   Do not publish malformed or tampered packages as public release assets.
+4. Verify Windows shortcuts/uninstall registration, macOS Developer ID/notarization
+   and Gatekeeper, and Linux AppImage/package behavior. Record staged restore and
+   legacy-source retention separately. Never clean up original data during testing.
+
+This procedure needs two versioned signed releases and Windows/macOS/Linux test
+environments. The current artifact-check workflow builds one repository version
+and does not exercise the installed application's release discovery or next-update
+path. No production or prerelease publication was performed by this remediation.

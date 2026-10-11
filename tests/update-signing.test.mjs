@@ -12,6 +12,8 @@ test('release signing requires pinned raw trust and encrypted-key credentials', 
   assert.equal(validateInputs(env), key);
   assert.throws(() => validateInputs({}), /reviewed trust/);
   assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_PUBLIC_KEY: Buffer.from(key).toString('base64') }), /reviewed trust/);
+  assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_PUBLIC_KEY: `${key}\n` }), /reviewed trust/);
+  assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_PUBLIC_KEY: ` ${key}` }), /reviewed trust/);
   assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_SIGNING_PASSWORD: '' }), /password/);
   assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_SIGNING_KEY: '' }), /signing key/);
   assert.equal(validateInputs({ OMERA_UPDATE_PUBLIC_KEY: key }, key, false), key);

@@ -11,7 +11,9 @@ const installerPattern = /\.(exe|msi|dmg|AppImage|deb|rpm)$/;
 const bundleFormats = new Set(['nsis', 'msi', 'dmg', 'appimage', 'deb', 'rpm']);
 
 export function validateInputs(env = process.env, pinned = readFileSync(publicKeyFile, 'utf8').trim(), signing = true) {
-  const key = env.OMERA_UPDATE_PUBLIC_KEY?.trim();
+  // Rust embeds this value verbatim; accepting surrounding whitespace here
+  // would let preflight pass while the installed updater rejects its own key.
+  const key = env.OMERA_UPDATE_PUBLIC_KEY;
   if (!key || key !== pinned) throw new Error('OMERA_UPDATE_PUBLIC_KEY must match the reviewed trust file');
   if (!/^[A-Za-z0-9+/]{56}$/.test(key) || Buffer.from(key, 'base64').length !== 42)
     throw new Error('Update public key must be the raw Minisign key line');
