@@ -220,3 +220,15 @@ qualification or provision a runtime silently and omit this failure.
 Prioritize Windows runtime packaging before retrying the installed matrix. Keep
 the original signed fixtures intact; record repaired package sources and hashes
 separately. Native startup must work on a clean profile without development tools.
+
+The owner requires system prerequisite detection and assisted installation,
+instead of embedding runtime DLLs. Detect a compatible x64 Visual C++ runtime
+during setup; when missing, explain the dependency and offer Microsoft's official
+redistributable installer. Keep its standard consent/elevation flow, verify the
+Microsoft publisher before launch, suppress automatic reboot, and recheck the
+runtime before installing Omera. Cancellation, failed downloads or failed runtime
+installation must leave the existing application intact. Silent setup must report
+the unmet prerequisite instead of opening an unexpected interactive installer.
+MSI must also reject an unmet prerequisite with actionable official guidance;
+never start a nested MSI prerequisite transaction. Microsoft recommends
+[central runtime deployment for independent servicing](https://learn.microsoft.com/en-us/cpp/windows/deployment-in-visual-cpp).
