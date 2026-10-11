@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validateInputs, collectInstallers, publicKeyFile } from '../scripts/update-signing.mjs';
+import { requireCoverage } from '../scripts/release-update-assets.mjs';
 
 test('release signing requires pinned raw trust and encrypted-key credentials', () => {
   const key = readFileSync(publicKeyFile, 'utf8').trim();
@@ -14,6 +15,15 @@ test('release signing requires pinned raw trust and encrypted-key credentials', 
   assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_SIGNING_PASSWORD: '' }), /password/);
   assert.throws(() => validateInputs({ ...env, OMERA_UPDATE_SIGNING_KEY: '' }), /signing key/);
   assert.equal(validateInputs({ OMERA_UPDATE_PUBLIC_KEY: key }, key, false), key);
+});
+
+test('publication requires every supported platform and unique asset names', () => {
+  const names = ['Omera_0.4.3_x64-setup.exe', 'Omera_macOS_aarch64.dmg', 'Omera_0.4.3_amd64.AppImage'];
+  assert.doesNotThrow(() => requireCoverage(names));
+  for (let i = 0; i < names.length; i++) assert.throws(() => requireCoverage(names.filter((_, index) => index !== i)), /required/);
+  assert.throws(() => requireCoverage([...names, names[0]]), /Duplicate/);
+  assert.throws(() => requireCoverage(names, 'unrecognized'), /required/);
+  assert.throws(() => requireCoverage(['foreign_x64-setup.exe'], 'x86_64-pc-windows-msvc'), /required/);
 });
 
 test('installer inventory excludes app internals and signature files', () => {
