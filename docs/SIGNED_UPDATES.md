@@ -167,3 +167,28 @@ The retained Omera 0.4.3 `Omera_macOS_aarch64.dmg` is 18,640,094 bytes, with SHA
 `a7169b70e37ccddb3ed72085a2308102bcb2ba9b5b90f140e592aa338cea8f00`.
 It is a short-lived qualification artifact, not a published successor or evidence
 of an installed application's next-version upgrade. #256 remains open.
+
+### Deferred native qualification — 2026-10-12
+
+The owner identified this device as Windows 11 x64 and will handle native macOS
+and Linux testing. They then requested that update testing be skipped for now,
+with Windows Sandbox setup deferred. No disposable account or Sandbox was created,
+and no test installer was executed against the existing Windows installation or
+library. Resume native testing only when a disposable environment is available.
+
+A local Windows NSIS 0.4.4 test successor was built from the isolated fixture
+revision `0f61a82`, with the reviewed embedded trust. Its resource version is
+0.4.4; the 17,528,830-byte installer passed production signature verification.
+SHA-256: `b61db56fc69cd74765529ce87c7ca1e1b7038c0abfcc25c55f5dc6a461ee2000`.
+The fixture version is not a release approval and must not be merged into `dev`
+or `main`. Verified 0.4.3 baseline installers, the Windows successor, synthetic
+media and a qualification checklist were retained locally for a later handoff.
+
+Successor [artifact run 38162255683](https://github.com/BerryUIKI/Omera/actions/runs/38162255683)
+and [production macOS run 38162261453](https://github.com/BerryUIKI/Omera/actions/runs/38162261453)
+used fixture revision `b62b244d50f0ee9ef6d6c25fab7fffe4592f90ee`. Cancellation was
+requested following the owner's deferral. Partial artifact results do not qualify
+the successor's full platform matrix, notarization or installed-update behavior.
+The earlier completed production macOS evidence above remains valid for its 0.4.3
+artifact. No successor release was published; #256's installed and official stable
+discovery/download/install acceptance remains outstanding.
