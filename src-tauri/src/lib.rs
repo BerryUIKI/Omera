@@ -4,7 +4,7 @@ pub mod cloud_sync;
 mod commands;
 mod config_store;
 pub mod legacy_migration;
-mod update_verification;
+pub mod update_verification;
 mod watcher;
 
 use std::collections::{HashMap, HashSet};
