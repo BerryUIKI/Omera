@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 export const publicKeyFile = join(root, 'src-tauri/update-public-key.txt');
 const installerPattern = /\.(exe|msi|dmg|AppImage|deb|rpm)$/;
+const bundleFormats = new Set(['nsis', 'msi', 'dmg', 'appimage', 'deb', 'rpm']);
 
 export function validateInputs(env = process.env, pinned = readFileSync(publicKeyFile, 'utf8').trim(), signing = true) {
   const key = env.OMERA_UPDATE_PUBLIC_KEY?.trim();
@@ -19,14 +20,19 @@ export function validateInputs(env = process.env, pinned = readFileSync(publicKe
   return key;
 }
 
-export function collectInstallers(directory) {
+export function collectInstallers(directory, depth = 0) {
   const files = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isSymbolicLink()) throw new Error('Bundle directory must not contain symbolic links');
+    if (entry.isSymbolicLink()) {
+      if (installerPattern.test(entry.name) || (depth === 0 && bundleFormats.has(entry.name)))
+        throw new Error('Published installers and format directories must not be symbolic links');
+      continue;
+    }
     if (entry.isDirectory()) {
-      // Application bundles contain executables, not separately published installers.
-      if (!entry.name.endsWith('.app')) files.push(...collectInstallers(path));
+      // Only the root and format outputs contain published installers. AppDir,
+      // DEB/RPM staging trees and .app contents may legitimately contain links.
+      if (depth === 0 && bundleFormats.has(entry.name)) files.push(...collectInstallers(path, 1));
     } else if (entry.isFile() && installerPattern.test(entry.name)) files.push(path);
   }
   return files.sort();

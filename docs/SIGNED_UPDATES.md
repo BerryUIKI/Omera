@@ -38,7 +38,9 @@ initial trust and does not rotate a previously trusted installed application.
 verifier. `node scripts/update-signing.mjs check` validates inputs; `preflight`
 signs and verifies a disposable custody probe. `sign-bundle <directory>` signs
 supported installer files, excluding `.app` internals; `sign <asset>...` handles
-renamed final assets. `verify <asset>...` needs public trust only. Set
+renamed final assets. Inventory is bounded to root files and the six known bundle
+format directories; application/staging internals are excluded. Symlinked published
+installers or format directories are rejected. `verify <asset>...` needs public trust only. Set
 `OMERA_UPDATE_VERIFIER` when the CLI lives outside `target/debug`.
 
 `node scripts/test-update-signing.mjs` exercises a disposable encrypted key and
