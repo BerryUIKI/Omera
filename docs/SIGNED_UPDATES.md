@@ -206,3 +206,17 @@ Record results after observing the installed applications. A local NSIS upgrade
 does not qualify the official stable discovery/download/install path; #256 remains
 open for that acceptance and the owner-run macOS/Linux installed matrix. Do not
 publish a successor or integrate the fixture version as part of this test.
+
+### Windows clean-profile startup failure — 2026-10-12
+
+The 0.4.3 NSIS baseline installed successfully in Windows Sandbox under
+`WDAGUtilityAccount`, including WebView2, Start Menu integration, an uninstaller
+and the selected desktop shortcut. Launching the installed application failed
+before first paint: Windows reported that `MSVCP140_1.dll` was not found.
+No synthetic library or preferences could be created, so the 0.4.3-to-0.4.4
+preservation test has not passed. Do not treat installer completion as app startup
+qualification or provision a runtime silently and omit this failure.
+
+Prioritize Windows runtime packaging before retrying the installed matrix. Keep
+the original signed fixtures intact; record repaired package sources and hashes
+separately. Native startup must work on a clean profile without development tools.
