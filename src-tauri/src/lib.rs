@@ -1,3 +1,4 @@
+pub mod backup_scheduler;
 pub mod cloud_backup;
 pub mod cloud_sync;
 mod commands;
