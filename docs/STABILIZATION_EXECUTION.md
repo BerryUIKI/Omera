@@ -32,7 +32,7 @@ required CI checks pass; delete only the merged task branch.
 | 13 | #263 | Configurable Table columns at ordinary/narrow widths, compatible persistence defaults | Merged #363; CI and synthetic browser checks passed |
 | 14 | #297 | Session masking toggle and guarded shortcut; reset temporary reveals on enabling masking; saved startup default stays explicit | Merged #364; CI and synthetic browser checks passed |
 | 15 | #246 | Opt-in automatic backup scheduling, compatible defaults, snapshot safety, restart/failure status | Merged #365–#369; all three CI platforms passed; issue closed |
-| 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Trust provisioned; signing/verifier tooling implemented; release integration and installed-platform qualification follow |
+| 16 | #256 | Provision signed update pipeline without a trust bypass; validate tampering/missing signatures; record credentials/platform gates | Merged #370–#372; trust provisioned and six actual packages signed/verified; signed publication and installed next-version qualification remain release gates; issue stays open |
 
 Safety and correctness precede convenience controls. Lock changes precede new
 background backup scheduling. Shared gallery/App changes proceed sequentially.
@@ -112,7 +112,8 @@ exercise localized text rather than English-only fixture fallbacks.
   all 249 frontend tests, formatting, all-targets workspace clippy and workspace
   Rust tests pass. Worker startup/exit and status IPC are now wired; the real
   background-worker completion test passes. IPC inventory is 160 commands. The
-  settings GUI follows separately; #246 and #256 remain open.
+  settings GUI followed separately in #369; #246 was then closed. #256 remains
+  subject to its release qualification gates.
 
 - Automatic backup settings on 2026-10-11: build, 254 frontend tests, formatting,
   all-targets workspace clippy and workspace Rust tests pass. A shared JSON fixture
@@ -124,3 +125,23 @@ exercise localized text rather than English-only fixture fallbacks.
   no panel overflow. Real worker tests use temporary SQLite/local targets; live
   remote credentials/provider qualification is separate. Seven user guides explain
   scheduling and startup restore without claiming media/credential backups.
+
+- Signed updates on 2026-10-11: build, 257 frontend tests, formatting, all-targets
+  workspace clippy, workspace Rust tests and real disposable signature tests pass
+  in three-platform CI. Initial trust was provisioned only after an independent
+  custody probe passed the app's streaming verifier. The release workflow embeds
+  pinned trust, signs final bytes, uploads exact adjacent signatures and verifies
+  draft assets before promotion. Runtime fail-closed behavior remains intact.
+- [Artifact check 38148084663](https://github.com/BerryUIKI/Omera/actions/runs/38148084663)
+  at `f917da48f2df3b9879b98a0ceb0b04e2e271a066` passed on Windows x64, macOS
+  aarch64 and Linux x64: EXE/MSI, DMG, and AppImage/DEB/RPM respectively. The first
+  Linux check exposed staging-tree symlinks; the corrected bounded inventory and
+  regression passed on rerun. The downloaded DMG also passed local verification.
+  These are short-lived engineering artifacts, not published releases; the macOS
+  check does not exercise Developer ID/notarization/Gatekeeper. No installed
+  next-version update was qualified. See [SIGNED_UPDATES.md](SIGNED_UPDATES.md)
+  for custody and the exact remaining release/installed-platform procedure.
+- Update documentation now covers manual first upgrades and signature failures
+  in all seven languages, without promising a silent install or automatic restart
+  on every platform. Public build inputs with surrounding whitespace are rejected
+  before compilation because the runtime embeds the key verbatim.
