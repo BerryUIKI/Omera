@@ -223,12 +223,13 @@ separately. Native startup must work on a clean profile without development tool
 
 The owner requires system prerequisite detection and assisted installation,
 instead of embedding runtime DLLs. Detect a compatible x64 Visual C++ runtime
-during setup; when missing, explain the dependency and offer Microsoft's official
-redistributable installer. Keep its standard consent/elevation flow, verify the
-Microsoft publisher before launch, suppress automatic reboot, and recheck the
-runtime before installing Omera. Cancellation, failed downloads or failed runtime
-installation must leave the existing application intact. Silent setup must report
-the unmet prerequisite instead of opening an unexpected interactive installer.
+during setup; when missing, explain the dependency and open Microsoft's official
+download page on request. The user installs the x64 redistributable through its
+standard license/elevation flow, then returns to setup. Recheck the runtime before
+installing Omera; do not execute a downloaded file or bypass consent on the user's
+behalf. Cancellation or failed runtime installation must leave the existing
+application intact. Silent setup must report the unmet prerequisite instead of
+opening an unexpected browser or interactive installer.
 MSI must also reject an unmet prerequisite with actionable official guidance;
 never start a nested MSI prerequisite transaction. Microsoft recommends
 [central runtime deployment for independent servicing](https://learn.microsoft.com/en-us/cpp/windows/deployment-in-visual-cpp).

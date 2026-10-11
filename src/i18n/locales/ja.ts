@@ -1,6 +1,14 @@
 import type { en } from "./en";
 
 export const ja: typeof en = {
+  installer: {
+    runtimeTitle: "Windows ランタイムが必要です",
+    runtimeHelp: "Omera には Microsoft Visual C++ x64 が必要です。Microsoft のダウンロードページを開き、最新の x64 再頒布可能パッケージをインストールしてから、ここに戻って「次へ」を選択してください。Windows が管理者の承認を求める場合があります。",
+    runtimeDownload: "Microsoft のダウンロードページを開く",
+    runtimeMinimum: "必要なランタイムの最低バージョン: {version}",
+    runtimeMissing: "必要な x64 ランタイムがないか、バージョンが古いままです。Microsoft の x64 再頒布可能パッケージをインストールまたは修復してから続行してください。",
+    runtimeSilent: "Omera には Microsoft Visual C++ x64 が必要です。https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist から最新の x64 再頒布可能パッケージをインストールし、セットアップを再実行してください。",
+  },
   review: {
     indexFailures: "{count} 件の画像に失敗しました。再実行して再試行してください。",
     gallery: "画像ギャラリー",

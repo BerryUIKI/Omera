@@ -1,6 +1,14 @@
 import type { en } from "./en";
 
 export const zhTW: typeof en = {
+  installer: {
+    runtimeTitle: "需要 Windows 執行環境",
+    runtimeHelp: "Omera 需要 Microsoft Visual C++ x64。請開啟微軟下載頁面，安裝最新的 x64 可轉散發套件，再返回此處並選擇「下一步」。Windows 可能會要求管理員核准。",
+    runtimeDownload: "開啟微軟下載頁面",
+    runtimeMinimum: "最低執行環境版本：{version}",
+    runtimeMissing: "所需的 x64 執行環境仍遺失或版本過舊。請安裝或修復微軟的 x64 可轉散發套件後再繼續。",
+    runtimeSilent: "Omera 需要 Microsoft Visual C++ x64。請從 https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist 安裝最新的 x64 可轉散發套件，再重新執行安裝程式。",
+  },
   review: {
     indexFailures: "{count} 張影像處理失敗。再次執行索引以重試。",
     gallery: "影像庫",
