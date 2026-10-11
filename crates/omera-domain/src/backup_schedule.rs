@@ -190,4 +190,17 @@ mod tests {
         assert!(value["next_due_at"].is_null());
         assert_eq!(value.as_object().unwrap().len(), 8);
     }
+
+    #[test]
+    fn successful_status_matches_shared_frontend_wire_fixture() {
+        let mut schedule = BackupSchedule::default();
+        schedule.configure(100, true, 7, "fixture destination".into());
+        schedule.begin_if_due(100);
+        schedule.finish(110, Ok("fixture.zip".into()));
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/automatic-backup-status.json"
+        ))
+        .unwrap();
+        assert_eq!(serde_json::to_value(schedule.status).unwrap(), fixture);
+    }
 }

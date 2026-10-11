@@ -1,6 +1,6 @@
 # 云端快照备份与增量同步
 
-Omera 内置了专用的云端快照备份与差异增量同步引擎（`src-tauri/src/cloud_backup.rs` 与 `src-tauri/src/cloud_sync.rs`），无需依赖任何第三方繁琐的备份软件，即可实现数据库的秒级热备份以及远程媒体资产的增量镜像。
+Omera 内置了专用的云端快照备份与差异增量同步引擎（`src-tauri/src/cloud_backup.rs` 与 `src-tauri/src/cloud_sync.rs`），无需依赖任何第三方繁琐的备份软件，即可实现数据库的一致性快照备份以及远程媒体资产的增量镜像。
 
 ---
 
@@ -16,29 +16,19 @@ Omera 内置了专用的云端快照备份与差异增量同步引擎（`src-tau
 
 ---
 
-## 2. SQLite 在线热快照机制 (`cloud_backup_create_snapshot`)
+## 2. 数据库快照备份
 
-Omera 基于 SQLite 原生的 `VACUUM INTO` 核心指令实现高可靠一致性快照：
+快照包含 `omera.db` 和 `manifest.json`，保存图库记录、标签与评分，不包含媒体文件、设置或凭据。在**设置 > 云端备份**中配置目标，然后选择**立即创建快照**进行手动备份。归档名称唯一，本地发布采用原子操作。现有备份不会自动删除。
 
-```mermaid
-sequenceDiagram
-    participant UI as Omera Studio 前端
-    participant Rust as Rust 后台 (cloud_backup.rs)
-    participant DB as SQLite WAL (omera.db)
-    participant Remote as 远端云存储 (S3/WebDAV)
+### 自动备份
 
-    UI->>Rust: 请求创建备份快照
-    Rust->>DB: 执行 VACUUM INTO temp_snapshot.db (无锁操作)
-    DB-->>Rust: 返回一致性时间点完整数据库副本
-    Rust->>Rust: 结合 manifest.json 打包为 ZIP 归档
-    Rust->>Remote: 流式上传 (SigV4 / WebDAV PUT)
-    Remote-->>Rust: 上传确认应答 (200 OK)
-    Rust-->>UI: 快照创建成功并刷新列表
-```
+默认**关闭**，间隔为**七天**。启用后选择 **1–365 天**并**保存设置**。取消或保存失败会保留原计划。Omera 运行时每 30 秒检查，首次备份将在下一次检查开始；后续间隔从成功备份完成时计算。退出 Omera 会停止调度；关闭自动备份会停止后续任务，正在进行的备份可完成。
 
-### 快照可靠性保障：
-- **无锁非阻塞 (Non-Locking)**：利用 SQLite WAL 的底层并发特性，备份期间数据库无需停机，你可以继续顺畅看图、评分或跑图入库，丝毫不受干扰。
-- **自动本地回滚防线**：在执行从云端快照还原操作时，Omera 会在覆盖前自动在本地留存一份回滚备份（`omera.db.rollback`），即使遭遇意外断网或文件损坏，亦可一键安全回退。
+**已保存的计划**独立于待保存编辑显示运行状态、上次成功与尝试、下次时间、归档和错误。失败或中断后等待**一小时**重试，重启后也遵循此规则。更换目标会建立新计划，仅轮换凭据不改变时间。损坏的计划文件会保留并暂停调度，修复后需重启 Omera。
+
+### 恢复
+
+恢复会验证快照，并暂存到下次应用启动时启用。请退出并重新启动 Omera，单独刷新窗口不足以启用恢复。启动时会先将当前数据库保存为独立的 `omera.pre-restore-<UUID>.db` 恢复点，再事务性启用快照。快照不能恢复丢失的媒体或凭据。
 
 ---
 
