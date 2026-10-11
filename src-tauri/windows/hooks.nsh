@@ -1,5 +1,6 @@
 ; Omera custom NSIS installer hooks
 ; Enhances installation lifecycle, process safety and shortcut cleanup
+!include "${__FILEDIR__}\prerequisites.nsh"
 
 !macro NSIS_HOOK_PREINSTALL
   ; Terminate any running Omera instances to prevent file lock during install / update
