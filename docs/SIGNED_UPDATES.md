@@ -268,3 +268,14 @@ The actual MSI package also passed those safe-session checks against the host's
 compatible runtime. These checks do not qualify native app startup, library
 preservation or official release discovery; the Sandbox startup failure remains
 the latest installed-app evidence until the owner runs the repaired release.
+
+### Release branch reconciliation — 2026-10-12
+
+The 0.4.4 release PR exposed two conflicts with main-only historical PR #187.
+All of its AutoTagModal contrast improvements and NSIS shortcut cleanup were
+already present in `dev`; preserve them together with the newer batch progress
+styles. Its PreviewPane theme assertions refer to a component removed from the
+current application. Retain the current AutoTagModal and InspectorPane theme
+coverage instead of restoring obsolete assertions. The reconciled application
+and test sources are byte-equivalent to the approved `dev` candidate; the merge
+records the existing release history without rewriting it.
