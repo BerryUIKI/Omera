@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -46,6 +46,8 @@ import { applyTheme, normalizeTheme, type AppTheme } from "../utils/theme";
 import ThumbnailDiagnosticsModal from "./ThumbnailDiagnosticsModal.vue";
 import MigrationWizardModal from "./MigrationWizardModal.vue";
 import LegacyMigrationModal from "./LegacyMigrationModal.vue";
+import AutomaticBackupSettings from "./AutomaticBackupSettings.vue";
+import { normalizeBackupInterval, useAutomaticBackupStatus } from "../utils/automatic-backup";
 import { checkServiceStatus } from "../utils/generation";
 import { open } from "@tauri-apps/plugin-dialog";
 import { collaborationSync, pingDatabase } from "../utils/collaborationSync";
@@ -187,6 +189,8 @@ const cloudS3SecretKey = ref("");
 const cloudS3Prefix = ref("backups/");
 const cloudAutoBackup = ref(false);
 const cloudAutoIntervalDays = ref(7);
+const { status: backupScheduleStatus, error: backupScheduleError, loading: backupScheduleLoading } =
+  useAutomaticBackupStatus(computed(() => props.show && activeTab.value === "cloudBackup"));
 
 const cloudPingStatus = ref<"unknown" | "testing" | "success" | "error">("unknown");
 const cloudPingLatency = ref<number | null>(null);
@@ -217,7 +221,7 @@ function getCurrentCloudConfig(): CloudBackupConfig {
     s3_secret_key: cloudS3SecretKey.value.trim() || null,
     s3_prefix: cloudS3Prefix.value.trim() || "backups/",
     auto_backup_enabled: cloudAutoBackup.value,
-    auto_backup_interval_days: cloudAutoIntervalDays.value,
+    auto_backup_interval_days: normalizeBackupInterval(cloudAutoIntervalDays.value),
   };
 }
 
@@ -453,7 +457,7 @@ async function loadSettingsAndPaths() {
       cloudS3SecretKey.value = cb.s3_secret_key || "";
       cloudS3Prefix.value = cb.s3_prefix || "backups/";
       cloudAutoBackup.value = cb.auto_backup_enabled ?? false;
-      cloudAutoIntervalDays.value = cb.auto_backup_interval_days ?? 7;
+      cloudAutoIntervalDays.value = normalizeBackupInterval(cb.auto_backup_interval_days ?? 7);
     }
 
     allowOverrideExistingPrompt.value = config.allow_override_existing_prompt ?? false;
@@ -1241,6 +1245,12 @@ async function saveSettings() {
               <h4 class="panel-title">{{ t.settings.cloudBackup.title }}</h4>
               <p class="panel-subtitle">{{ t.settings.cloudBackup.subtitle }}</p>
             </div>
+
+            <AutomaticBackupSettings
+              v-model:enabled="cloudAutoBackup" v-model:interval-days="cloudAutoIntervalDays"
+              :status="backupScheduleStatus" :loading="backupScheduleLoading"
+              :error="backupScheduleError" :saving="savingSettings"
+            />
 
             <!-- Provider Selection -->
             <div class="setting-row">

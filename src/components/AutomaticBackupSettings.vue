@@ -37,6 +37,9 @@ function changeInterval(event: Event) {
   input.value = String(value);
   emit("update:intervalDays", value);
 }
+function editInterval(event: Event) {
+  emit("update:intervalDays", (event.target as HTMLInputElement).valueAsNumber);
+}
 </script>
 
 <template>
@@ -49,7 +52,7 @@ function changeInterval(event: Event) {
     <label class="automatic-interval">
       <span>{{ text.automaticInterval }}</span>
       <input type="number" min="1" max="365" step="1" :value="intervalDays"
-        :disabled="!enabled || saving" @change="changeInterval" />
+        :disabled="!enabled || saving" @input="editInterval" @change="changeInterval" />
     </label>
     <p class="automatic-hint">{{ text.automaticHint }}</p>
     <div aria-live="polite">

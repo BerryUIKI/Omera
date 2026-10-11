@@ -54,8 +54,9 @@ test('backup controls and saved worker states render in every locale',async()=>{
     const events=[];
     const state=panel.setup(props,{expose(){},emit:(...args)=>events.push(args)});
     state.changeEnabled({target:{checked:false}});
+    state.editInterval({target:{valueAsNumber:2}});
     state.changeInterval({target:{valueAsNumber:900,value:'900'}});
-    assert.deepEqual(events,[['update:enabled',false],['update:intervalDays',365]]);
+    assert.deepEqual(events,[['update:enabled',false],['update:intervalDays',2],['update:intervalDays',365]]);
   });
 });
 test('status interface agrees with the shared Rust serialization fixture',()=>{
