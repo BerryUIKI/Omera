@@ -298,3 +298,22 @@ Public status reports enabled, interval_days, running, last_attempt_at,
 last_success_at, next_due_at, last_error and last_snapshot (archive filename).
 Corrupt state must be preserved and scheduling paused with a visible error.
 Runtime worker/status IPC and UI follow separately; this policy adds no command.
+
+
+## Automatic backup worker — implementation contract
+
+One background worker starts after the SQLite-backed application state is ready,
+without blocking the WebView or walking media directories. It checks saved
+configuration every 30 seconds; closed applications do not run backups. The
+private `automatic-backup-state.json` file is atomically synced before starting
+and after completing a job. Invalid persisted state is preserved and pauses
+scheduling until repaired and the application restarted. Invalid configuration
+pauses scheduling until corrected. Credentials are resolved only when due;
+failures are reported without treating keyring references as real credentials.
+
+Snapshots use independent database connections. Status reads take only a short
+in-memory lock; no filesystem or network work holds the shared application DB
+lock. Exit stops new jobs; interruption is recovered with one-hour backoff on
+restart. No automatic retention/deletion is introduced. A status-only command
+will expose the eight domain fields; settings still use revision-checked
+`save_app_config`. Destination hashes exclude credentials and inactive providers.

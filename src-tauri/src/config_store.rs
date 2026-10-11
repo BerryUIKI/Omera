@@ -106,6 +106,28 @@ pub fn load_readonly(path: &Path) -> Result<AppConfig, String> {
     Ok(config)
 }
 
+/// Scheduling reads saved preferences without accessing or changing credentials.
+pub(crate) fn backup_preferences(path: &Path) -> Result<omera_domain::CloudBackupConfig, String> {
+    let _guard = CONFIG_LOCK.lock().map_err(|e| e.to_string())?;
+    Ok(read(path)?.cloud_backup)
+}
+
+/// Resolve only backup credentials, and fail closed if any entry is unavailable.
+pub(crate) fn resolve_backup_credentials(
+    mut config: omera_domain::CloudBackupConfig,
+) -> Result<omera_domain::CloudBackupConfig, String> {
+    use omera_domain::CloudStorageProvider;
+    match config.provider {
+        CloudStorageProvider::LocalPath => {}
+        CloudStorageProvider::WebDav => resolve(&mut config.webdav_password)?,
+        CloudStorageProvider::S3 => {
+            resolve(&mut config.s3_access_key)?;
+            resolve(&mut config.s3_secret_key)?;
+        }
+    }
+    Ok(config)
+}
+
 pub fn save(path: &Path, mut config: AppConfig) -> Result<AppConfig, String> {
     let _guard = CONFIG_LOCK.lock().map_err(|e| e.to_string())?;
     let current = read(path)?;
@@ -271,6 +293,25 @@ mod tests {
         // Verify the source file on disk was not modified in any byte
         let on_disk_bytes = std::fs::read(&path).unwrap();
         assert_eq!(on_disk_bytes, raw_bytes);
+    }
+
+    #[test]
+    fn backup_preferences_do_not_resolve_or_rewrite_credentials() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let mut config = AppConfig::default();
+        config.cloud_backup.webdav_password = Some("keyring:missing-backup-fixture".into());
+        config.remote_connection_url = "keyring:missing-remote-fixture".into();
+        let bytes = serde_json::to_vec(&config).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        let preferences = backup_preferences(&path).unwrap();
+        assert_eq!(preferences, config.cloud_backup);
+        // An inactive provider must not ask the credential store for unrelated entries.
+        assert_eq!(
+            resolve_backup_credentials(preferences.clone()).unwrap(),
+            preferences
+        );
+        assert_eq!(std::fs::read(path).unwrap(), bytes);
     }
 
     #[test]
