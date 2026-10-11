@@ -1,6 +1,6 @@
 # Signed update delivery
 
-Updated: 2026-10-11. Lead-owned follow-up for #256; integration targets `dev`.
+Updated: 2026-10-12. Lead-owned follow-up for #256; integration targets `dev`.
 This contract precedes release integration. It does not authorize publishing a release.
 
 ## Trust and custody
@@ -56,6 +56,18 @@ These are engineering test packages. Its macOS DMG lacks the release workflow's
 Developer ID/notarization steps and must not be distributed as a production release.
 
 ## Signing and publication
+
+Before any build or release mutation, require the requested tag to match all three
+version manifests. The tag must already exist, resolve to the checked-out commit,
+and be included in `main`; a development checkout cannot create a release tag as a
+side effect. Existing published releases are immutable: retries may resume only
+an absent release or a draft. Authentication, network and unexpected API failures
+must block the run rather than be treated as an absent release.
+
+Serialize runs for the same tag without canceling an active publication. Recheck
+draft status immediately before signed uploads and promotion. These checks prepare
+the release path; they do not authorize creating tags, integrating into `main`, or
+publishing a release. Installed-platform qualification remains required below.
 
 Validate trust inputs before building. Sign final installer bytes only, after
 macOS signing, notarization, stapling and any renaming. Convert the Tauri CLI's
