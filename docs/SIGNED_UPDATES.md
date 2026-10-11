@@ -45,6 +45,13 @@ renamed final assets. `verify <asset>...` needs public trust only. Set
 an artifact larger than three streaming buffers. CI runs it on all three OSes;
 the release key is never supplied to normal PR tests.
 
+The separate `Signed installer artifact checks` workflow builds actual packages
+with embedded public trust, signs them and verifies their bytes. It runs manually
+or for an internal PR changing that workflow; fork PRs cannot use signing secrets.
+It stores installers as short-lived Actions artifacts and cannot publish releases.
+These are engineering test packages. Its macOS DMG lacks the release workflow's
+Developer ID/notarization steps and must not be distributed as a production release.
+
 ## Signing and publication
 
 Validate trust inputs before building. Sign final installer bytes only, after
@@ -62,7 +69,7 @@ adjacent signatures. The publication job downloads the draft, requires the three
 primary platform installers and verifies every supported installer, including
 secondary MSI/DEB/RPM assets. Missing or wrong signatures block promotion. Do not
 modify a published asset after signing. Run qualification before invoking release
-publication; a non-publishing qualification workflow follows separately.
+publication; the qualification workflow is the non-publishing test path.
 
 ## Qualification and completion
 
