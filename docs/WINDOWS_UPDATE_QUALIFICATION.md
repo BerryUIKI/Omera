@@ -12,6 +12,13 @@ Windows Sandbox is absent; use a separate disposable local account. Account setu
 requires the owner's administrator action and is not part of installer execution.
 Never reuse Codex's service sandbox accounts or request the owner's password.
 
+`scripts/prepare-windows-update-account.ps1` defaults to a read-only setup plan.
+Its explicit `-Create` mode is for the owner to review and run in an elevated
+Windows PowerShell window. It refuses an existing account, creates a three-day
+`OmeraUpdateQA` account in the built-in Users group, and prompts locally for the
+test password without saving it. No installer is launched by account preparation.
+The helper's creation mode has not been executed or qualified on this device.
+
 1. Verify the baseline and test-successor NSIS packages against the pinned public
    key, record their SHA-256 hashes and the exact source/build versions.
 2. In the disposable account, install 0.4.3, launch it, and create a synthetic
