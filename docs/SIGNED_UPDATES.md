@@ -56,6 +56,14 @@ Before promotion, download and verify the draft's supported installer assets;
 require Windows x64, macOS aarch64 and Linux x64 coverage. An incomplete or altered
 draft must remain unpublished. Preserve existing Developer ID/Gatekeeper gates.
 
+The release workflow validates the pinned variable and proves key custody before
+bundling. Windows/Linux installers and both final macOS DMG names receive exact
+adjacent signatures. The publication job downloads the draft, requires the three
+primary platform installers and verifies every supported installer, including
+secondary MSI/DEB/RPM assets. Missing or wrong signatures block promotion. Do not
+modify a published asset after signing. Run qualification before invoking release
+publication; a non-publishing qualification workflow follows separately.
+
 ## Qualification and completion
 
 Keep separate evidence for signing fixtures, actual platform artifacts and installed
