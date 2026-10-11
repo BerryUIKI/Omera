@@ -249,3 +249,22 @@ notes must disclose the pending installed-update matrix. NSIS guides interactive
 users to Microsoft's official runtime page and rechecks before continuing; silent
 and passive setup stop before replacing the existing app. MSI must stop before
 the installation transaction and permit uninstall even if the runtime is absent.
+
+### Installer prerequisite implementation checks — 2026-10-12
+
+Windows builds derive their minimum four-part runtime version from the selected
+MSVC redistributable's Microsoft-signed file metadata. Setup checks the system
+x64 registration and seven native System32 runtime files against that minimum.
+NSIS messages come from all seven application locales. MSI's existing English
+package uses the English prerequisite guidance from the same locale source.
+Neither package carries app-local Visual C++ DLLs or executes a runtime installer.
+
+Both actual Tauri NSIS and MSI debug packages compiled locally. Compiled NSIS
+fixtures exercise compatible runtime continuation and silent/passive unmet-runtime
+rejection (1603) before a marker section. Compiled MSI fixtures execute only
+AppSearch in a Windows Installer safe session: compatible and unmet version
+results, action ordering before the transaction, and uninstall exemption pass.
+The actual MSI package also passed those safe-session checks against the host's
+compatible runtime. These checks do not qualify native app startup, library
+preservation or official release discovery; the Sandbox startup failure remains
+the latest installed-app evidence until the owner runs the repaired release.

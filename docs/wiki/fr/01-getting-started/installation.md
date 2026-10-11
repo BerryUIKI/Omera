@@ -28,6 +28,14 @@ Omera utilise une architecture native ultra-efficace propulsée par **Tauri v2**
 Téléchargez les paquets officiels de production depuis la [page GitHub Releases](https://github.com/BerryUIKI/Omera/releases) ou le [site officiel](https://berryuiki.github.io/Omera/).
 
 ### Windows
+L'installation nécessite un runtime système Microsoft Visual C++ x64 compatible.
+Si demandé, ouvrez la [page officielle Microsoft](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)
+et installez ou réparez le dernier redistribuable **x64** (une autorisation
+administrateur peut être nécessaire). Revenez ensuite à l'installateur EXE et
+cliquez sur Suivant ; pour MSI, relancez l'installation. Le mode silencieux ou
+passif s'arrête si le runtime manque. Omera ne fournit pas les DLL du runtime et
+n'installe pas automatiquement le redistribuable.
+
 1. **Installateur standard (`Omera_Windows_x64.exe`)** :
    - Double-cliquez sur le fichier exécutable d'installation.
    - Suivez l'assistant d'installation pour choisir l'emplacement et créer les raccourcis sur le Bureau et dans le menu Démarrer.

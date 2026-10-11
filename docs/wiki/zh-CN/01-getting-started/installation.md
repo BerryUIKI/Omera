@@ -28,6 +28,12 @@ Omera 采用由 **Tauri v2**、**Rust** 和 **SQLite WAL** 强力驱动的超高
 你可以从官方 [GitHub Releases 页面](https://github.com/BerryUIKI/Omera/releases) 或 [官方网站](https://berryuiki.github.io/Omera/) 下载正式版安装程序。
 
 ### Windows 系统
+安装需要兼容的 Microsoft Visual C++ x64 系统运行库。若安装程序提示缺少运行库，
+请打开 [Microsoft 官方下载页面](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)，
+安装或修复最新的 **x64** 可再发行组件（可能需要管理员批准），然后返回 EXE 安装程序点击“下一步”。
+使用 MSI 时，请在运行库安装完成后重新运行安装程序。静默或被动安装会在缺少运行库时停止；
+Omera 不捆绑运行库 DLL，也不会自动安装可再发行组件。
+
 1. **标准安装包 (`Omera_Windows_x64.exe`)**：
    - 双击运行安装程序可执行文件。
    - 按照安装向导提示选择安装目录，并自动生成桌面和开始菜单快捷方式。
