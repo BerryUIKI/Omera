@@ -2,6 +2,41 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Persistent cloud namespace identity for one registered library folder.
+/// Stored in the library database, so path changes and snapshots retain it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloudSyncRootIdentity {
+    pub folder_id: i64,
+    pub root_uuid: String,
+    /// Basename observed when identity was first allocated; never rewritten.
+    pub legacy_basename: String,
+}
+
+/// Compatibility mapping; old objects require manual verification, never deletion.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloudSyncRootMapping {
+    pub folder_id: i64,
+    pub source_path: String,
+    pub root_uuid: String,
+    pub legacy_prefix: String,
+    pub new_prefix: String,
+    pub legacy_ambiguous: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloudSyncNamespaceManifest {
+    pub version: u8,
+    pub remote_prefix: String,
+    pub roots: Vec<CloudSyncRootMapping>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CloudSyncNamespacePreview {
+    pub manifest_id: String,
+    pub manifest_path: String,
+    pub manifest: CloudSyncNamespaceManifest,
+}
+
 /// Direction of incremental mirroring.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -17,10 +52,30 @@ pub enum CloudSyncDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CloudSyncStrategy {
-    /// Compares file size and modified timestamp / remote ETag without reading the entire file.
+    /// Compares file size and modification time or ETag without reading entire files.
+    ///
+    /// **Guarantees:**
+    /// - Detects size changes immediately
+    /// - For LocalPath: Detects content changes via mtime comparison (remote mtime >= local mtime indicates synchronized)
+    ///
+    /// **Limitations:**
+    /// - LocalPath: Same-length content changes with earlier or equal mtime may be missed
+    /// - S3/WebDAV: No comparable metadata available; FastFingerprint always re-uploads same-size files to avoid missing changes
+    /// - Not cryptographically secure; timestamp manipulation could cause false matches (LocalPath only)
+    ///
+    /// Use Sha256Checksum for strict verification when correctness is critical.
     #[default]
     FastFingerprint,
     /// Calculates complete SHA-256 hash for strict delta verification.
+    ///
+    /// **Guarantees:**
+    /// - Cryptographically verifies content equality
+    /// - Detects any content change regardless of size or metadata
+    ///
+    /// **Limitations:**
+    /// - Reads entire local file for hashing
+    /// - S3: Requires custom `x-amz-meta-sha256` header on remote objects
+    /// - WebDAV: Must download entire remote file for comparison
     Sha256Checksum,
 }
 
@@ -61,6 +116,10 @@ pub struct CloudSyncOptions {
     /// Optional library folder IDs to restrict sync to; None or empty = all folders.
     #[serde(default)]
     pub folder_ids: Option<Vec<i64>>,
+    /// ID returned by namespace preview and explicitly acknowledged by the caller.
+    /// Omitted legacy requests deserialize but cannot start a changed layout.
+    #[serde(default)]
+    pub namespace_manifest_id: Option<String>,
 }
 
 fn default_concurrency() -> usize {
@@ -81,7 +140,38 @@ impl Default for CloudSyncOptions {
             dry_run: false,
             remote_prefix: default_media_prefix(),
             folder_ids: None,
+            namespace_manifest_id: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod namespace_contract_tests {
+    use super::*;
+
+    #[test]
+    fn namespace_preview_matches_shared_frontend_fixture() {
+        let value: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/cloud-sync-namespace.json"
+        ))
+        .unwrap();
+        let preview: CloudSyncNamespacePreview = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(preview.manifest.version, 2);
+        assert!(preview.manifest.roots[0].legacy_ambiguous);
+        assert_eq!(serde_json::to_value(preview).unwrap(), value);
+    }
+
+    #[test]
+    fn legacy_options_deserialize_without_layout_acknowledgement() {
+        let options: CloudSyncOptions = serde_json::from_str("{}").unwrap();
+        assert_eq!(options.namespace_manifest_id, None);
+        assert_eq!(options.remote_prefix, "media/");
+        let options: CloudSyncOptions =
+            serde_json::from_str(r#"{"namespace_manifest_id":"acknowledged-manifest"}"#).unwrap();
+        assert_eq!(
+            options.namespace_manifest_id.as_deref(),
+            Some("acknowledged-manifest")
+        );
     }
 }
 

@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "interval_days": 7,
+  "running": false,
+  "last_attempt_at": 100,
+  "last_success_at": 110,
+  "next_due_at": 604910,
+  "last_error": null,
+  "last_snapshot": "fixture.zip"
+}

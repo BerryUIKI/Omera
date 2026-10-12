@@ -10,7 +10,38 @@ Omera should remain interactive with large local libraries while keeping CPU, me
 
 ## Implemented Safeguards
 
+### Cloud media transfer contract
+
+The media worker shares these primitives across all items. Snapshot archive
+creation is a separate operation and is outside this media buffer budget.
+
+Media sync uses a shared transfer budget: at most eight active 64 KiB engine
+buffers (512 KiB total), independent of media size and the requested worker count.
+Hashing, local copying and remote uploads consume streams. Provider/TLS framing
+and small request metadata are additional bounded overhead, outside this budget.
+S3 signing requires a streaming digest pass before upload; checksum comparison
+reuses that digest. WebDAV checksum downloads are hashed as a stream.
+
+Cancellation is checked between chunks and while waiting for budget or bandwidth.
+Limiter waits release their mutex and check cancellation at most every 25 ms.
+Network adapters bound connect/read/write inactivity to two seconds, and HEAD
+and collection requests have a two-second total deadline. Active transfers have
+no total-duration deadline so deliberate bandwidth limits remain usable.
+Cancellation is checked before/after each collection request. Cancellation cannot
+interrupt an OS filesystem call already in progress. Local mirrors stage output
+before publication so interrupted transfers retain an existing destination.
+Synthetic stream, throttle, budget and stalled-provider fixtures establish these
+contracts; they do not constitute live-provider qualification.
+
 ### Gallery scrolling
+
+Bulk selection is explicitly **Select loaded items**, including Ctrl/Cmd+A and
+the Edit menu. It selects the currently loaded gallery representations without
+fetching additional pages or mounting additional images. Collapsed stack members
+are excluded until expanded. New pages do not silently extend an existing
+selection; the action can be repeated after loading them. The batch bar reports
+the selected count against the full filtered result population and separately
+shows the selectable loaded count. Clearing/navigating resets selection normally.
 
 - Grid and Waterfall cards keep the zoom-selected width. Window resizing changes the column count rather than stretching images.
 - Scroll events are coalesced through `requestAnimationFrame`, limiting reactive updates to one per rendered frame.
@@ -30,6 +61,7 @@ Omera should remain interactive with large local libraries while keeping CPU, me
 - Paginated gallery queries apply every text, structured metadata, album, tag, favorite, NSFW, folder, sort, and range filter against the complete SQLite row before projecting the response.
 - Gallery responses preserve structured metadata required by Grid, Waterfall, Table, prompt copying, and grouping, along with stack identity and order. Large raw parameter strings and workflow graphs are omitted from page IPC.
 - Selecting or previewing a file fetches its complete record by ID. The frontend deduplicates concurrent requests and retains a 64-entry revision-aware LRU, so Inspector raw metadata remains available without repeating detail IPC.
+- After a successful library transform, the bounded gallery reload resets detail generations. Only affected open Inspector/Lightbox selections fetch the published record (at most two IDs, deduplicated); path/revision and generation checks discard stale responses, while concurrent curation edits survive. The new path also changes the thumbnail source revision.
 - Free-form queries retain the active folder, album, tag, favorite, or sensitivity scope instead of widening back to the full library. Stack summaries use the same SQL filter predicate as the page, and filtered expansion loads only matching members.
 - Semantic-search grouping is derived in one pass over its bounded result set, so stack counts and heroes never include images outside the semantic result.
 
@@ -83,6 +115,39 @@ Use browser performance traces for WebView work, Rust timing spans for commands,
 
 ## Prioritized Follow-Up Work
 
+### Batch flag mutation refresh contract
+
+Favorite/NSFW execute, undo and redo share one completion path. Each confirmed
+boolean group patches visible/selected/lightbox records and detail-cache flags;
+completion (including a rejected group after partial success) reloads current
+filtered pages and library counts. The refresh restores surviving selection and
+its selection anchor, using at most the previously loaded page extent. It stops
+on query-context changes, end of results or a non-advancing page. Metadata facets
+and album/tag sidebars are not reloaded for these flag-only changes.
+
+Stack spread and collapse are nonessential animations. The reduced-motion rule
+must match both state selectors with equal specificity so expanded cards cannot
+override the guard.
+
+Browser validation (2026-10-10/11): production Vue components with synthetic IPC,
+1,200 generated records and no user media. Grid, Waterfall and Table were checked
+at 960×640 and 1600×950; Grid/Waterfall retained 200px cards. Scrollbar dragging,
+stack expansion/collapse and keyboard selection were exercised. Removing a
+favorite in Favorites removed its row and decremented the count; undo/redo
+restored/reapplied both. Removing a sensitive flag in Table likewise updated its
+filter and count. Reduced-motion CSS was forced in a temporary test server;
+expanded stack animation exposed a selector-specificity defect. This browser
+fixture does not qualify native Tauri transport or OS preference detection.
+
+### Batch export database ownership
+
+The export worker snapshots only the explicitly selected IDs and their lookup
+errors under the shared application database guard. It releases the guard before
+codecs, directory/ZIP writes, HTML generation and progress callbacks. Raster
+processing retains its bounded 16-item chunks. Metadata reflects the snapshot;
+source files can still change afterward and yield normal per-file failures.
+The summary/IPC shapes and collision policy stay unchanged.
+
 ### P0: Query pagination and incremental result delivery — Phase 2 complete
 
 The gallery fetches bounded pages and extends them near the viewport boundary. Virtual scrolling seamlessly connects directly to keyset cursor deep pagination (`search_files_cursor_page` and `search_files_by_query_cursor_page`). The initial page computes the exact filtered window total, and subsequent scroll requests use `PageCursor` (sort value + row ID) to bypass offset traversal and avoid repeating window counts. Keyset cursor access achieves O(1) row traversal (< 1 ms at 40,000+ items, an 84x speedup over offset paging).
@@ -121,3 +186,60 @@ Progress-event coalescing and streaming full-folder traversal are complete. Comp
 - [x] Provide System, Midnight, Graphite, Violet, and Light themes. Use semantic color tokens so every panel follows the selected theme.
 - [x] Add a small background-activity popover for scans, thumbnail generation, tagging, and embeddings, with pause/cancel controls where supported.
 - [x] Preserve scroll position independently per folder/search context so navigation does not force users back to the beginning.
+
+
+### Table stack expansion
+
+Table uses the same scoped stack summaries and expansion handler as Grid and
+Waterfall. Only the stack hero renders a count/expand button, with native Enter
+and Space activation and an explicit expanded state. Members remain ordinary
+virtual rows; expansion does not mount the full library. Expansion responses
+are discarded if the gallery context or request revision changed while awaiting
+IPC. Collapsing retains the hero and removes hidden member selections.
+
+
+### Configurable Table columns
+
+The compact Table default prioritizes filename, prompt and model rather than
+forcing all metadata columns into ordinary windows. Widths and visibility affect
+only the existing visible row window and spacer column count. Fixed table layout
+and single-line ellipsis keep row height at 46 pixels even for long names and
+prompts. Saved preferences use the authoritative configuration revision, with
+compatible defaults for earlier installations. Optional preview decoding remains
+bounded by the visible window; hiding preview avoids speculative thumbnail work.
+
+
+### Session sensitive-content masking
+
+The gallery toolbar shows the active session state with a text/icon toggle and
+pressed state. Shift+M changes it only while gallery shortcuts are available;
+focused inputs, dialogs and handled key events suppress the shortcut. Changes
+reuse the shared presentation state across views and navigation without IPC,
+rescans, classification writes or storage writes. Enabling masking clears all
+temporary reveals immediately. Settings controls the saved startup default;
+applying that preference resets the current session state. Masking affects only
+items already classified sensitive and does not classify unknown content.
+
+
+### Backup snapshot staging
+
+Snapshot creation uses an independent SQLite connection outside the shared
+application database guard. VACUUM INTO creates a stable database in a private
+application-data spool; its counts supply the manifest. SQLite and ZIP payloads
+remain on disk. Publication streams through one lease from the shared 64 KiB
+transfer-buffer pool (ZIP compression and SQLite use their own bounded working
+buffers). Local publication uses a synced temporary file and no-clobber atomic
+publication. UUID names prevent concurrent manual/automatic snapshots from
+colliding. Ordinary failures remove only the private spool and unpublished file.
+Backups contain the database and manifest, never user media or credentials.
+
+
+### Automatic backup worker
+
+One worker checks saved opt-in configuration every 30 seconds after the database
+opens; startup does not wait for its snapshot or provider I/O. It uses an
+independent database connection, never the application's shared database guard.
+Status reads use a separate short memory lock. Idle polls do not rewrite
+unchanged schedule state or resolve keyring credentials. Attempts are durably
+recorded before provider work; failure/restart backoff prevents tight retries.
+Application exit stops future attempts without blocking on an in-flight upload.

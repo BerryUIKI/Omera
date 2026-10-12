@@ -88,8 +88,19 @@ The frontend is built with **Vue 3 Composition API** + **TypeScript** + **Vite**
 - **Quick Look Lightbox (`LightboxModal.vue`)**: Immersive fullscreen viewer with pan, zoom, and keyboard navigation.
 
 ### 2. State & Localization
+
+- **Action history**: execute/undo/redo admit one transition at a time and reject
+  overlapping requests before invoking a callback. Commands move between stacks
+  only after callback success, so rejected undo/redo remains retryable in its
+  original position. Clearing history while a transition is pending rejects;
+  this prevents a completed callback from repopulating cleared history. History
+  records callback success, not filesystem atomicity or rollback of partial IPC.
 - **Reactive i18n (`src/i18n/`)**: Lightweight reactive internationalization supporting 7 locales (`en`, `zh-CN`, `zh-TW`, `ja`, `de`, `fr`, `es`) and automatic OS language detection (`auto`).
 - **Updater (`src/utils/updater.ts` & `UpdateModal.vue`)**: SemVer comparison against GitHub Releases API with automated asset matching and release notes rendering.
+  Download and installation both use the streaming Minisign verifier in
+  `src-tauri/src/update_verification.rs`. Release tooling shares that verifier,
+  pins the public build input and verifies final draft installers before publication.
+  See [SIGNED_UPDATES.md](SIGNED_UPDATES.md) for key custody and qualification gates.
 - **Async Feature Surfaces**: Infrequent modals, drawers, managers, onboarding, and comparison views use dynamic component imports and are mounted only while open, keeping their JavaScript and scoped CSS out of the initial bundle.
 
 ### 3. Startup and Thumbnail Scheduling

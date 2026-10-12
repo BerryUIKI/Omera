@@ -1,8 +1,9 @@
 use std::collections::HashSet;
-use std::fs;
-use std::io::Cursor;
+use std::fs::{self, File};
+use std::io::{Cursor, Read};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::time::Instant;
 
 use image::ImageReader;
@@ -16,6 +17,56 @@ use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
 use crate::html_showcase::{generate_html_showcase, ShowcaseItemMetadata};
+
+/// Encode a PNG image with optional embedded metadata preservation.
+/// This function mirrors the implementation in transform.rs to ensure consistent
+/// metadata handling across export and transformation paths.
+fn encode_png_with_metadata(
+    img: &image::DynamicImage,
+    buffer: &mut Vec<u8>,
+    metadata: Option<&omera_domain::ExtractedMetadata>,
+) -> Result<(), String> {
+    let mut encoder = png::Encoder::new(Cursor::new(buffer), img.width(), img.height());
+
+    // Configure color type and bit depth based on image
+    let color_type = match img.color() {
+        image::ColorType::L8 => png::ColorType::Grayscale,
+        image::ColorType::La8 => png::ColorType::GrayscaleAlpha,
+        image::ColorType::Rgb8 => png::ColorType::Rgb,
+        image::ColorType::Rgba8 => png::ColorType::Rgba,
+        _ => png::ColorType::Rgba,
+    };
+    encoder.set_color(color_type);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    // Add metadata text chunks if present
+    if let Some(meta) = metadata {
+        // Preserve the original parameters chunk if available (A1111 format)
+        if let Some(ref params) = meta.parameters {
+            encoder
+                .add_text_chunk("parameters".into(), params.clone())
+                .map_err(|e| format!("Failed to add parameters chunk: {e}"))?;
+        }
+    }
+
+    let mut writer = encoder
+        .write_header()
+        .map_err(|e| format!("Failed to write PNG header: {e}"))?;
+
+    // Write image data
+    let buf = match img.color() {
+        image::ColorType::L8 => img.to_luma8().into_raw(),
+        image::ColorType::La8 => img.to_luma_alpha8().into_raw(),
+        image::ColorType::Rgb8 => img.to_rgb8().into_raw(),
+        _ => img.to_rgba8().into_raw(),
+    };
+
+    writer
+        .write_image_data(&buf)
+        .map_err(|e| format!("Failed to write PNG image data: {e}"))?;
+
+    Ok(())
+}
 
 /// Sanitize filename by removing invalid OS characters and trimming.
 pub fn sanitize_filename_part(part: &str) -> String {
@@ -176,6 +227,21 @@ pub fn process_single_image(
         && options.privacy == MetadataPrivacyMode::KeepAll
         && options.max_edge.is_none();
 
+    // Extract source metadata from actual file bytes when needed for preservation
+    let source_metadata = if options.privacy == MetadataPrivacyMode::KeepAll
+        && (options.format == ExportFormat::Png
+            || (options.format == ExportFormat::Original && target_ext == "png"))
+    {
+        let mut file_handle = File::open(src_path)
+            .map_err(|e| format!("Failed to open {} for metadata extraction: {e}", file.path))?;
+        let mut header = [0u8; 32];
+        let _ = file_handle.read(&mut header);
+        omera_metadata::detect_container(&header)
+            .and_then(|c| omera_metadata::extract_metadata(c, src_path))
+    } else {
+        None
+    };
+
     let (image_bytes, final_width, final_height) = if is_fast_pass {
         let bytes = fs::read(src_path).map_err(|e| format!("Failed to read {}: {e}", file.path))?;
         let w = file.metadata.as_ref().and_then(|m| m.width).unwrap_or(0);
@@ -202,7 +268,7 @@ pub fn process_single_image(
 
         let (w, h) = (img.width(), img.height());
 
-        // Encode to target format (pure raster encoding strips all source metadata chunks)
+        // Encode to target format, preserving supported metadata for PNG with KeepAll
         let mut buffer = Vec::new();
         match options.format {
             ExportFormat::Webp => {
@@ -229,8 +295,8 @@ pub fn process_single_image(
                     .map_err(|e| format!("Failed to encode AVIF: {e}"))?;
             }
             ExportFormat::Png => {
-                img.write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
-                    .map_err(|e| format!("Failed to encode PNG: {e}"))?;
+                // Use metadata-preserving encoder for PNG
+                encode_png_with_metadata(&img, &mut buffer, source_metadata.as_ref())?;
             }
             ExportFormat::Original => {
                 if target_ext == "jpg" || target_ext == "jpeg" {
@@ -257,8 +323,8 @@ pub fn process_single_image(
                     img.write_with_encoder(encoder)
                         .map_err(|e| format!("Failed to encode AVIF: {e}"))?;
                 } else {
-                    img.write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
-                        .map_err(|e| format!("Failed to encode PNG: {e}"))?;
+                    // Original format is PNG - use metadata-preserving encoder
+                    encode_png_with_metadata(&img, &mut buffer, source_metadata.as_ref())?;
                 }
             }
         }
@@ -269,21 +335,25 @@ pub fn process_single_image(
     let sidecar = match options.sidecar {
         ExportSidecar::None => None,
         ExportSidecar::TextPrompt => {
-            if options.privacy == MetadataPrivacyMode::StripAll {
-                None
-            } else {
-                let prompt_text = file
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.prompt.as_deref())
-                    .or_else(|| file.metadata.as_ref().and_then(|m| m.raw.as_deref()))
-                    .unwrap_or_default()
-                    .to_string();
-                if prompt_text.is_empty() {
-                    None
-                } else {
-                    let sidecar_filename = format!("{base_stem}.txt");
-                    Some((sidecar_filename, prompt_text.into_bytes()))
+            // TextPrompt sidecar must respect prompt-removal policies
+            match options.privacy {
+                MetadataPrivacyMode::StripAll
+                | MetadataPrivacyMode::StripPromptOnly
+                | MetadataPrivacyMode::StripAllAiMetadata => None,
+                MetadataPrivacyMode::KeepAll => {
+                    let prompt_text = file
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.prompt.as_deref())
+                        .or_else(|| file.metadata.as_ref().and_then(|m| m.raw.as_deref()))
+                        .unwrap_or_default()
+                        .to_string();
+                    if prompt_text.is_empty() {
+                        None
+                    } else {
+                        let sidecar_filename = format!("{base_stem}.txt");
+                        Some((sidecar_filename, prompt_text.into_bytes()))
+                    }
                 }
             }
         }
@@ -431,7 +501,48 @@ pub fn estimate_export_single_image(
     })
 }
 
-/// Execute a complete batch export job with chunked concurrency and progress events.
+struct ExportInputs {
+    files: Vec<ImageFile>,
+    errors: Vec<String>,
+}
+
+fn prepare_export_inputs(db: &Database, options: &ExportOptions) -> ExportInputs {
+    let mut errors = Vec::new();
+    let mut files = Vec::with_capacity(options.file_ids.len());
+    for &id in &options.file_ids {
+        match db.get_file_by_id(id) {
+            Ok(Some(file)) => files.push(file),
+            Ok(None) => errors.push(format!("File id {id} not found in database")),
+            Err(e) => errors.push(format!("Database error querying file id {id}: {e}")),
+        }
+    }
+
+    ExportInputs { files, errors }
+}
+
+/// Export from a shared connection without holding its guard during media/output work.
+pub fn execute_shared_batch_export<P>(
+    db: &Mutex<Database>,
+    options: &ExportOptions,
+    progress_callback: P,
+) -> Result<ExportSummary, String>
+where
+    P: Fn(ExportProgressEvent) + Send + Sync + 'static,
+{
+    let start_time = Instant::now();
+    let inputs = {
+        let guard = db.lock().map_err(|_| "database lock poisoned")?;
+        prepare_export_inputs(&guard, options)
+    };
+    Ok(execute_export_inputs(
+        inputs,
+        options,
+        progress_callback,
+        start_time,
+    ))
+}
+
+/// Export using an exclusively owned connection (non-application callers).
 pub fn execute_batch_export<P>(
     db: &Database,
     options: &ExportOptions,
@@ -441,20 +552,27 @@ where
     P: Fn(ExportProgressEvent) + Send + Sync + 'static,
 {
     let start_time = Instant::now();
+    execute_export_inputs(
+        prepare_export_inputs(db, options),
+        options,
+        progress_callback,
+        start_time,
+    )
+}
+
+fn execute_export_inputs<P>(
+    inputs: ExportInputs,
+    options: &ExportOptions,
+    progress_callback: P,
+    start_time: Instant,
+) -> ExportSummary
+where
+    P: Fn(ExportProgressEvent) + Send + Sync + 'static,
+{
+    let ExportInputs { files, mut errors } = inputs;
     let total = options.file_ids.len();
-    let mut errors = Vec::new();
     let mut total_exported = 0;
     let mut total_bytes_written = 0u64;
-
-    // Load file records from database
-    let mut files = Vec::with_capacity(total);
-    for &id in &options.file_ids {
-        match db.get_file_by_id(id) {
-            Ok(Some(file)) => files.push(file),
-            Ok(None) => errors.push(format!("File id {id} not found in database")),
-            Err(e) => errors.push(format!("Database error querying file id {id}: {e}")),
-        }
-    }
 
     let dest_path = Path::new(&options.destination_path);
     let mut zip_writer = if options.as_zip {
@@ -672,6 +790,80 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_export_allows_concurrent_reads_and_retains_missing_id_outcomes() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.png");
+        image::DynamicImage::new_rgb8(16, 16).save(&source).unwrap();
+        let original = fs::read(&source).unwrap();
+        let database = Database::connect_in_memory().unwrap();
+        let folder = database.add_folder(&dir.path().to_string_lossy()).unwrap();
+        database
+            .upsert_file(&ImageFile {
+                id: None,
+                folder_id: folder.id,
+                path: source.to_string_lossy().into_owned(),
+                container: omera_domain::Container::Png,
+                size_bytes: original.len() as u64,
+                modified_at: 1,
+                metadata: None,
+                rating: None,
+                aesthetic_score: None,
+                is_favorite: false,
+                is_nsfw: false,
+                stack_id: None,
+                stack_order: 0,
+            })
+            .unwrap();
+        let id = database.list_files(folder.id).unwrap()[0].id.unwrap();
+        let database = std::sync::Arc::new(Mutex::new(database));
+        let worker_db = database.clone();
+        let options = ExportOptions {
+            file_ids: vec![-1, id],
+            format: ExportFormat::Png,
+            quality: 85,
+            privacy: MetadataPrivacyMode::KeepAll,
+            sidecar: ExportSidecar::None,
+            filename_template: "{name}".into(),
+            destination_path: dir.path().join("output").to_string_lossy().into_owned(),
+            as_zip: false,
+            max_edge: None,
+            export_html_showcase: false,
+            html_title: None,
+        };
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let release = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let worker_release = release.clone();
+        let worker = std::thread::spawn(move || {
+            execute_shared_batch_export(&worker_db, &options, move |_| {
+                started_tx.send(()).unwrap();
+                worker_release.wait();
+            })
+            .unwrap()
+        });
+        started_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let start = Instant::now();
+        let query = database.try_lock().map(|db| db.get_file_by_id(id).unwrap());
+        eprintln!("Concurrent batch-export query: {:?}", start.elapsed());
+        release.wait();
+        let summary = worker.join().unwrap();
+        assert!(
+            query.unwrap().is_some(),
+            "output work must release the application guard"
+        );
+        assert_eq!(summary.total_exported, 1);
+        assert_eq!(summary.total_failed, 1);
+        assert!(!summary.success);
+        assert!(summary
+            .errors
+            .iter()
+            .any(|error| error.contains("File id -1")));
+        assert!(dir.path().join("output/source.png").exists());
+        assert_eq!(fs::read(source).unwrap(), original);
+    }
     use image::{Rgb, RgbImage};
     use omera_domain::{Container, ExtractedMetadata, MetadataFormat};
 
@@ -781,13 +973,10 @@ mod tests {
         assert_eq!(decoded.width(), 100);
         assert_eq!(decoded.height(), 50);
 
-        // Verify sidecar
-        assert!(processed.sidecar.is_some());
-        let (sidecar_name, sidecar_bytes) = processed.sidecar.unwrap();
-        assert_eq!(sidecar_name, "dreamshaper_v8_1_sample.txt");
-        assert_eq!(
-            String::from_utf8(sidecar_bytes).unwrap(),
-            "beautiful sunset, masterpiece"
+        // Verify sidecar - StripAllAiMetadata must not leak prompt
+        assert!(
+            processed.sidecar.is_none(),
+            "StripAllAiMetadata must not produce a prompt-bearing sidecar"
         );
 
         // Verify showcase item
@@ -899,5 +1088,447 @@ mod tests {
         assert_eq!(estimate.output_width, 60);
         assert_eq!(estimate.output_height, 60);
         assert!(estimate.estimated_bytes > 0);
+    }
+
+    #[test]
+    fn test_keepall_png_export_preserves_embedded_metadata_with_resize() {
+        let dir = tempfile::tempdir().unwrap();
+        let src_img_path = dir.path().join("source_with_prompt.png");
+
+        // Create a PNG with embedded A1111 parameters using the png crate
+        let mut img_data = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(Cursor::new(&mut img_data), 200, 100);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .add_text_chunk(
+                    "parameters".into(),
+                    "masterpiece, beautiful landscape\nNegative prompt: low quality\nSteps: 30, Sampler: Euler a, CFG scale: 7.5, Seed: 123456789, Size: 200x100, Model: dreamshaper_v8".to_string(),
+                )
+                .unwrap();
+            let mut writer = encoder.write_header().unwrap();
+            let rgb_data = vec![128u8; 200 * 100 * 3];
+            writer.write_image_data(&rgb_data).unwrap();
+        }
+        fs::write(&src_img_path, &img_data).unwrap();
+
+        let file = ImageFile {
+            id: Some(1),
+            folder_id: 1,
+            path: src_img_path.to_string_lossy().to_string(),
+            container: Container::Png,
+            size_bytes: img_data.len() as u64,
+            modified_at: 1726000000,
+            metadata: None, // Intentionally None to test extraction from bytes
+            rating: Some(4),
+            aesthetic_score: None,
+            is_favorite: true,
+            is_nsfw: false,
+            stack_id: None,
+            stack_order: 0,
+        };
+
+        let options = ExportOptions {
+            file_ids: vec![1],
+            format: ExportFormat::Png,
+            quality: 85,
+            privacy: MetadataPrivacyMode::KeepAll,
+            sidecar: ExportSidecar::None,
+            filename_template: "{name}".to_string(),
+            destination_path: dir.path().to_string_lossy().to_string(),
+            as_zip: false,
+            max_edge: Some(100), // Force resize to trigger re-encoding
+            export_html_showcase: false,
+            html_title: None,
+        };
+
+        let processed = process_single_image(&file, &options, 0).unwrap();
+        assert_eq!(processed.width, 100);
+        assert_eq!(processed.height, 50);
+
+        // Re-read the exported bytes and verify metadata is preserved
+        let exported_container = omera_metadata::detect_container(
+            &processed.image_bytes[..32.min(processed.image_bytes.len())],
+        )
+        .expect("Should detect PNG container");
+        assert_eq!(exported_container, Container::Png);
+
+        // Write to temp file for metadata extraction
+        let exported_path = dir.path().join("exported_output.png");
+        fs::write(&exported_path, &processed.image_bytes).unwrap();
+
+        let extracted = omera_metadata::extract_metadata(exported_container, &exported_path)
+            .expect("Should extract metadata from exported PNG");
+
+        assert!(
+            extracted.prompt.is_some(),
+            "Exported PNG should preserve prompt metadata"
+        );
+        assert!(extracted.prompt.unwrap().contains("masterpiece"));
+        assert!(extracted.parameters.is_some());
+        assert!(extracted.parameters.unwrap().contains("Steps: 30"));
+    }
+
+    #[test]
+    fn test_keepall_original_png_with_resize_preserves_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let src_img_path = dir.path().join("original.png");
+
+        // Create source PNG with parameters
+        let mut img_data = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(Cursor::new(&mut img_data), 150, 150);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .add_text_chunk(
+                    "parameters".into(),
+                    "cyberpunk cityscape\nNegative prompt: blurry\nSteps: 25, Seed: 999, Model: sdxl_base".to_string(),
+                )
+                .unwrap();
+            let mut writer = encoder.write_header().unwrap();
+            let rgb_data = vec![64u8; 150 * 150 * 3];
+            writer.write_image_data(&rgb_data).unwrap();
+        }
+        fs::write(&src_img_path, &img_data).unwrap();
+
+        let file = ImageFile {
+            id: Some(2),
+            folder_id: 1,
+            path: src_img_path.to_string_lossy().to_string(),
+            container: Container::Png,
+            size_bytes: img_data.len() as u64,
+            modified_at: 1726000000,
+            metadata: None,
+            rating: None,
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: None,
+            stack_order: 0,
+        };
+
+        let options = ExportOptions {
+            file_ids: vec![2],
+            format: ExportFormat::Original, // Keep original format (PNG)
+            quality: 85,
+            privacy: MetadataPrivacyMode::KeepAll,
+            sidecar: ExportSidecar::None,
+            filename_template: "{name}".to_string(),
+            destination_path: dir.path().to_string_lossy().to_string(),
+            as_zip: false,
+            max_edge: Some(80), // Resize forces re-encoding
+            export_html_showcase: false,
+            html_title: None,
+        };
+
+        let processed = process_single_image(&file, &options, 0).unwrap();
+        assert_eq!(processed.width, 80);
+
+        // Verify metadata preservation
+        let exported_path = dir.path().join("exported_original.png");
+        fs::write(&exported_path, &processed.image_bytes).unwrap();
+
+        let extracted = omera_metadata::extract_metadata(Container::Png, &exported_path)
+            .expect("Original PNG export should preserve metadata");
+
+        assert!(extracted.prompt.unwrap().contains("cyberpunk"));
+        assert!(extracted.negative_prompt.unwrap().contains("blurry"));
+    }
+
+    #[test]
+    fn test_byte_exact_passthrough_with_keepall_no_resize() {
+        let dir = tempfile::tempdir().unwrap();
+        let src_img_path = dir.path().join("passthrough.png");
+
+        // Create a specific PNG with metadata
+        let mut img_data = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(Cursor::new(&mut img_data), 64, 64);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .add_text_chunk(
+                    "parameters".into(),
+                    "test prompt for passthrough".to_string(),
+                )
+                .unwrap();
+            let mut writer = encoder.write_header().unwrap();
+            let rgb_data = vec![200u8; 64 * 64 * 3];
+            writer.write_image_data(&rgb_data).unwrap();
+        }
+        fs::write(&src_img_path, &img_data).unwrap();
+
+        let file = ImageFile {
+            id: Some(3),
+            folder_id: 1,
+            path: src_img_path.to_string_lossy().to_string(),
+            container: Container::Png,
+            size_bytes: img_data.len() as u64,
+            modified_at: 1726000000,
+            metadata: None,
+            rating: None,
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: None,
+            stack_order: 0,
+        };
+
+        let options = ExportOptions {
+            file_ids: vec![3],
+            format: ExportFormat::Original,
+            quality: 85,
+            privacy: MetadataPrivacyMode::KeepAll,
+            sidecar: ExportSidecar::None,
+            filename_template: "{name}".to_string(),
+            destination_path: dir.path().to_string_lossy().to_string(),
+            as_zip: false,
+            max_edge: None, // No resize - should trigger fast path
+            export_html_showcase: false,
+            html_title: None,
+        };
+
+        let processed = process_single_image(&file, &options, 0).unwrap();
+
+        // Fast path should produce byte-exact copy
+        assert_eq!(
+            processed.image_bytes.len(),
+            img_data.len(),
+            "Byte-exact pass-through should preserve original size"
+        );
+        assert_eq!(
+            processed.image_bytes, img_data,
+            "Original + KeepAll + no resize must be byte-exact"
+        );
+    }
+
+    #[test]
+    fn test_absent_metadata_export_does_not_fail() {
+        let dir = tempfile::tempdir().unwrap();
+        let src_img_path = dir.path().join("no_metadata.png");
+
+        // Plain PNG with no metadata chunks
+        let mut img = RgbImage::new(50, 50);
+        for pixel in img.pixels_mut() {
+            *pixel = Rgb([255, 0, 0]);
+        }
+        img.save(&src_img_path).unwrap();
+
+        let file = ImageFile {
+            id: Some(4),
+            folder_id: 1,
+            path: src_img_path.to_string_lossy().to_string(),
+            container: Container::Png,
+            size_bytes: fs::metadata(&src_img_path).unwrap().len(),
+            modified_at: 1726000000,
+            metadata: None,
+            rating: None,
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: None,
+            stack_order: 0,
+        };
+
+        let options = ExportOptions {
+            file_ids: vec![4],
+            format: ExportFormat::Png,
+            quality: 85,
+            privacy: MetadataPrivacyMode::KeepAll,
+            sidecar: ExportSidecar::None,
+            filename_template: "{name}".to_string(),
+            destination_path: dir.path().to_string_lossy().to_string(),
+            as_zip: false,
+            max_edge: Some(40),
+            export_html_showcase: false,
+            html_title: None,
+        };
+
+        let processed = process_single_image(&file, &options, 0).unwrap();
+        assert_eq!(processed.width, 40);
+        assert!(!processed.image_bytes.is_empty());
+    }
+
+    #[test]
+    fn test_privacy_policy_sidecar_combinations() {
+        let dir = tempfile::tempdir().unwrap();
+        let src_img_path = dir.path().join("test.png");
+
+        let mut img = RgbImage::new(64, 64);
+        for pixel in img.pixels_mut() {
+            *pixel = Rgb([100, 150, 200]);
+        }
+        img.save(&src_img_path).unwrap();
+
+        let metadata = ExtractedMetadata {
+            format: MetadataFormat::A1111,
+            parameters: Some("Steps: 20, CFG: 7".to_string()),
+            raw: Some("raw metadata string".to_string()),
+            prompt: Some("confidential prompt".to_string()),
+            negative_prompt: Some("private negative".to_string()),
+            width: Some(64),
+            height: Some(64),
+            seed: Some("12345".to_string()),
+            steps: Some(20),
+            cfg_scale: Some(7.0),
+            sampler: Some("Euler".to_string()),
+            model_name: Some("test-model".to_string()),
+            model_hash: Some("abc123".to_string()),
+            duration_seconds: None,
+            fps: None,
+            video_codec: None,
+        };
+
+        let file = ImageFile {
+            id: Some(1),
+            folder_id: 1,
+            path: src_img_path.to_string_lossy().to_string(),
+            container: Container::Png,
+            size_bytes: fs::metadata(&src_img_path).unwrap().len(),
+            modified_at: 1726000000,
+            metadata: Some(metadata),
+            rating: None,
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: None,
+            stack_order: 0,
+        };
+
+        // Test all combinations of privacy modes with TextPrompt sidecar
+        for (privacy, should_have_prompt_sidecar) in [
+            (MetadataPrivacyMode::KeepAll, true),
+            (MetadataPrivacyMode::StripPromptOnly, false),
+            (MetadataPrivacyMode::StripAllAiMetadata, false),
+            (MetadataPrivacyMode::StripAll, false),
+        ] {
+            let options = ExportOptions {
+                file_ids: vec![1],
+                format: ExportFormat::Png,
+                quality: 85,
+                privacy,
+                sidecar: ExportSidecar::TextPrompt,
+                filename_template: "{name}".to_string(),
+                destination_path: dir.path().to_string_lossy().to_string(),
+                as_zip: false,
+                max_edge: None,
+                export_html_showcase: false,
+                html_title: None,
+            };
+
+            let processed = process_single_image(&file, &options, 0).unwrap();
+
+            if should_have_prompt_sidecar {
+                assert!(
+                    processed.sidecar.is_some(),
+                    "Privacy {privacy:?} + TextPrompt should produce sidecar"
+                );
+                let (_, sidecar_bytes) = processed.sidecar.unwrap();
+                let sidecar_text = String::from_utf8(sidecar_bytes).unwrap();
+                assert!(
+                    sidecar_text.contains("confidential"),
+                    "KeepAll should preserve prompt in sidecar"
+                );
+            } else {
+                assert!(
+                    processed.sidecar.is_none(),
+                    "Privacy {privacy:?} + TextPrompt must not leak prompt sidecar"
+                );
+            }
+        }
+
+        // Test JsonMetadata sidecar with prompt-stripping policies
+        for (privacy, should_have_prompt_fields) in [
+            (MetadataPrivacyMode::KeepAll, true),
+            (MetadataPrivacyMode::StripPromptOnly, false),
+            (MetadataPrivacyMode::StripAllAiMetadata, false),
+            (MetadataPrivacyMode::StripAll, false),
+        ] {
+            let options = ExportOptions {
+                file_ids: vec![1],
+                format: ExportFormat::Png,
+                quality: 85,
+                privacy,
+                sidecar: ExportSidecar::JsonMetadata,
+                filename_template: "{name}".to_string(),
+                destination_path: dir.path().to_string_lossy().to_string(),
+                as_zip: false,
+                max_edge: None,
+                export_html_showcase: false,
+                html_title: None,
+            };
+
+            let processed = process_single_image(&file, &options, 0).unwrap();
+
+            if privacy == MetadataPrivacyMode::StripAll {
+                assert!(
+                    processed.sidecar.is_none(),
+                    "StripAll + JsonMetadata should produce no sidecar"
+                );
+            } else if should_have_prompt_fields {
+                assert!(
+                    processed.sidecar.is_some(),
+                    "KeepAll + JsonMetadata should produce sidecar"
+                );
+                let (_, sidecar_bytes) = processed.sidecar.unwrap();
+                let sidecar_text = String::from_utf8(sidecar_bytes).unwrap();
+                assert!(
+                    sidecar_text.contains("confidential"),
+                    "KeepAll JSON should contain prompt"
+                );
+            } else {
+                // StripPromptOnly or StripAllAiMetadata with JSON sidecar
+                assert!(
+                    processed.sidecar.is_some(),
+                    "{privacy:?} + JsonMetadata should produce sanitized sidecar"
+                );
+                let (_, sidecar_bytes) = processed.sidecar.unwrap();
+                let sidecar_text = String::from_utf8(sidecar_bytes).unwrap();
+                assert!(
+                    !sidecar_text.contains("confidential"),
+                    "{privacy:?} JSON must not contain prompt"
+                );
+            }
+        }
+
+        // Test showcase output respects privacy
+        for (privacy, should_have_prompt_in_showcase) in [
+            (MetadataPrivacyMode::KeepAll, true),
+            (MetadataPrivacyMode::StripPromptOnly, false),
+            (MetadataPrivacyMode::StripAllAiMetadata, false),
+            (MetadataPrivacyMode::StripAll, false),
+        ] {
+            let options = ExportOptions {
+                file_ids: vec![1],
+                format: ExportFormat::Png,
+                quality: 85,
+                privacy,
+                sidecar: ExportSidecar::None,
+                filename_template: "{name}".to_string(),
+                destination_path: dir.path().to_string_lossy().to_string(),
+                as_zip: false,
+                max_edge: None,
+                export_html_showcase: true,
+                html_title: Some("Test Showcase".to_string()),
+            };
+
+            let processed = process_single_image(&file, &options, 0).unwrap();
+            let showcase = processed.showcase_item.unwrap();
+
+            if should_have_prompt_in_showcase {
+                assert!(
+                    showcase.prompt.is_some(),
+                    "KeepAll showcase should contain prompt"
+                );
+                assert!(showcase.prompt.unwrap().contains("confidential"));
+            } else {
+                assert!(
+                    showcase.prompt.is_none(),
+                    "{privacy:?} showcase must not contain prompt"
+                );
+            }
+        }
     }
 }

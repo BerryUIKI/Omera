@@ -5,6 +5,7 @@
 //! Crates may depend on `omera-domain`, but it depends on nothing else.
 
 mod album;
+mod backup_schedule;
 mod checkpoint;
 mod cloud_backup;
 mod cloud_sync;
@@ -30,14 +31,16 @@ mod tag;
 pub mod transform;
 
 pub use album::Album;
+pub use backup_schedule::{AutomaticBackupStatus, BackupSchedule};
 pub use checkpoint::{CheckpointModelStat, ModelCacheEntry};
 pub use cloud_backup::{
     CloudBackupConfig, CloudBackupResult, CloudPingResult, CloudRestoreResult, CloudSnapshotMeta,
     CloudStorageProvider,
 };
 pub use cloud_sync::{
-    CloudSyncDirection, CloudSyncOptions, CloudSyncPhase, CloudSyncProgress, CloudSyncResult,
-    CloudSyncStrategy,
+    CloudSyncDirection, CloudSyncNamespaceManifest, CloudSyncNamespacePreview, CloudSyncOptions,
+    CloudSyncPhase, CloudSyncProgress, CloudSyncResult, CloudSyncRootIdentity,
+    CloudSyncRootMapping, CloudSyncStrategy,
 };
 pub use collaboration::{
     ChangeLogEntry, ChangeLogSyncQuery, DatabasePingResult, MigrationOptions, MigrationSummary,
@@ -61,7 +64,7 @@ pub use migration::{
 };
 pub use pipeline::{CleanupQueueItem, PipelineDetectedPath};
 pub use prompt_stacking::{plan_prompt_stacks, PromptStackCandidate, PromptStackPlan};
-pub use prompt_stat::PromptStat;
+pub use prompt_stat::{PromptInsights, PromptKeywordStat, PromptStat};
 pub use search::{CursorFilePage, FilePage, PageCursor, SearchCriteria};
 pub use search_parser::parse_query;
 pub use similarity::SimilarityMatch;

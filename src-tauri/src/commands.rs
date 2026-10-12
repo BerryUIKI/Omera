@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 static MODEL_CACHE_FACETS: RwLock<Option<Vec<String>>> = RwLock::new(None);
 static SAMPLER_CACHE_FACETS: RwLock<Option<Vec<String>>> = RwLock::new(None);
@@ -27,11 +27,13 @@ use omera_domain::{
     CleanupQueueItem, CursorFilePage, DatabasePingResult, DatabaseStats, DetectedLora,
     ExportEstimateResult, ExportOptions, ExportSummary, FilePage, FileSortField, Folder, ImageFile,
     LibraryTransformRequest, LoraModel, MigrationOptions, MigrationSummary, ModelCacheEntry,
-    MutationResult, NormalizedPath, PathResolver, PipelineDetectedPath, PromptStackCandidate,
-    PromptStat, SearchCriteria, SimilarityMatch, SortDirection, StackSummary, StorageRoot, Tag,
-    TransformFormat, TransformJobReceipt, TransformMetadataPolicy, TransformSpec,
+    MutationResult, NormalizedPath, PathResolver, PipelineDetectedPath, PromptInsights,
+    PromptStackCandidate, PromptStat, SearchCriteria, SimilarityMatch, SortDirection, StackSummary,
+    StorageRoot, Tag, TransformJobReceipt, TransformSpec,
 };
-use omera_scan::{execute_batch_export, execute_library_batch_transform, ScanStats, Scanner};
+use omera_scan::{
+    execute_shared_batch_export, execute_shared_library_batch_transform, ScanStats, Scanner,
+};
 use omera_storage::Database;
 use omera_tagger::{ModelInfo, TagPrediction, TaggerConfig, Wd14Tagger};
 use serde::{Deserialize, Serialize};
@@ -755,240 +757,30 @@ pub fn import_files_to_managed_vault_inner(
         return Ok(Vec::new());
     }
 
-    let managed_folder = {
+    let target_id = if let Some(id) = target_folder_id {
+        // Enforce target folder is managed and exists
+        let folder = omera_scan::validate_managed_destination_folder(db, id)?;
+        folder.id
+    } else {
         let folders = db.list_folders().map_err(|e| e.to_string())?;
-
-        if let Some(target_id) = target_folder_id {
-            folders
-                .into_iter()
-                .find(|f| f.id == target_id && f.folder_type == "managed")
-                .ok_or_else(|| format!("Target folder {target_id} is not a managed vault folder"))?
-        } else {
-            folders
-                .into_iter()
-                .find(|f| f.folder_type == "managed")
-                .ok_or_else(|| {
-                    "No managed vault folder found. Please create a managed vault folder first."
-                        .to_string()
-                })?
-        }
+        folders
+            .into_iter()
+            .find(|f| f.folder_type == "managed")
+            .map(|f| f.id)
+            .ok_or_else(|| {
+                "No managed vault folder found. Please create a managed vault folder first."
+                    .to_string()
+            })?
     };
 
-    let dest_dir = Path::new(&managed_folder.path);
-    std::fs::create_dir_all(dest_dir)
-        .map_err(|e| format!("Failed to create destination directory: {e}"))?;
+    let imported_ids =
+        omera_scan::import_files_to_managed_folder(db, file_paths, target_id, transform_spec)?;
 
-    let supported_exts = ["png", "jpg", "jpeg", "webp", "avif", "mp4", "webm"];
-    let now_ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-
-    let should_transform = match transform_spec {
-        Some(spec) => {
-            spec.format != TransformFormat::Original
-                || spec.max_edge.is_some()
-                || spec.quality.is_some()
-        }
-        None => false,
-    };
-
-    let staging_dir = dest_dir.join(".omera_staging");
-    if should_transform {
-        let _ = std::fs::create_dir_all(&staging_dir);
-    }
-
-    let mut imported_ids = Vec::new();
-
-    for src_path_str in file_paths {
-        let src_path = Path::new(&src_path_str);
-        if !src_path.is_file() {
-            continue;
-        }
-
-        let mut ext = src_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        if !supported_exts.contains(&ext.as_str()) {
-            continue;
-        }
-
-        let meta = match src_path.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-
-        if meta.len() == 0 {
-            continue;
-        }
-
-        let file_mtime = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(now_ts);
-
-        let dest_path: PathBuf;
-
-        if should_transform && ext != "mp4" && ext != "webm" {
-            let spec = transform_spec.unwrap();
-            let staged_res = omera_scan::transform_file_staged(src_path, &staging_dir, spec);
-            let staged_path = match staged_res {
-                Ok(p) => p,
-                Err(e) => return Err(format!("Failed to transform image {src_path_str}: {e}")),
-            };
-
-            let target_ext = omera_scan::resolve_extension(src_path, spec.format);
-            let stem = src_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("image");
-
-            let pub_path = omera_scan::resolve_publication_path(
-                dest_dir,
-                stem,
-                &target_ext,
-                spec.collision_policy,
-            )
-            .map_err(|e| e.to_string())?;
-
-            if let Err(e) = std::fs::rename(&staged_path, &pub_path) {
-                let _ = std::fs::remove_file(&staged_path);
-                return Err(format!("Failed to publish staged file to destination: {e}"));
-            }
-
-            if spec.metadata_policy != TransformMetadataPolicy::StripAll {
-                for sidecar_ext in ["txt", "json"] {
-                    let src_sidecar = src_path.with_extension(sidecar_ext);
-                    if src_sidecar != src_path && src_sidecar.is_file() {
-                        let dest_sidecar = pub_path.with_extension(sidecar_ext);
-                        let _ = std::fs::copy(&src_sidecar, &dest_sidecar);
-                    }
-                }
-            }
-
-            dest_path = pub_path;
-            ext = target_ext;
-        } else {
-            let file_name = match src_path.file_name() {
-                Some(n) => n.to_string_lossy().to_string(),
-                None => continue,
-            };
-
-            let mut candidate = dest_dir.join(&file_name);
-            if candidate.exists() {
-                let is_same = candidate
-                    .metadata()
-                    .map(|m| m.len() == meta.len())
-                    .unwrap_or(false);
-                if !is_same {
-                    let stem = src_path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("file");
-                    let ext_part = if ext.is_empty() {
-                        String::new()
-                    } else {
-                        format!(".{ext}")
-                    };
-                    let mut counter = 1;
-                    while candidate.exists() {
-                        candidate = dest_dir.join(format!("{stem}_{counter}{ext_part}"));
-                        counter += 1;
-                    }
-                }
-            }
-
-            if !candidate.exists() {
-                std::fs::copy(src_path, &candidate)
-                    .map_err(|e| format!("Failed to copy {src_path_str} to destination: {e}"))?;
-
-                for sidecar_ext in ["txt", "json"] {
-                    let src_sidecar = src_path.with_extension(sidecar_ext);
-                    if src_sidecar != src_path && src_sidecar.is_file() {
-                        let dest_sidecar = candidate.with_extension(sidecar_ext);
-                        let _ = std::fs::copy(&src_sidecar, &dest_sidecar);
-                    }
-                }
-            }
-            dest_path = candidate;
-        }
-
-        let container = match ext.as_str() {
-            "png" => omera_domain::Container::Png,
-            "jpg" | "jpeg" => omera_domain::Container::Jpeg,
-            "webp" => omera_domain::Container::WebP,
-            "avif" => omera_domain::Container::Avif,
-            "mp4" => omera_domain::Container::Mp4,
-            "webm" => omera_domain::Container::Webm,
-            _ => continue,
-        };
-
-        let mut metadata = omera_metadata::extract_metadata(container, &dest_path)
-            .or_else(|| omera_metadata::extract_metadata(container, src_path));
-
-        if let Some(spec) = transform_spec {
-            match spec.metadata_policy {
-                TransformMetadataPolicy::StripAll => {
-                    metadata = None;
-                }
-                TransformMetadataPolicy::StripAi => {
-                    if let Some(m) = metadata.as_mut() {
-                        m.prompt = None;
-                        m.negative_prompt = None;
-                        m.parameters = None;
-                        m.raw = None;
-                    }
-                }
-                TransformMetadataPolicy::KeepSupported => {}
-            }
-        }
-
-        let tgt_str = {
-            let canonical = dest_path
-                .canonicalize()
-                .unwrap_or_else(|_| dest_path.clone());
-            let text = canonical.to_string_lossy();
-            text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
-        };
-
-        let final_meta = dest_path.metadata().unwrap_or(meta);
-
-        let image_file = ImageFile {
-            id: None,
-            folder_id: managed_folder.id,
-            path: tgt_str.clone(),
-            size_bytes: final_meta.len(),
-            modified_at: file_mtime,
-            container,
-            metadata,
-            rating: None,
-            aesthetic_score: None,
-            is_favorite: false,
-            is_nsfw: false,
-            stack_id: None,
-            stack_order: 0,
-        };
-
-        let file_id = match db.get_file_by_path(&tgt_str).map_err(|e| e.to_string())? {
-            Some(existing) if existing.id.is_some() => existing.id.unwrap(),
-            _ => db.upsert_file(&image_file).map_err(|e| e.to_string())?,
-        };
-
-        if let Some(album_id) = target_album_id {
+    if let Some(album_id) = target_album_id {
+        for &file_id in &imported_ids {
             db.add_file_to_album(album_id, file_id)
                 .map_err(|e| e.to_string())?;
         }
-
-        imported_ids.push(file_id);
-    }
-
-    if should_transform {
-        let _ = std::fs::remove_dir(&staging_dir);
     }
 
     Ok(imported_ids)
@@ -1136,6 +928,25 @@ pub fn set_files_nsfw(
 }
 
 // --- Prompt Stats ---
+
+#[tauri::command]
+pub async fn get_prompt_insights(
+    limit: usize,
+    app_handle: AppHandle,
+) -> Result<PromptInsights, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let database = state
+            .db
+            .lock()
+            .map_err(|_| "database lock poisoned".to_string())?;
+        database
+            .get_prompt_insights(limit)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
 
 /// Get frequency statistics for prompt tags.
 #[tauri::command]
@@ -1470,16 +1281,37 @@ pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
 
 /// Run SQLite VACUUM and optimize to compact database and reclaim unused disk pages.
 #[tauri::command]
-pub fn vacuum_database(state: State<'_, AppState>) -> Result<(), String> {
-    db(&state)?.vacuum_database().map_err(|e| e.to_string())
+pub async fn vacuum_database(app_handle: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let res = {
+            let db_guard = db(&state)?;
+            db_guard.vacuum_database().map_err(|e| e.to_string())
+        };
+        res
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Backup the current database to a designated file destination via VACUUM INTO.
 #[tauri::command]
-pub fn backup_database(destination_path: String, state: State<'_, AppState>) -> Result<(), String> {
-    db(&state)?
-        .backup_database(&destination_path)
-        .map_err(|e| e.to_string())
+pub async fn backup_database(
+    destination_path: String,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let res = {
+            let db_guard = db(&state)?;
+            db_guard
+                .backup_database(&destination_path)
+                .map_err(|e| e.to_string())
+        };
+        res
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Retrieve database storage and table statistics.
@@ -1731,29 +1563,49 @@ pub fn export_sqlite_to_central_migration(
 pub async fn export_files_batch(
     options: ExportOptions,
     app_handle: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<ExportSummary, String> {
-    let db_guard = db(&state)?;
-    let summary = execute_batch_export(&db_guard, &options, move |progress| {
-        let _ = app_handle.emit("omera://export-progress", &progress);
-        let _ = app_handle.emit("berry://export-progress", progress);
-    });
-    Ok(summary)
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let app_emit = app_handle.clone();
+        execute_shared_batch_export(&state.db, &options, move |progress| {
+            let _ = app_emit.emit("omera://export-progress", &progress);
+            let _ = app_emit.emit("berry://export-progress", progress);
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Instant preview and size estimation for a selected file without writing to destination.
 #[tauri::command]
-pub fn estimate_export_file(
+pub async fn estimate_export_file(
     file_id: i64,
     options: ExportOptions,
-    state: State<'_, AppState>,
+    app_handle: AppHandle,
 ) -> Result<ExportEstimateResult, String> {
-    let db_guard = db(&state)?;
-    let file = db_guard
-        .get_file_by_id(file_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("File id {file_id} not found"))?;
-    omera_scan::estimate_export_single_image(&file, &options)
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        with_export_file_snapshot(&state.db, file_id, |file| {
+            omera_scan::estimate_export_single_image(&file, &options)
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn with_export_file_snapshot<T>(
+    database: &Mutex<Database>,
+    file_id: i64,
+    process: impl FnOnce(ImageFile) -> Result<T, String>,
+) -> Result<T, String> {
+    let file = {
+        let guard = database.lock().map_err(|_| "database lock poisoned")?;
+        guard
+            .get_file_by_id(file_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("File id {file_id} not found"))?
+    };
+    process(file)
 }
 
 /// Batch transcode and optimize existing library images in managed vaults (IMAGE_TRANSFORM_PLAN T3).
@@ -1761,28 +1613,32 @@ pub fn estimate_export_file(
 pub async fn transform_library_files_batch(
     request: LibraryTransformRequest,
     app_handle: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<TransformJobReceipt, String> {
-    let db_guard = db(&state)?;
-    execute_library_batch_transform(
-        &db_guard,
-        &request,
-        Some(move |current, total, current_path: &str| {
-            #[derive(Serialize, Clone)]
-            struct TransformProgressEvent<'a> {
-                current: usize,
-                total: usize,
-                current_path: &'a str,
-            }
-            let evt = TransformProgressEvent {
-                current,
-                total,
-                current_path,
-            };
-            let _ = app_handle.emit("omera://transform-progress", &evt);
-            let _ = app_handle.emit("berry://transform-progress", &evt);
-        }),
-    )
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let app_emit = app_handle.clone();
+        execute_shared_library_batch_transform(
+            &state.db,
+            &request,
+            Some(move |current, total, current_path: &str| {
+                #[derive(Serialize, Clone)]
+                struct TransformProgressEvent<'a> {
+                    current: usize,
+                    total: usize,
+                    current_path: &'a str,
+                }
+                let evt = TransformProgressEvent {
+                    current,
+                    total,
+                    current_path,
+                };
+                let _ = app_emit.emit("omera://transform-progress", &evt);
+                let _ = app_emit.emit("berry://transform-progress", &evt);
+            }),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Open an external URL in the system's default browser.
@@ -2621,6 +2477,14 @@ pub fn get_loaded_tagger_model(state: State<'_, AppState>) -> Result<Option<Mode
     Ok(guard.as_ref().map(|t| t.model_info.clone()))
 }
 
+/// Unload the currently active WD14 Tagger model, releasing ONNX runtime sessions and memory buffers.
+#[tauri::command]
+pub fn unload_tagger_model(state: State<'_, AppState>) -> Result<(), String> {
+    let mut guard = tagger_guard(&state)?;
+    *guard = None;
+    Ok(())
+}
+
 /// Run tag prediction on a single image file.
 /// If `apply_tags` is true, newly recognized tags will be created in the database and linked to the image.
 #[tauri::command]
@@ -2660,10 +2524,49 @@ pub async fn auto_tag_file(
             }
         }
 
+        if config.write_to_prompt && !predictions.is_empty() {
+            let prompt_text = predictions
+                .iter()
+                .filter(|p| !matches!(p.category, omera_tagger::TagCategory::Rating))
+                .map(|p| p.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            if !prompt_text.is_empty() {
+                let database = db(&state)?;
+                let _ = database.update_file_prompt(
+                    file_id,
+                    &prompt_text,
+                    config.append_prompt,
+                    config.allow_override_existing_prompt,
+                );
+            }
+        }
+
         Ok(predictions)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchTagProgress {
+    pub current: usize,
+    pub total: usize,
+    pub percent: f64,
+    pub current_file: String,
+    pub processed_files: usize,
+    pub failed_files: usize,
+    pub tags_added: usize,
+    pub is_complete: bool,
+    pub is_canceled: bool,
+}
+
+/// Cooperatively cancel ongoing WD14 batch auto-tagging between images.
+#[tauri::command]
+pub fn cancel_batch_auto_tag(state: State<'_, AppState>) -> Result<(), String> {
+    state.batch_tagger_cancel.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
 /// Batch run tag prediction across multiple image files and attach recognized tags.
@@ -2672,46 +2575,149 @@ pub async fn batch_auto_tag_files(
     file_ids: Vec<i64>,
     config: TaggerConfig,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<BatchTagResult, String> {
-    let mut processed_files = 0;
-    let mut tags_added = 0;
+    state.batch_tagger_cancel.store(false, Ordering::SeqCst);
+    let cancel_flag = state.batch_tagger_cancel.clone();
 
-    for fid in file_ids {
-        let file = {
-            let database = db(&state)?;
-            database.get_file_by_id(fid).map_err(|e| e.to_string())?
-        };
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let mut processed_files = 0;
+        let mut failed_files = 0;
+        let mut tags_added = 0;
+        let total = file_ids.len();
 
-        if let Some(file) = file {
-            let predictions = {
-                let guard = tagger_guard(&state)?;
-                if let Some(tagger) = guard.as_ref() {
-                    tagger.predict_file(Path::new(&file.path), &config).ok()
-                } else {
-                    return Err(
-                        "No WD14 tagger model loaded. Please load a model first.".to_string()
-                    );
-                }
+        for (index, fid) in file_ids.into_iter().enumerate() {
+            if cancel_flag.load(Ordering::Relaxed) {
+                let _ = app_handle.emit(
+                    "tagger-batch-progress",
+                    BatchTagProgress {
+                        current: index,
+                        total,
+                        percent: if total > 0 {
+                            (index as f64 / total as f64) * 100.0
+                        } else {
+                            100.0
+                        },
+                        current_file: String::new(),
+                        processed_files,
+                        failed_files,
+                        tags_added,
+                        is_complete: false,
+                        is_canceled: true,
+                    },
+                );
+                break;
+            }
+
+            let file = {
+                let database = db(&state)?;
+                database.get_file_by_id(fid).map_err(|e| e.to_string())?
             };
 
-            if let Some(predictions) = predictions {
-                let database = db(&state)?;
-                for pred in predictions {
-                    if let Ok(tag) = database.get_or_create_tag(&pred.name, None) {
-                        if database.tag_file(fid, tag.id).is_ok() {
-                            tags_added += 1;
+            let file_path_str = file.as_ref().map(|f| f.path.clone()).unwrap_or_default();
+            let file_name_display = Path::new(&file_path_str)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| format!("file-{fid}"));
+
+            let _ = app_handle.emit(
+                "tagger-batch-progress",
+                BatchTagProgress {
+                    current: index + 1,
+                    total,
+                    percent: if total > 0 {
+                        ((index as f64) / total as f64) * 100.0
+                    } else {
+                        100.0
+                    },
+                    current_file: file_name_display,
+                    processed_files,
+                    failed_files,
+                    tags_added,
+                    is_complete: false,
+                    is_canceled: false,
+                },
+            );
+
+            if let Some(file) = file {
+                let predictions_res = {
+                    let guard = tagger_guard(&state)?;
+                    if let Some(tagger) = guard.as_ref() {
+                        tagger.predict_file(Path::new(&file.path), &config)
+                    } else {
+                        return Err(
+                            "No WD14 tagger model loaded. Please load a model first.".to_string()
+                        );
+                    }
+                };
+
+                match predictions_res {
+                    Ok(predictions) => {
+                        let database = db(&state)?;
+                        for pred in &predictions {
+                            if let Ok(tag) = database.get_or_create_tag(&pred.name, None) {
+                                if database.tag_file(fid, tag.id).is_ok() {
+                                    tags_added += 1;
+                                }
+                            }
                         }
+
+                        if config.write_to_prompt && !predictions.is_empty() {
+                            let prompt_text = predictions
+                                .iter()
+                                .filter(|p| {
+                                    !matches!(p.category, omera_tagger::TagCategory::Rating)
+                                })
+                                .map(|p| p.name.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ");
+
+                            if !prompt_text.is_empty() {
+                                let _ = database.update_file_prompt(
+                                    fid,
+                                    &prompt_text,
+                                    config.append_prompt,
+                                    config.allow_override_existing_prompt,
+                                );
+                            }
+                        }
+
+                        processed_files += 1;
+                    }
+                    Err(_) => {
+                        failed_files += 1;
                     }
                 }
-                processed_files += 1;
+            } else {
+                failed_files += 1;
             }
         }
-    }
 
-    Ok(BatchTagResult {
-        processed_files,
-        tags_added,
+        let is_canceled = cancel_flag.load(Ordering::Relaxed);
+        let _ = app_handle.emit(
+            "tagger-batch-progress",
+            BatchTagProgress {
+                current: total,
+                total,
+                percent: 100.0,
+                current_file: String::new(),
+                processed_files,
+                failed_files,
+                tags_added,
+                is_complete: !is_canceled,
+                is_canceled,
+            },
+        );
+
+        Ok(BatchTagResult {
+            processed_files,
+            tags_added,
+        })
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // --- CLIP / SigLIP Multi-Modal Semantic Search ---
@@ -2849,6 +2855,14 @@ pub fn load_clip_model(
 pub fn get_loaded_clip_model(state: State<'_, AppState>) -> Result<Option<ClipModelInfo>, String> {
     let guard = clip_guard(&state)?;
     Ok(guard.as_ref().map(|c| c.info.clone()))
+}
+
+/// Unload the currently active CLIP / SigLIP model, releasing ONNX runtime sessions and memory buffers.
+#[tauri::command]
+pub fn unload_clip_model(state: State<'_, AppState>) -> Result<(), String> {
+    let mut guard = clip_guard(&state)?;
+    *guard = None;
+    Ok(())
 }
 
 /// Get embedding index progress statistics for the currently loaded model or a specified model_id.
@@ -3276,6 +3290,13 @@ pub fn scan_loras_directory(dir_path: String, state: State<'_, AppState>) -> Res
 // --- Application Configuration & Storage Directory Management ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableColumnPreference {
+    pub id: String,
+    pub visible: bool,
+    pub width: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub config_revision: u64,
@@ -3290,6 +3311,8 @@ pub struct AppConfig {
     pub blur_nsfw: bool,
     pub show_card_badges: bool,
     pub default_view: String,
+    #[serde(default)]
+    pub table_columns: Vec<TableColumnPreference>,
     pub thumbnail_max_edge: u32,
     #[serde(default = "default_thumbnail_cache_budget_mb")]
     pub thumbnail_cache_budget_mb: u64,
@@ -3322,6 +3345,8 @@ pub struct AppConfig {
     pub root_mappings: HashMap<String, String>,
     #[serde(default)]
     pub cloud_backup: omera_domain::CloudBackupConfig,
+    #[serde(default)]
+    pub allow_override_existing_prompt: bool,
 }
 
 fn default_comfyui_url() -> String {
@@ -3380,6 +3405,7 @@ impl Default for AppConfig {
             blur_nsfw: true,
             show_card_badges: true,
             default_view: "grid".to_string(),
+            table_columns: Vec::new(),
             thumbnail_max_edge: 384,
             thumbnail_cache_budget_mb: default_thumbnail_cache_budget_mb(),
             similarity_limit: 50,
@@ -3398,6 +3424,7 @@ impl Default for AppConfig {
             client_identifier: default_client_identifier(),
             root_mappings: HashMap::new(),
             cloud_backup: omera_domain::CloudBackupConfig::default(),
+            allow_override_existing_prompt: false,
         }
     }
 }
@@ -3405,6 +3432,23 @@ impl Default for AppConfig {
 #[cfg(test)]
 mod app_config_tests {
     use super::AppConfig;
+
+    #[test]
+    fn table_preferences_round_trip_with_frontend_field_names() {
+        let mut value = serde_json::to_value(AppConfig::default()).unwrap();
+        value["table_columns"] = serde_json::json!([
+            {"id": "prompt", "visible": true, "width": 240},
+            {"id": "model", "visible": false, "width": 100}
+        ]);
+        let config: AppConfig = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(config.table_columns[0].id, "prompt");
+        assert_eq!(config.table_columns[0].width, 240);
+        assert!(!config.table_columns[1].visible);
+        assert_eq!(
+            serde_json::to_value(config).unwrap()["table_columns"],
+            value["table_columns"]
+        );
+    }
 
     #[test]
     fn legacy_config_receives_defaults_for_new_preferences() {
@@ -3415,6 +3459,7 @@ mod app_config_tests {
             .unwrap()
             .remove("startup_scan_interval_minutes");
         value.as_object_mut().unwrap().remove("theme");
+        value.as_object_mut().unwrap().remove("table_columns");
         value
             .as_object_mut()
             .unwrap()
@@ -3433,6 +3478,7 @@ mod app_config_tests {
         assert!(config.suppressed_warnings.is_empty());
         assert_eq!(config.startup_scan_interval_minutes, 360);
         assert_eq!(config.theme, "system");
+        assert!(config.table_columns.is_empty());
         assert_eq!(config.thumbnail_cache_budget_mb, 2048);
         assert_eq!(config.comfyui_url, "http://127.0.0.1:8188");
         assert_eq!(config.webui_url, "http://127.0.0.1:7860");
@@ -3747,11 +3793,12 @@ pub fn install_update(
 
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-        let mut cmd = Command::new(&installer_path);
-        if _is_silent {
-            cmd.arg("/S");
-        }
+        let system_root = std::env::var_os("SystemRoot");
+        let mut cmd = crate::update_installation::windows_installer_command(
+            p,
+            _is_silent,
+            system_root.as_deref(),
+        )?;
         cmd.spawn()
             .map_err(|e| format!("Failed to launch installer: {e}"))?;
         app.exit(0);
@@ -3977,189 +4024,18 @@ pub fn harvest_pipeline_folder(
     folder_id: i64,
     state: State<'_, AppState>,
 ) -> Result<usize, String> {
-    let folder = {
-        let db = db(&state)?;
-        db.find_folder_by_id(folder_id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "folder not found".to_string())?
-    };
-
-    if folder.folder_type != "pipeline" {
-        return Err("folder is not an ingestion pipeline".to_string());
-    }
-
-    let source_path_str = match &folder.source_path {
-        Some(s) if !s.is_empty() => s.clone(),
-        _ => return Err("pipeline folder has no source path configured".to_string()),
-    };
-
-    let source_dir = Path::new(&source_path_str);
-    if !source_dir.is_dir() {
-        return Err(format!(
-            "pipeline source path does not exist: {source_path_str}"
-        ));
-    }
-
-    let dest_dir = Path::new(&folder.path);
-    std::fs::create_dir_all(dest_dir)
-        .map_err(|e| format!("failed to create destination directory: {e}"))?;
-
-    let supported_exts = ["png", "jpg", "jpeg", "webp", "mp4"];
-    let mut harvested_count = 0;
-
-    let entries = std::fs::read_dir(source_dir)
-        .map_err(|e| format!("failed to read source directory: {e}"))?;
-
-    let now_ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-
-    for entry in entries.flatten() {
-        let file_path = entry.path();
-        if !file_path.is_file() {
-            continue;
-        }
-
-        let ext = file_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        if !supported_exts.contains(&ext.as_str()) {
-            continue;
-        }
-
-        let meta = match file_path.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-
-        if meta.len() == 0 {
-            continue;
-        }
-
-        let file_mtime = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
-
-        if now_ts.saturating_sub(file_mtime) < 1 {
-            // Still being written to, debounce
-            continue;
-        }
-
-        let file_name = match file_path.file_name() {
-            Some(n) => n.to_string_lossy().to_string(),
-            None => continue,
-        };
-
-        let target_path = dest_dir.join(&file_name);
-        let src_str = file_path.display().to_string();
-        let tgt_str = target_path.display().to_string();
-
-        if target_path.exists() {
-            if let Ok(t_meta) = target_path.metadata() {
-                if t_meta.len() == meta.len() {
-                    continue;
-                }
-            }
-        }
-
-        if let Err(e) = std::fs::copy(&file_path, &target_path) {
-            eprintln!("Failed to copy {src_str} to {tgt_str}: {e}");
-            continue;
-        }
-
-        let src_txt = file_path.with_extension("txt");
-        if src_txt.exists() {
-            let tgt_txt = target_path.with_extension("txt");
-            let _ = std::fs::copy(&src_txt, &tgt_txt);
-        }
-
-        let container = match ext.as_str() {
-            "png" => omera_domain::Container::Png,
-            "jpg" | "jpeg" => omera_domain::Container::Jpeg,
-            "webp" => omera_domain::Container::WebP,
-            "mp4" => omera_domain::Container::Mp4,
-            _ => continue,
-        };
-
-        let metadata = omera_metadata::extract_metadata(container, &target_path);
-
-        let image_file = ImageFile {
-            id: None,
-            folder_id,
-            path: tgt_str.clone(),
-            size_bytes: meta.len(),
-            modified_at: file_mtime,
-            container,
-            metadata,
-            rating: None,
-            aesthetic_score: None,
-            is_favorite: false,
-            is_nsfw: false,
-            stack_id: None,
-            stack_order: 0,
-        };
-
-        let db = db(&state)?;
-        if let Ok(inserted_id) = db.upsert_file(&image_file) {
-            harvested_count += 1;
-
-            if folder.ingest_action.as_deref() == Some("move") {
-                let grace = folder.grace_period_hours.unwrap_or(24);
-                if grace <= 0 {
-                    let _ = trash::delete(&file_path);
-                    if src_txt.exists() {
-                        let _ = trash::delete(&src_txt);
-                    }
-                } else {
-                    let _ = db.enqueue_cleanup(&src_str, inserted_id, grace);
-                }
-            }
-        }
-    }
-
-    Ok(harvested_count)
+    let db = db(&state)?;
+    let report = omera_scan::pipeline::harvest_pipeline_folder(&db, folder_id, None)
+        .map_err(|e| e.to_string())?;
+    Ok(report.harvested_count)
 }
 
 #[tauri::command]
 pub fn process_pipeline_cleanups(state: State<'_, AppState>) -> Result<u64, String> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-
     let db = db(&state)?;
-    let due_items = db.list_due_cleanups(now).map_err(|e| e.to_string())?;
-    let mut deleted_count = 0;
-
-    for item in due_items {
-        let p = Path::new(&item.source_file_path);
-        if p.exists() {
-            if let Err(e) = trash::delete(p) {
-                eprintln!(
-                    "Failed to trash expired pipeline file {}: {e}",
-                    item.source_file_path
-                );
-                let _ = db.update_cleanup_status(item.id, "failed");
-                continue;
-            }
-        }
-        let txt = p.with_extension("txt");
-        if txt.exists() {
-            let _ = trash::delete(&txt);
-        }
-
-        let _ = db.update_cleanup_status(item.id, "deleted");
-        deleted_count += 1;
-    }
-
-    Ok(deleted_count)
+    let report =
+        omera_scan::pipeline::process_pipeline_cleanups(&db, None).map_err(|e| e.to_string())?;
+    Ok(report.deleted_count)
 }
 
 #[tauri::command]
@@ -4168,8 +4044,7 @@ pub fn get_pipeline_cleanup_queue(
     state: State<'_, AppState>,
 ) -> Result<Vec<CleanupQueueItem>, String> {
     let db = db(&state)?;
-    db.get_cleanup_queue(limit.unwrap_or(50))
-        .map_err(|e| e.to_string())
+    omera_scan::pipeline::get_pipeline_cleanup_queue(&db, limit).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -4247,6 +4122,62 @@ pub fn list_stacks(
     db.list_stacks(folder_id).map_err(|e| e.to_string())
 }
 
+pub(crate) fn cull_stack_drafts_core(
+    db: &Database,
+    stack_id: &str,
+    min_rating: u8,
+) -> Result<u64, String> {
+    let files_to_cull: Vec<(i64, PathBuf)> = {
+        let cull_ids = db
+            .get_stack_cull_candidate_ids(stack_id, min_rating)
+            .map_err(|e| e.to_string())?;
+
+        let mut list = Vec::new();
+        for id in cull_ids {
+            if let Ok(Some(file)) = db.get_file_by_id(id) {
+                list.push((id, PathBuf::from(file.path)));
+            }
+        }
+        list
+    };
+
+    let mut trashed = 0;
+
+    for (id, p) in files_to_cull {
+        // Collect existing file and sidecars to delete
+        let mut to_delete = Vec::new();
+        if p.exists() {
+            to_delete.push(p.clone());
+        }
+        let txt = p.with_extension("txt");
+        if txt.exists() {
+            to_delete.push(txt);
+        }
+        let json = p.with_extension("json");
+        if json.exists() {
+            to_delete.push(json);
+        }
+
+        // If files exist on disk, trash::delete_all must succeed before removing DB record
+        if !to_delete.is_empty() {
+            if let Err(e) = trash::delete_all(&to_delete) {
+                eprintln!("Failed to trash file(s) for file_id {id}: {e}");
+                continue;
+            }
+        }
+
+        // Only remove database row after confirmed filesystem success (or if file was already missing)
+        if let Err(e) = db.delete_file_by_id(id) {
+            eprintln!("Failed to delete database record for file_id {id}: {e}");
+            continue;
+        }
+
+        trashed += 1;
+    }
+
+    Ok(trashed)
+}
+
 #[tauri::command]
 pub fn cull_stack_drafts(
     stack_id: String,
@@ -4254,27 +4185,7 @@ pub fn cull_stack_drafts(
     state: State<'_, AppState>,
 ) -> Result<u64, String> {
     let db = db(&state)?;
-    let cull_ids = db
-        .get_stack_cull_candidate_ids(&stack_id, min_rating)
-        .map_err(|e| e.to_string())?;
-
-    let mut trashed = 0;
-    for id in cull_ids {
-        if let Ok(Some(file)) = db.get_file_by_id(id) {
-            let p = Path::new(&file.path);
-            if p.exists() {
-                let _ = trash::delete(p);
-            }
-            let txt = p.with_extension("txt");
-            if txt.exists() {
-                let _ = trash::delete(&txt);
-            }
-            let _ = db.delete_file_by_id(id);
-            trashed += 1;
-        }
-    }
-
-    Ok(trashed)
+    cull_stack_drafts_core(&db, &stack_id, min_rating)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -4342,39 +4253,46 @@ pub fn auto_stack_images(
 // --- Generation Interoperability (ComfyUI & SD WebUI) ---
 
 #[tauri::command]
-pub fn check_generation_service(endpoint: String, service_type: String) -> Result<bool, String> {
-    let base = endpoint.trim_end_matches('/');
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(std::time::Duration::from_secs(3))
-        .timeout_read(std::time::Duration::from_secs(3))
-        .build();
+pub async fn check_generation_service(
+    endpoint: String,
+    service_type: String,
+) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let base = endpoint.trim_end_matches('/');
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(std::time::Duration::from_secs(3))
+            .timeout_read(std::time::Duration::from_secs(3))
+            .build();
 
-    let primary_url = match service_type.as_str() {
-        "comfyui" => format!("{base}/system_stats"),
-        "webui" => format!("{base}/sdapi/v1/options"),
-        _ => format!("{base}/"),
-    };
+        let primary_url = match service_type.as_str() {
+            "comfyui" => format!("{base}/system_stats"),
+            "webui" => format!("{base}/sdapi/v1/options"),
+            _ => format!("{base}/"),
+        };
 
-    if let Ok(res) = agent.get(&primary_url).call() {
-        if res.status() == 200 {
-            return Ok(true);
+        if let Ok(res) = agent.get(&primary_url).call() {
+            if res.status() == 200 {
+                return Ok(true);
+            }
         }
-    }
 
-    // Fallback URLs
-    let fallback_url = match service_type.as_str() {
-        "comfyui" => format!("{base}/prompt"),
-        "webui" => format!("{base}/docs"),
-        _ => return Ok(false),
-    };
+        // Fallback URLs
+        let fallback_url = match service_type.as_str() {
+            "comfyui" => format!("{base}/prompt"),
+            "webui" => format!("{base}/docs"),
+            _ => return Ok(false),
+        };
 
-    if let Ok(res) = agent.get(&fallback_url).call() {
-        if res.status() == 200 {
-            return Ok(true);
+        if let Ok(res) = agent.get(&fallback_url).call() {
+            if res.status() == 200 {
+                return Ok(true);
+            }
         }
-    }
 
-    Ok(false)
+        Ok(false)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 pub fn prepare_comfyui_prompt_payload(parsed: &serde_json::Value) -> serde_json::Value {
@@ -4388,63 +4306,79 @@ pub fn prepare_comfyui_prompt_payload(parsed: &serde_json::Value) -> serde_json:
 }
 
 #[tauri::command]
-pub fn send_to_comfyui(
+pub async fn send_to_comfyui(
     endpoint: String,
     workflow_json: String,
 ) -> Result<serde_json::Value, String> {
-    let base = endpoint.trim_end_matches('/');
-    let target_url = format!("{base}/prompt");
+    tauri::async_runtime::spawn_blocking(move || {
+        let base = endpoint.trim_end_matches('/');
+        let target_url = format!("{base}/prompt");
 
-    let parsed: serde_json::Value =
-        serde_json::from_str(&workflow_json).map_err(|e| format!("Invalid workflow JSON: {e}"))?;
+        let parsed: serde_json::Value = serde_json::from_str(&workflow_json)
+            .map_err(|e| format!("Invalid workflow JSON: {e}"))?;
 
-    let payload = prepare_comfyui_prompt_payload(&parsed);
-    let body = serde_json::to_string(&payload)
-        .map_err(|e| format!("Failed to serialize ComfyUI payload: {e}"))?;
+        let payload = prepare_comfyui_prompt_payload(&parsed);
+        let body = serde_json::to_string(&payload)
+            .map_err(|e| format!("Failed to serialize ComfyUI payload: {e}"))?;
 
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(std::time::Duration::from_secs(5))
-        .timeout_read(std::time::Duration::from_secs(10))
-        .build();
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(std::time::Duration::from_secs(5))
+            .timeout_read(std::time::Duration::from_secs(10))
+            .build();
 
-    let res = agent
-        .post(&target_url)
-        .set("Content-Type", "application/json")
-        .send_string(&body)
-        .map_err(|e| format!("Failed to send to ComfyUI ({target_url}): {e}"))?;
+        let res = agent
+            .post(&target_url)
+            .set("Content-Type", "application/json")
+            .send_string(&body)
+            .map_err(|e| format!("Failed to send to ComfyUI ({target_url}): {e}"))?;
 
-    let json: serde_json::Value = serde_json::from_reader(res.into_reader())
-        .map_err(|e| format!("Failed to parse ComfyUI response: {e}"))?;
+        let json: serde_json::Value = serde_json::from_reader(res.into_reader())
+            .map_err(|e| format!("Failed to parse ComfyUI response: {e}"))?;
 
-    Ok(json)
+        Ok(json)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn send_to_webui(
+pub async fn send_to_webui(
     endpoint: String,
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    let base = endpoint.trim_end_matches('/');
-    let target_url = format!("{base}/sdapi/v1/txt2img");
+    tauri::async_runtime::spawn_blocking(move || {
+        let base = endpoint.trim_end_matches('/');
+        let target_url = format!("{base}/sdapi/v1/txt2img");
 
-    let body = serde_json::to_string(&payload)
-        .map_err(|e| format!("Failed to serialize WebUI payload: {e}"))?;
+        let body = serde_json::to_string(&payload)
+            .map_err(|e| format!("Failed to serialize WebUI payload: {e}"))?;
 
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(std::time::Duration::from_secs(5))
-        .timeout_read(std::time::Duration::from_secs(30))
-        .build();
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(std::time::Duration::from_secs(5))
+            .timeout_read(std::time::Duration::from_secs(30))
+            .build();
 
-    let res = agent
-        .post(&target_url)
-        .set("Content-Type", "application/json")
-        .send_string(&body)
-        .map_err(|e| format!("Failed to send to SD WebUI ({target_url}): {e}"))?;
+        let res = agent
+            .post(&target_url)
+            .set("Content-Type", "application/json")
+            .send_string(&body)
+            .map_err(|e| format!("Failed to send to SD WebUI ({target_url}): {e}"))?;
 
-    let json: serde_json::Value = serde_json::from_reader(res.into_reader())
-        .map_err(|e| format!("Failed to parse SD WebUI response: {e}"))?;
+        let json: serde_json::Value = serde_json::from_reader(res.into_reader())
+            .map_err(|e| format!("Failed to parse SD WebUI response: {e}"))?;
 
-    Ok(json)
+        Ok(json)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Read the automatic worker's in-memory status without waiting for provider I/O.
+#[tauri::command]
+pub fn cloud_backup_get_schedule_status(
+    state: State<'_, AppState>,
+) -> Result<omera_domain::AutomaticBackupStatus, String> {
+    state.backup_worker.status()
 }
 
 /// Test connectivity and latency to the configured cloud backup provider.
@@ -4513,36 +4447,58 @@ pub async fn cloud_backup_restore_snapshot(
     app_handle.restart();
 }
 
+/// Save the source-preserving legacy/new layout mapping before user confirmation.
+#[tauri::command]
+pub async fn cloud_sync_preview_namespace(
+    app_handle: AppHandle,
+    options: omera_domain::CloudSyncOptions,
+) -> Result<omera_domain::CloudSyncNamespacePreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let data_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?;
+        let manifest = {
+            let state = app_handle.state::<AppState>();
+            let guard = db(&state)?;
+            omera_scan::cloud_sync::build_namespace_manifest(&guard, &options)?
+        };
+        omera_scan::cloud_sync::save_namespace_manifest(&data_dir, manifest)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub async fn cloud_sync_start(
     app_handle: AppHandle,
     config: omera_domain::CloudBackupConfig,
     options: omera_domain::CloudSyncOptions,
-    state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let sync_state = Arc::clone(&state.cloud_sync);
-    {
-        let st = sync_state.lock().map_err(|e| format!("Lock error: {e}"))?;
-        if st.is_running {
-            return Err("A media sync operation is already currently running".to_string());
-        }
-    }
-
-    let (items, total_bytes) = {
-        let db_guard = db(&state)?;
-        crate::cloud_sync::collect_sync_items(&db_guard, &options)?
-    };
-
-    crate::cloud_sync::start_cloud_sync(
-        app_handle,
-        config,
-        options,
-        sync_state,
-        items,
-        total_bytes,
-    );
-
-    Ok(())
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let sync_state = Arc::clone(&state.cloud_sync);
+        let plan = {
+            let guard = db(&state)?;
+            omera_scan::cloud_sync::collect_sync_plan(&guard, &options)?
+        };
+        let data_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?;
+        omera_scan::cloud_sync::save_namespace_manifest(&data_dir, plan.manifest)?;
+        // The runner checks/sets busy atomically after preflight, before transfer.
+        crate::cloud_sync::start_cloud_sync(
+            app_handle,
+            config,
+            options,
+            sync_state,
+            plan.items,
+            plan.total_bytes,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -4666,6 +4622,63 @@ pub fn defer_legacy_cleanup(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use omera_scan::execute_library_batch_transform;
+
+    #[test]
+    fn export_estimate_snapshot_releases_shared_lock_during_processing() {
+        let database = Database::connect_in_memory().unwrap();
+        let folder = database.add_folder("/synthetic").unwrap();
+        let file = ImageFile {
+            id: None,
+            folder_id: folder.id,
+            path: "/synthetic/image.png".into(),
+            size_bytes: 10,
+            modified_at: 100,
+            container: omera_domain::Container::Png,
+            metadata: None,
+            rating: None,
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: None,
+            stack_order: 0,
+        };
+        database.upsert_file(&file).unwrap();
+        let id = database.list_files(folder.id).unwrap()[0].id.unwrap();
+        let shared = Arc::new(Mutex::new(database));
+        let worker_db = shared.clone();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            with_export_file_snapshot(&worker_db, id, |snapshot| {
+                started_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                assert_eq!(snapshot.path, "/synthetic/image.png");
+                Err::<(), _>("synthetic codec failure".into())
+            })
+        });
+        started_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let start = std::time::Instant::now();
+        let query = shared.try_lock().map(|db| db.get_file_by_id(id).unwrap());
+        eprintln!("Concurrent estimate snapshot query: {:?}", start.elapsed());
+        release_tx.send(()).unwrap();
+        assert_eq!(
+            worker.join().unwrap().unwrap_err(),
+            "synthetic codec failure"
+        );
+        assert!(
+            query.unwrap().is_some(),
+            "processing must not retain the database mutex"
+        );
+        assert!(shared.try_lock().is_ok());
+        assert!(with_export_file_snapshot::<()>(&shared, -1, |_| {
+            panic!("missing records must reject before processing")
+        })
+        .is_err());
+    }
+    use omera_domain::TransformFormat;
 
     #[test]
     fn test_prepare_comfyui_prompt_payload() {
@@ -4954,6 +4967,97 @@ mod tests {
         assert_eq!(updated.rating, Some(5));
         assert!(updated.is_favorite);
         assert!(std::path::Path::new(&updated.path).exists());
+
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_cull_stack_drafts_core_preserves_on_db_delete_failure() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("omera_test_cull_db_fail_{}", std::process::id()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder(&temp_dir.to_string_lossy()).unwrap();
+
+        let stack_id = "test_stack_cull_1";
+
+        // Hero file (stack_order 0, rating 5)
+        let hero_path = temp_dir.join("hero.png");
+        std::fs::write(&hero_path, b"hero").unwrap();
+        let hero = ImageFile {
+            id: None,
+            folder_id: folder.id,
+            path: hero_path.to_string_lossy().to_string(),
+            size_bytes: 4,
+            modified_at: 100,
+            container: omera_domain::Container::Png,
+            metadata: None,
+            rating: Some(5),
+            aesthetic_score: None,
+            is_favorite: true,
+            is_nsfw: false,
+            stack_id: Some(stack_id.to_string()),
+            stack_order: 0,
+        };
+        db.upsert_file(&hero).unwrap();
+
+        // Draft file (stack_order 1, rating 1 -> lower than min_rating 3)
+        let draft_path = temp_dir.join("draft.png");
+        std::fs::write(&draft_path, b"draft").unwrap();
+        let draft = ImageFile {
+            id: None,
+            folder_id: folder.id,
+            path: draft_path.to_string_lossy().to_string(),
+            size_bytes: 5,
+            modified_at: 101,
+            container: omera_domain::Container::Png,
+            metadata: None,
+            rating: Some(1),
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: Some(stack_id.to_string()),
+            stack_order: 1,
+        };
+        let draft_id = db.upsert_file(&draft).unwrap();
+
+        // High-rated member (stack_order 2, rating 4 -> not culled)
+        let keeper_path = temp_dir.join("keeper.png");
+        std::fs::write(&keeper_path, b"keeper").unwrap();
+        let keeper = ImageFile {
+            id: None,
+            folder_id: folder.id,
+            path: keeper_path.to_string_lossy().to_string(),
+            size_bytes: 6,
+            modified_at: 102,
+            container: omera_domain::Container::Png,
+            metadata: None,
+            rating: Some(4),
+            aesthetic_score: None,
+            is_favorite: false,
+            is_nsfw: false,
+            stack_id: Some(stack_id.to_string()),
+            stack_order: 2,
+        };
+        let keeper_id = db.upsert_file(&keeper).unwrap();
+
+        // Inject trigger rejecting DELETE on files table to verify DB failure is not counted as success
+        db.connection()
+            .execute_batch(
+                "CREATE TRIGGER test_fail_delete BEFORE DELETE ON files BEGIN SELECT RAISE(FAIL, 'simulated db delete failure'); END;",
+            )
+            .unwrap();
+
+        let culled_count = cull_stack_drafts_core(&db, stack_id, 3).unwrap();
+        assert_eq!(
+            culled_count, 0,
+            "Failed DB deletion must not increment trashed count"
+        );
+
+        // Files still exist in DB
+        assert!(db.get_file_by_id(draft_id).unwrap().is_some());
+        assert!(db.get_file_by_id(keeper_id).unwrap().is_some());
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }

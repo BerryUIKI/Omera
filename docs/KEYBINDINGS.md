@@ -10,12 +10,17 @@ Omera is designed with desktop productivity in mind. Most major operations can b
 | :--- | :--- | :--- |
 | `Space` / `Enter` | Gallery | Open fullscreen Lightbox (Quick Look) for selected image |
 | `←` / `→` | Lightbox / Gallery | Navigate to previous / next image |
-| `Ctrl+A` / `Cmd+A` | Gallery | Select all visible images in current view |
+| `Ctrl+A` / `Cmd+A` | Gallery | Select loaded items in the current view |
 | `Esc` | Global | Clear selection / Exit Lightbox / Close active modal |
 | `0` | Global | Clear star rating on selected image(s) |
 | `1` ~ `5` | Global | Set star rating (1 to 5 stars) on selected image(s) |
 | `F` | Global | Toggle Favorite status on selected image(s) |
+| `Shift+M` | Gallery | Toggle sensitive-content masking for this session; enabling clears temporary reveals |
 | `Delete` | Global | Move selected image(s) to system Recycle Bin / Trash |
+
+Bulk selection does not fetch additional pages. Expand a stack to include its members,
+and repeat selection after more pages load. The batch bar reports the full filtered
+result total and the selectable loaded count separately.
 
 Range selection follows standard desktop behavior: click an image to establish the
 anchor, then Shift-click another image to select the inclusive range immediately.
@@ -33,6 +38,23 @@ Ctrl/Cmd-click toggles individual images and establishes a new range anchor.
 | `Ctrl+-` | Gallery | Zoom out thumbnails |
 | `Ctrl+0` | Gallery | Reset thumbnail zoom to default (200px) |
 | `F11` | Global | Toggle Fullscreen window mode |
+
+---
+
+## 🧭 Sidebar Navigation
+
+| Shortcut | Scope | Action |
+| :--- | :--- | :--- |
+| `↓` / `↑` | Sidebar | Move focus to next / previous destination (Library, Folders, Albums, Tags, Tools) |
+| `Home` / `End` | Sidebar | Jump focus to the first / last destination |
+| `→` | Sidebar Tree | Expand collapsed folder/subfolder, or step into the first child node |
+| `←` | Sidebar Tree | Collapse expanded folder/subfolder, or return focus to parent folder |
+| `←` / `→` | Sidebar Tags | Navigate horizontally between adjacent tag chips |
+| `↑` | Sidebar Tags | Move focus from first tag chip up to tag search/filter input |
+| `↓` | Tag Search | Move focus from tag search/filter input to matching tag chips |
+| `Enter` | Tag Search | Select and focus the first matching tag from the filter query |
+| `Esc` | Tag Search | Clear the active tag filter query and refocus input |
+| `Enter` / `Space` | Sidebar | Select destination, activate tool, or toggle action without scrolling |
 
 ---
 

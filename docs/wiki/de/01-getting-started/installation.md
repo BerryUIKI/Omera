@@ -28,6 +28,14 @@ Omera nutzt eine hocheffiziente native Architektur auf Basis von **Tauri v2**, *
 Laden Sie offizielle Produktionspakete von der [GitHub-Releases-Seite](https://github.com/BerryUIKI/Omera/releases) oder der [offiziellen Website](https://berryuiki.github.io/Omera/) herunter.
 
 ### Windows
+Setup benötigt eine kompatible Microsoft Visual C++ x64-Systemlaufzeit. Öffnen Sie
+bei Bedarf die [offizielle Microsoft-Downloadseite](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)
+und installieren oder reparieren Sie das aktuelle **x64** Redistributable
+(Administratorfreigabe kann erforderlich sein). Kehren Sie danach zum EXE-Installer
+zurück und klicken Sie auf Weiter; starten Sie MSI-Setup erneut. Unbeaufsichtigtes
+oder passives Setup stoppt bei fehlender Laufzeit. Omera bündelt keine Laufzeit-DLLs
+und installiert das Redistributable nicht automatisch.
+
 1. **Standard-Installationsprogramm (`Omera_Windows_x64.exe`)**:
    - Führen Sie die Installationsdatei per Doppelklick aus.
    - Folgen Sie dem Installationsassistenten, um den Installationsort festzulegen und Verknüpfungen auf dem Desktop sowie im Startmenü zu erstellen.

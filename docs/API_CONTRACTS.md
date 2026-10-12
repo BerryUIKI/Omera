@@ -1,19 +1,32 @@
 # Omera application interface contracts
 
-Status: current source contract plus explicitly marked proposals. The current source includes unfinished review fixes; it is not a released Omera API. Application identity activation and migration commands below are not implemented yet.
+Status: current source contract plus explicitly marked proposals. The active runtime identity is Omera (`com.berryuiki.omera`), and the seven legacy migration coordination commands are implemented in `src-tauri` under lead ownership. Proposed extensions and contracts not yet implemented as invokable runtime IPC are explicitly labeled.
+
+## Prompt insights population
+
+`get_prompt_insights({ limit })` returns `total_analyzed` and four ranked lists of
+`{ keyword, count }` objects. The population includes files with at least one
+usable positive/negative prompt token, nonblank model name, or nonblank sampler.
+Prompt tokens use the existing comma-separated, trimmed, minimum-two-byte rules.
+Each keyword counts a file once, even when repeated within that file. Model and
+sampler names are trimmed; missing/blank values contribute no category entry.
+The result limit is capped at 100 per category. Aggregation streams database rows
+on a blocking worker and returns a consistent snapshot. Empty libraries return
+zero and empty lists; query failures reject, allowing the UI to display failure
+separately from an empty result. The older `get_prompt_stats` API remains supported.
 
 ## Sources of truth and compatibility
 
 | Surface | Source of truth | Consumer |
 | --- | --- | --- |
 | Registered IPC commands | `src-tauri/src/lib.rs` `generate_handler!` and `src-tauri/src/commands.rs` | Vue `invoke` calls |
-| Domain DTOs | `crates/berry-domain/src/` Serde definitions | `src/types.ts` |
+| Domain DTOs | `crates/omera-domain/src/` Serde definitions | `src/types.ts` |
 | Configuration DTO/defaults | Rust `AppConfig` in commands; config persistence service | `src/utils/config.ts` |
-| Thumbnail DTOs | `crates/berry-scan/src/thumbnail.rs` | `src/utils/thumbnail.ts` |
+| Thumbnail DTOs | `crates/omera-scan/src/thumbnail.rs` | `src/utils/thumbnail.ts` |
 | Update DTOs | Rust `UpdateDownloadProgress` | `src/utils/updater.ts` |
 | Watcher events | `src-tauri/src/watcher.rs` | App refresh scheduling |
 
-[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 138 commands registered in implementation snapshot `5fabdd8`, their actual request keys and Rust return types. This source is in draft PR #138, not yet integrated into `dev`. On a documentation-only checkout, validate with `node scripts/generate-ipc-reference.mjs --source-ref 5fabdd8 --check` after fetching that branch. On an implementation checkout, regenerate/check without `--source-ref`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 160 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
 
 Current commands are local Tauri IPC, not HTTP endpoints. Do not invent REST routes or expose these commands through a network server. Commands are restricted to the configured application WebView; IPC arguments still require backend validation.
 
@@ -60,6 +73,10 @@ Verify the exact `SearchCriteria` properties against the Rust definition before 
 
 Gallery rows omit raw workflow/parameter payloads. `get_file_details({ fileId })` returns the full `ImageFile`. Cache details by file identity and revision, and use an invalidation generation for requests already in flight. A metadata hydration result must not overwrite newer mutable flags or ratings in the UI.
 
+`ExtractedMetadata.format` is a known generator string or `null` for technical image facts without generation metadata. Library batch transformations store the published image's width/height atomically with its path. Raw preserved generation parameters may describe the original generation size; they are not current pixel dimensions. Stripping policies retain only technical dimensions in SQLite, with generation fields and format null. Existing generator strings/defaults remain unchanged; no schema migration is required.
+
+`ImageFile.container` serializes as the native Serde names (`Png`, `Jpeg`, `WebP`, `Avif`, `Mp4`, `Webm`, `Txt`). TypeScript also accepts historical lowercase canonical IDs used by existing callers. Folder scans can discover existing AVIF by signature and index it without changing its bytes; discovery does not supply AVIF decoding or lift the managed-publication gate. Unknown AVIF signatures fail recognition instead of using an extension-only fallback.
+
 `list_filtered_stacks({ query, context })` and `get_filtered_stack_members({ stackId, query, context })` share gallery filters. Do not replace these with unfiltered stack APIs inside a scoped search.
 
 ## Semantic search and indexing
@@ -88,13 +105,23 @@ const saved = await invoke<AppConfig>('save_app_config', {
 
 The in-progress persistence service writes atomically, rejects corrupt JSON without silently replacing it, and stores secret references in configuration while resolving credentials for authorized internal use. Do not log full configs, credential values, or imported exports. Credentials are not safe browser localStorage content.
 
+Settings retains its loaded revision and form edits after rejection, displays an accessible error, and prevents duplicate submissions. Locale, theme, thumbnail preferences and success/close events apply only after persistence succeeds; failed saves leave the localStorage mirror unchanged. Production-handler tests cover rejection, retry state and overlapping submissions.
+
 `legacy_migration_complete` currently refers to the old config/localStorage migration. It is **not** an Omera migration receipt, proof of database validation, or authorization to delete a directory. New Omera values take precedence over imported legacy values; false/zero/empty values are not evidence of absence.
 
-`get_storage_paths()` returns `data_dir`, `config_file`, `database_file`, `thumbnails_dir`, `models_dir`, and `updates_dir`. UI code must use returned paths rather than reconstructing them from product names. `open_storage_dir({ target })` accepts the named categories in the reference. The current runtime still uses the legacy application identity; target Omera paths are activated by the lead-owned migration.
+`get_storage_paths()` returns `data_dir`, `config_file`, `database_file`, `thumbnails_dir`, `models_dir`, and `updates_dir`. UI code must use returned paths rather than reconstructing them from product names. `open_storage_dir({ target })` accepts the named categories in the reference. The active runtime uses the target Omera application identity and locations (`com.berryuiki.omera`).
 
 ## File operations, backup and restore
 
+`estimate_export_file({ fileId, options })` copies one full image record under a
+short application database lock, releases that lock, then runs image decoding
+and encoding on a blocking worker. Missing IDs reject before processing; codec
+errors reject independently of gallery reads. Its response DTO is unchanged.
+
 `copy_files`/`move_files` take `{ filePaths, targetFolderId }`; `trash_files` takes `{ filePaths }`. Current working responses are a completed count on full success or a rejection string containing partial progress and recovery-journal information. This is a known transitional limitation (#100): never parse localized strings to infer which individual files succeeded, and never automatically retry the entire operation after partial failure. Refresh affected state and display the error.
+
+`cull_stack_drafts({ stackId, minRating })` trashes lower-rated draft images and sidecars (`.txt`, `.json`) in a stack while preserving the hero image (`stack_order == 0`). Trash operations must succeed on the filesystem before database records are deleted; failed trash operations preserve database rows and are excluded from the returned success count.
+
 
 The lead will stabilize a per-file result DTO before engineers add collision/retry UI. Source deletion, collision policies and filesystem rollback are backend responsibilities. Copy/move sidecars and trash behavior must not diverge from the primary-file outcome without an explicit partial result.
 
@@ -102,9 +129,70 @@ The lead will stabilize a per-file result DTO before engineers add collision/ret
 
 The storage-only Rust function `recovery::migrate_copy(source, destination)` is **not an IPC command**. It snapshots committed SQLite/WAL content, validates the source, upgrades a staged copy, rejects existing destinations, and preserves the source. It does not migrate config/credentials, discover sources, track receipts, or authorize cleanup. Integrators must implement those steps under the migration contract.
 
+`import_files_to_managed_vault` and the reusable `execute_managed_import_transform` ingest external files into managed vault folders with optional transcoding and album association. Both delegate directly to the unified publication service in `crates/omera-scan::transform`:
+- AVIF is explicitly export-only with the shipped codecs. Managed import (including byte-copy requests) and library conversion reject AVIF sources/targets before publication. Source magic is checked so changing an AVIF extension cannot bypass this restriction. PNG, JPEG and WebP staged derivatives are fully decoded before publication. Standalone `export_files_batch` retains AVIF encoding; application thumbnail/preview decoding of AVIF remains unsupported.
+- Destination folders are validated to exist and be managed vaults (`folder_type == "managed"`). Linked (external read-only) and pipeline folders are strictly rejected before any file creation, with zero destination or database side effects.
+- Missing or stale destination IDs reject cleanly with descriptive errors.
+- Verified content identity deduplication: when an existing asset in the destination matches the basename, file size is only used as an initial filter. Full byte-for-byte content identity is verified before reusing an existing asset. Truly identical files avoid redundant file copying while reusing the existing library record identity; distinct files with equal byte size are treated as collisions and resolved per `TransformCollisionPolicy` (`rename` or `skip`), never falsely deduplicated or silently dropped (#268).
+- Collision handling supports configurable `TransformCollisionPolicy` (`rename` or `skip`).
+- Sibling metadata sidecars (`.txt`, `.json`) are copied only under `KeepSupported`; `StripAi` and `StripAll` suppress unknown sidecar schemas. Publication reserves sibling stems, refuses sidecar overwrite, and reports/compensates sidecar write failures without deleting pre-existing files.
+- Metadata policy (`KeepSupported`, `StripAi`, `StripAll`) is applied consistently.
+- Import processing uses the shared `TransformSpec::requires_processing` decision: format, quality, max edge, percentage scale, alignment, target size, and stripping policies all require processing. Metadata-only stripping re-encodes `Original` image requests. Default `Original`/`KeepSupported` remains byte-exact; video requests requiring processing fail before publication because video transformation/stripping is unsupported.
+- In-flight failure compensation: if file publication succeeds but database record upserting fails, the published file and any copied sidecars are compensated (cleaned up) from the managed vault directory, leaving source files completely intact.
+- Library batch transform (`execute_library_batch_transform`): updates and commits the SQLite file record prior to original file disposition (`Archive` or `Trash`). If the database update fails, the indexed source file remains completely intact and un-disposed, unpublished derivatives are compensated from the filesystem, and collisions in `.omera_archive` are renamed automatically.
+- The batch path update atomically replaces indexed generation metadata: `KeepSupported` re-extracts from the published derivative, while `StripAi`/`StripAll` clear generation fields. No stale source-record fallback is used. User curation and relationships remain attached to the original file ID; orphan sidecar stems are excluded from derivative naming.
+
+
+`harvest_pipeline_folder({ folderId })` and `process_pipeline_cleanups()` manage local AI generator outputs (ComfyUI, SD WebUI, Fooocus) and delayed trash disposal. They delegate directly to reusable Rust services in `crates/omera-scan::pipeline`:
+- `harvest_pipeline_folder`:
+  - Validates folder existence, type (`folder_type == "pipeline"`), and configured source directory existence.
+  - Debounces newly modified files to prevent ingesting partially written images during local generation.
+  - Enforces collision policies (`SkipIdentical`, `Rename`, `SkipAlways`, `Overwrite`). Under `SkipIdentical`, basename and file size serve as initial candidate filters only; byte-for-byte content identity is verified before deduplication. Truly identical content is safely deduplicated without copying or mutating existing assets (`SkippedIdentical`), while distinct content with equal length is emitted as `SkippedCollision` and never clobbered or falsely deduplicated (#232, #268). If the pipeline folder specifies `ingest_action == "move"`, deduplicated identical content enqueues delayed cleanup (or immediate trash if grace <= 0) referencing the existing destination record ID so duplicate generator outputs do not linger indefinitely.
+  - Under `Rename`, generated non-colliding candidate names coordinate across both media files and any accompanying sidecars (`.txt`, `.json`) so neither media nor sidecars collide with existing files.
+  - Preserves sibling metadata sidecars (`.txt`, `.json`) alongside harvested images. Pre-existing destination sidecars are protected against accidental overwriting unless the collision policy is explicitly `Overwrite`.
+  - Extracts metadata and indexes files into SQLite with transactional failure rollback / filesystem compensation. Compensation removes only newly created destination files and sidecars, never pre-existing assets.
+  - Ingest action support: when `ingest_action == "move"`, files are scheduled for delayed cleanup (`grace_period_hours > 0`) or trashed immediately (`grace_period_hours <= 0`).
+- `process_pipeline_cleanups`:
+  - Enforces strict destination and source revalidation before any file is trashed.
+  - Destination revalidation: verifies that the target library image record still exists in SQLite and that the harvested file on disk exists and has non-zero size. If the target was removed from the library or is missing on disk, source deletion is rejected and recorded as failed to prevent data loss.
+  - Source revalidation: rejects directory roots, external library roots, and self-referential paths (where source equals destination).
+  - Moves source files and any sidecars (`.txt`, `.json`) to system trash, updating cleanup queue records to `deleted` on success or `failed` on error.
+  - Never falls back to permanent deletion if system trash fails.
+
+
 ## Updates and long-running operations
 
+Cloud media sync uses persistent per-folder UUID namespaces. Call
+`cloud_sync_preview_namespace({ options })` first: it resolves
+`CloudSyncNamespacePreview { manifest_id, manifest_path, manifest }`, saves a
+compatibility mapping in application data, and does not transfer media. The
+manifest contains version, normalized remote prefix, and sorted root mappings
+(`folder_id`, `source_path`, `root_uuid`, `legacy_prefix`, `new_prefix`,
+`legacy_ambiguous`). Display the mapping and obtain explicit confirmation before
+calling `cloud_sync_start({ config, options: { ...options,
+namespace_manifest_id: preview.manifest_id } })`. Canceling must not call start.
+
+Start revalidates the current mapping, preflights every selected file, and saves
+the manifest before launching transfers. Missing/stale acknowledgement, unsafe
+paths, colliding keys, or damaged/unwritable manifests reject before transfer.
+Preview and preflight run in blocking workers; database guards are released
+before manifest I/O or network work. Concurrent starts are rejected by the
+runner's atomic busy check. Optional request fields retain Serde defaults;
+legacy requests without acknowledgement deserialize but cannot start syncing.
+Prefixes are relative to the provider base (including any configured S3 prefix).
+Old basename objects are preserved and require manual reconciliation; ambiguous
+legacy mappings never authorize remote deletion or automatic adoption.
+
 `download_update({ url, filename })` resolves a staged installer path after signature verification in the working code. `install_update({ installerPath, silent })` revalidates the local installer and launches installation. Missing embedded trust configuration is an error; engineers must not add a bypass. Platform/architecture asset selection and renamed-repository trust remain lead-owned work.
+
+On Windows, verified NSIS EXE packages launch directly (`/S` only when silent).
+Verified MSI packages use the system Windows Installer with `/i`, `/norestart`
+and optional `/quiet`, following
+[Microsoft's installer options](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec).
+Keep paths as individual process arguments, including spaces and Unicode. Reject
+unsupported Windows package extensions before launching or exiting the app. The
+IPC request/response shape and both signature-verification points are unchanged.
+Command-plan tests do not establish successful installed-version upgrades.
 
 Subscribe to progress before starting an operation and always dispose listeners in `finally` and component teardown. Existing events are global and mostly lack operation IDs; concurrent unrelated jobs may interleave. Do not infer ownership by listening to every event. Adding operation IDs is an explicit cross-layer contract change, not a frontend-only patch.
 
@@ -118,6 +206,16 @@ Subscribe to progress before starting an operation and always dispose listeners 
 | `cloud-sync://progress` | `CloudSyncProgress` | Dispose on teardown and query final summary separately |
 
 An `async fn` declaration alone does not ensure work is off the runtime thread. Blocking filesystem/decode/inference/network work belongs in bounded workers, and shared database locks must be released before that work. See L8/#102 for command-by-command ownership changes.
+
+## Database restore and recovery lifecycle — IMPLEMENTED
+
+Owner: lead. Database restores (both local `restore_database` and remote `cloud_backup_restore_snapshot`) route through the safe staged recovery lifecycle in `omera_storage::recovery`.
+
+- Restores validate archive integrity, SQLite `PRAGMA integrity_check`, user schema version, and foreign key relationships (`PRAGMA foreign_key_check`) on a staged temporary copy.
+- The validated database is written to `active.pending-restore.db` without mutating the live SQLite file or conflicting with active WAL/mmap readers or writers.
+- Live database connections and workers remain open and unmodified during staging; no in-place overwrite occurs while locks or mmap sections are active.
+- Activation occurs during startup/restart in `omera_storage::recovery::apply_pending_restore` before application connections or workers start.
+- Prior to applying the restore, a timestamped rollback copy (`pre-restore-<uuid>.db`) is transactionally preserved.
 
 ## Planned image transformation contract — NOT IMPLEMENTED
 
@@ -137,9 +235,12 @@ Owner: lead. These 7 commands are registered in `src-tauri` and coordinate WAL-s
 | `confirm_legacy_cleanup` | `{ previewId, confirmed: true }` | Per-artifact outcomes after revalidation; reject stale preview, concurrent writer, missing destination, changed source or absent confirmation |
 | `defer_legacy_cleanup` | `{ receiptId }` | Persisted decision to retain old data; prevent repetitive startup prompts |
 
-Proposed migration states: `discovered -> awaiting_source_choice -> planned -> copying -> validating -> activating -> migrated -> cleanup_available`. Failure records the failed stage and preserves retry/recovery evidence. Cleanup states are separate: `retained`, `cleaning`, `partially_cleaned`, `cleaned`. Restarting must not promote a partially activated migration to success.
+The 7 migration coordination commands above are implemented and registered in `src-tauri` with domain DTOs defined in `crates/omera-domain/src/migration.rs`. The runtime implementation returns `Result<T, String>` where T corresponds to the respective domain struct (`LegacyMigrationStatus`, `LegacyMigrationPreview`, `LegacyMigrationJob`, `LegacyCleanupPreview`, `LegacyCleanupResult`, or `()`).
 
-Proposed structured errors: `{ code, message_key, retryable, context }`. Initial codes: `SOURCE_CHANGED`, `SOURCE_BUSY`, `MULTIPLE_SOURCES`, `DESTINATION_EXISTS`, `UNSUPPORTED_SCHEMA`, `INTEGRITY_FAILED`, `INSUFFICIENT_SPACE`, `CREDENTIAL_STORE_UNAVAILABLE`, `LEGACY_ORIGIN_UNAVAILABLE`, `PLAN_EXPIRED`, `CONFIRMATION_REQUIRED`, `CLEANUP_PARTIAL`. Context must be bounded and secret-free. Existing commands still reject strings; do not retrofit this envelope without a coordinated migration.
+The following migration lifecycle states and structured error envelope represent proposed extensions for future UI/backend coordination:
+
+- Migration states: `discovered -> awaiting_source_choice -> planned -> copying -> validating -> activating -> migrated -> cleanup_available`. Failure records the failed stage and preserves retry/recovery evidence. Cleanup states: `retained`, `cleaning`, `partially_cleaned`, `cleaned`. Restarting must not promote a partially activated migration to success.
+- Proposed structured errors (not yet returned by runtime commands; existing commands reject with `Result::Err(String)`): `{ code, message_key, retryable, context }`. Proposed initial codes: `SOURCE_CHANGED`, `SOURCE_BUSY`, `MULTIPLE_SOURCES`, `DESTINATION_EXISTS`, `UNSUPPORTED_SCHEMA`, `INTEGRITY_FAILED`, `INSUFFICIENT_SPACE`, `CREDENTIAL_STORE_UNAVAILABLE`, `LEGACY_ORIGIN_UNAVAILABLE`, `PLAN_EXPIRED`, `CONFIRMATION_REQUIRED`, `CLEANUP_PARTIAL`. Context must be bounded and secret-free. Existing commands still reject strings; do not retrofit this envelope without a coordinated migration.
 
 Confirmation must refer to the exact backend preview the user saw. A boolean alone is insufficient to authorize new paths. Backend cleanup is restricted to receipt-owned legacy artifacts, excludes media/vaults, rechecks destination health and source revision, and never falls back from trash to permanent deletion. See [OMERA_MIGRATION.md](OMERA_MIGRATION.md).
 
@@ -159,3 +260,102 @@ Confirmation must refer to the exact backend preview the user saw. A boolean alo
 3. Document validation limits, side effects, lock/worker ownership, cancellation boundaries and partial outcomes. Reads that perform migration or cache writes must say so.
 4. Supply request/success/error fixtures using actual serialized property names. Never include secrets or personal file paths in fixtures.
 5. Update the command inventory and contract tests. Lead approval is required for identity, persistence, cleanup, signing and security boundaries.
+
+
+## Table column preferences
+
+`AppConfig.table_columns` is an optional-on-read list of `{ id, visible, width }`
+preferences. Older configuration receives an empty list on both sides, meaning
+the compact default (selection, preview, filename, prompt and model). UI normalization
+ignores unknown/duplicate column IDs, clamps widths to 44–640 pixels (filename,
+prompt and model minimum 80), and always retains filename and selection.
+Visibility and widths are saved together through revision-checked configuration;
+failed saves retain the draft, show an error and leave active columns unchanged.
+Keyboard-accessible checkboxes and numeric width controls provide customization,
+with reset to the compact default. Horizontal scrolling stays inside the Table.
+
+
+## Automatic backup preparation (#246)
+
+Automatic backup remains off by default, with the same seven-day interval in
+Rust default construction, Serde legacy reads and frontend defaults. The future
+scheduler consumes only saved opt-in settings and clamps its interval to 1–365
+days. Scheduling/status IPC is not implemented by this preparation step.
+
+Manual and future scheduled snapshots use independent SQLite backup connections,
+spool database/archive files in private temporary application directories, and
+clean those staging files on ordinary success/failure. Counts come from the
+completed SQLite snapshot. Archive names include a unique suffix; local targets
+are published atomically without overwrite. Uploads stream the archive from disk.
+Backups contain the database and manifest, never media or credential/config files.
+Restore retains its existing staged-recovery contract.
+
+
+## Automatic backup schedule policy (#246)
+
+The domain schedule is I/O-free and uses explicit Unix seconds. Saved opt-in
+settings enable the first snapshot on the next worker poll; successful snapshots
+become due after 1–365 days (clamped). Only one automatic job may run. A failed
+attempt retries after one hour, retaining the last success; restart recovers a
+persisted running attempt as interrupted with the same backoff. Disabling stops
+future jobs; an already started snapshot may finish. Destination identity changes
+reset the destination's success history; credential rotation does not. Clock
+rollback postpones a due date rather than causing repeated snapshots.
+
+Persisted schedule state contains no credentials and uses a destination digest.
+Public status reports enabled, interval_days, running, last_attempt_at,
+last_success_at, next_due_at, last_error and last_snapshot (archive filename).
+Corrupt state must be preserved and scheduling paused with a visible error.
+Runtime worker/status IPC and UI follow separately; this policy adds no command.
+
+
+## Automatic backup worker — implementation contract
+
+One background worker starts after the SQLite-backed application state is ready,
+without blocking the WebView or walking media directories. It checks saved
+configuration every 30 seconds; closed applications do not run backups. The
+private `automatic-backup-state.json` file is atomically synced before starting
+and after completing a job. Invalid persisted state is preserved and pauses
+scheduling until repaired and the application restarted. Invalid configuration
+pauses scheduling until corrected. Credentials are resolved only when due;
+failures are reported without treating keyring references as real credentials.
+
+Snapshots use independent database connections. Status reads take only a short
+in-memory lock; no filesystem or network work holds the shared application DB
+lock. Exit stops new jobs; interruption is recovered with one-hour backoff on
+restart. No automatic retention/deletion is introduced. A status-only command
+will expose the eight domain fields; settings still use revision-checked
+`save_app_config`. Destination hashes exclude credentials and inactive providers.
+
+
+### Automatic backup status — implemented backend
+
+`cloud_backup_get_schedule_status` accepts no arguments and returns the eight
+`AutomaticBackupStatus` snake_case fields above. It reads only worker memory;
+configuration/credentials, database snapshotting and provider I/O stay on the
+background worker. The worker is registered at startup and stopped on app exit.
+The status command cannot enable backups; only saved configuration does that.
+The settings controls are a separate frontend follow-up.
+
+
+Backup provider wire values are `local_path`, `webdav`, and `s3`, matching
+TypeScript and settings. Rust also accepts the historical `web_dav` spelling on
+read; new serialization uses `webdav`. This preserves earlier saved provider
+settings while allowing the existing GUI to submit WebDAV configurations.
+
+
+### Automatic backup settings contract
+
+The Cloud & Backup settings tab exposes an opt-in checkbox and 1–365 day
+interval. Edits remain drafts until the existing revision-checked Save succeeds;
+Cancel and failed saves do not change the worker. Status describes saved worker
+state independently of those drafts. The first attempt starts within the next
+30-second poll while the app is open; disabling stops future attempts and lets
+an in-flight snapshot finish. Backup scope is database/manifest only.
+
+The status read is polled every 30 seconds only while this settings tab is open.
+Polling is deduplicated, cleaned up on close/unmount, and discards responses from
+previous tab lifetimes. The UI shows running/disabled/waiting-to-retry states,
+last success/attempt, next due date, archive filename and errors in all seven
+locales. Status failures remain visible; they never enable backups or hide a
+failed settings save. No schedule mutation command is added.

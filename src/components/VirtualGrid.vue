@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import type { ImageFile } from "../types";
+import { fileSelectionLabel } from "../utils/selection";
 import {
   assetUrl,
   formatBytes,
@@ -27,6 +28,11 @@ import { calculateGalleryColumns, calculateGalleryTrackOffset } from "../utils/g
 import { hasActiveDialog, isEditableTarget } from "../utils/dialog";
 import { useGalleryNavigation } from "../utils/gallery-navigation";
 import { WaterfallGeometry, visibleWaterfallItems } from "../utils/gallery-state";
+import {
+  isSensitiveMasked,
+  isSensitiveRevealed,
+  useGalleryPrivacy,
+} from "../utils/gallery-privacy";
 
 const props = withDefaults(
   defineProps<{
@@ -40,6 +46,7 @@ const props = withDefaults(
     gap?: number;
     overscan?: number;
     blurNsfw?: boolean;
+    revealedNsfw?: Set<string>;
     showCardBadges?: boolean;
     stackMap?: Record<string, { count: number; heroId: number | null }>;
     expandedStacks?: Set<string>;
@@ -73,6 +80,7 @@ const emit = defineEmits<{
   (e: "cullStack", stackId: string): void;
   (e: "loadMore"): void;
   (e: "recover"): void;
+  (e: "toggleReveal", path: string): void;
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -82,7 +90,17 @@ const containerHeight = ref(0);
 
 // Image loading error tracker
 const failedImages = ref<Set<string>>(new Set());
-const revealedNsfw = ref<Set<string>>(new Set());
+const privacy = useGalleryPrivacy();
+
+function isMasked(file: ImageFile | null | undefined): boolean {
+  const revealedSet = props.revealedNsfw ?? privacy.revealedPaths.value;
+  return isSensitiveMasked(file, props.blurNsfw ?? true, revealedSet);
+}
+
+function isRevealed(path: string): boolean {
+  const revealedSet = props.revealedNsfw ?? privacy.revealedPaths.value;
+  return isSensitiveRevealed(path, revealedSet);
+}
 
 function onImageError(path: string) {
   failedImages.value.add(path);
@@ -96,12 +114,10 @@ function retryImage(file: ImageFile) {
   void loadThumbnailFor(file, edge, beginThumbnailRequestCycle());
 }
 
-
 function toggleNsfwReveal(path: string) {
-  if (revealedNsfw.value.has(path)) {
-    revealedNsfw.value.delete(path);
-  } else {
-    revealedNsfw.value.add(path);
+  emit("toggleReveal", path);
+  if (!props.revealedNsfw) {
+    privacy.toggleReveal(path);
   }
 }
 
@@ -573,6 +589,17 @@ function handleKeyDown(e: KeyboardEvent) {
         nextIndex = currentIndex - cols.value;
       }
       break;
+    case "r":
+    case "R": {
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && currentIndex >= 0 && currentIndex < props.files.length) {
+        const file = props.files[currentIndex];
+        if (file && file.is_nsfw && (props.blurNsfw ?? true)) {
+          e.preventDefault();
+          toggleNsfwReveal(file.path);
+        }
+      }
+      return;
+    }
     default:
       return;
   }
@@ -712,8 +739,9 @@ function onDragStart(e: DragEvent, file: ImageFile) {
                 type="button"
                 class="card-select-btn"
                 :class="{ checked: selectedFilePaths?.has(file.path) }"
-                :aria-label="selectedFilePaths?.has(file.path) ? t.view.deselect : t.view.selectAll"
-                :title="selectedFilePaths?.has(file.path) ? t.view.deselect : t.view.selectAll"
+                :aria-pressed="!!selectedFilePaths?.has(file.path)"
+                :aria-label="fileSelectionLabel(file.path, !!selectedFilePaths?.has(file.path), t.view)"
+                :title="fileSelectionLabel(file.path, !!selectedFilePaths?.has(file.path), t.view)"
                 @click.stop="toggleSelect(file)"
               >
                 {{ selectedFilePaths?.has(file.path) ? "✓" : "" }}
@@ -728,15 +756,16 @@ function onDragStart(e: DragEvent, file: ImageFile) {
                 🔍
               </button>
 
-              <!-- Video actively scrubbing on hover -->
+              <!-- Video actively scrubbing on hover (strictly bounded to single active card) -->
               <video
                 v-if="isVideoContainer(file.container) && hoveredVideoPath === file.path"
                 :src="assetUrl(file.path)"
                 class="thumbnail-img thumbnail-video video-active"
-                :class="{ 'nsfw-blurred': blurNsfw && file.is_nsfw && !revealedNsfw.has(file.path) }"
+                :class="{ 'nsfw-blurred': isMasked(file) }"
                 muted
                 playsinline
                 preload="auto"
+                @loadeddata="onVideoLoadedData($event, file)"
               />
 
               <!-- Cached WebP thumbnail or image -->
@@ -749,23 +778,20 @@ function onDragStart(e: DragEvent, file: ImageFile) {
                 :src="getCardImageSrc(file, Math.max(width || itemWidth, imageHeight)) || undefined"
                 :alt="getFileName(file.path)"
                 class="thumbnail-img"
-                :class="{ 'nsfw-blurred': blurNsfw && file.is_nsfw && !revealedNsfw.has(file.path) }"
+                :class="{ 'nsfw-blurred': isMasked(file) }"
                 loading="lazy"
                 decoding="async"
                 @error="onImageError(file.path)"
               />
 
-              <!-- Video poster when not actively hovered and no cached thumbnail -->
-              <video
+              <!-- Video placeholder when not actively hovered and thumbnail is not ready -->
+              <div
                 v-else-if="isVideoContainer(file.container)"
-                :src="assetUrl(file.path)"
-                class="thumbnail-img thumbnail-video video-poster"
-                :class="{ 'nsfw-blurred': blurNsfw && file.is_nsfw && !revealedNsfw.has(file.path) }"
-                muted
-                preload="metadata"
-                playsinline
-                @loadeddata="onVideoLoadedData($event, file)"
-              />
+                class="thumbnail-video-placeholder"
+                :class="{ 'nsfw-blurred': isMasked(file) }"
+              >
+                <div class="video-placeholder-icon">🎬</div>
+              </div>
 
               <div
                 v-else-if="
@@ -774,6 +800,7 @@ function onDragStart(e: DragEvent, file: ImageFile) {
                   !failedImages.has(file.path)
                 "
                 class="thumbnail-pending"
+                :class="{ 'nsfw-blurred': isMasked(file) }"
                 aria-hidden="true"
               />
 
@@ -825,17 +852,31 @@ function onDragStart(e: DragEvent, file: ImageFile) {
               </div>
 
               <!-- NSFW blur overlay -->
-              <div
-                v-if="blurNsfw && file.is_nsfw && !revealedNsfw.has(file.path)"
+              <button
+                v-if="isMasked(file)"
+                type="button"
                 class="nsfw-overlay"
                 :title="t.preview.clickToReveal"
+                :aria-label="t.preview.clickToReveal"
                 @click.stop="toggleNsfwReveal(file.path)"
               >
                 <div class="nsfw-overlay-content">
-                  <span class="nsfw-icon">🔞</span>
+                  <span class="nsfw-icon" aria-hidden="true">🔞</span>
                   <span class="nsfw-text">NSFW</span>
                 </div>
-              </div>
+              </button>
+
+              <!-- Re-mask button when revealed -->
+              <button
+                v-else-if="file.is_nsfw && (props.blurNsfw ?? true) && isRevealed(file.path)"
+                type="button"
+                class="card-remask-btn"
+                :title="t.preview.remaskContent"
+                :aria-label="t.preview.remaskContent"
+                @click.stop="toggleNsfwReveal(file.path)"
+              >
+                <span class="card-remask-icon" aria-hidden="true">🔒</span>
+              </button>
 
               <!-- Badges Container -->
               <template v-if="showCardBadges">
@@ -1347,6 +1388,28 @@ function onDragStart(e: DragEvent, file: ImageFile) {
   pointer-events: none;
 }
 
+.thumbnail-video-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.75));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.video-placeholder-icon {
+  font-size: 2rem;
+  opacity: 0.6;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.grid-card:hover .video-placeholder-icon {
+  opacity: 0.9;
+  transform: scale(1.1);
+}
+
 .video-active {
   object-fit: cover;
   width: 100%;
@@ -1543,11 +1606,15 @@ function onDragStart(e: DragEvent, file: ImageFile) {
 @media (prefers-reduced-motion: reduce) {
   .grid-card,
   .grid-card.is-collapsed-stack,
+  .grid-card.stack-expanded,
   .card-select-btn,
   .badge-stack,
   .card-stack-compare-btn,
   .card-stack-cull-btn,
-  .card-similar-btn {
+  .card-similar-btn,
+  .card-remask-btn,
+  .nsfw-overlay,
+  .thumbnail-img.nsfw-blurred {
     transition: none;
     animation: none;
   }
@@ -1601,10 +1668,57 @@ function onDragStart(e: DragEvent, file: ImageFile) {
   cursor: pointer;
   z-index: 1;
   transition: background 0.15s ease;
+  border: none;
+  font: inherit;
+  padding: 0;
 }
 
-.nsfw-overlay:hover {
-  background: rgba(0, 0, 0, 0.6);
+.nsfw-overlay:hover,
+.nsfw-overlay:focus-visible {
+  background: rgba(0, 0, 0, 0.65);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.card-remask-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  padding: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.grid-card:hover .card-remask-btn,
+.grid-card:focus-within .card-remask-btn,
+.grid-card.card-selected .card-remask-btn,
+.card-remask-btn:focus-visible {
+  opacity: 1;
+}
+
+.card-remask-btn:hover,
+.card-remask-btn:focus-visible {
+  background: rgba(220, 38, 38, 0.9);
+  border-color: rgba(255, 255, 255, 0.8);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.card-remask-icon {
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .nsfw-overlay-content {

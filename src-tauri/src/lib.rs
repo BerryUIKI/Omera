@@ -1,9 +1,12 @@
+pub mod backup_scheduler;
 pub mod cloud_backup;
 pub mod cloud_sync;
 mod commands;
 mod config_store;
 pub mod legacy_migration;
-mod update_verification;
+#[cfg(any(target_os = "windows", test))]
+mod update_installation;
+pub mod update_verification;
 mod watcher;
 
 use std::collections::{HashMap, HashSet};
@@ -34,8 +37,12 @@ pub struct AppState {
     pub clip_cancel: Arc<AtomicBool>,
     /// Cooperative cancellation flag for WD14 model download.
     pub tagger_cancel: Arc<AtomicBool>,
+    /// Cooperative cancellation flag for WD14 batch auto-tagging.
+    pub batch_tagger_cancel: Arc<AtomicBool>,
     /// Coordinator for legacy Berry data discovery, migration and cleanup.
     pub migration_coordinator: Arc<Mutex<legacy_migration::MigrationCoordinator>>,
+    /// Single opt-in automatic snapshot worker; status has its own short lock.
+    pub backup_worker: backup_scheduler::BackupWorker,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -96,7 +103,12 @@ pub fn run() {
                 clip_failures: Arc::new(Mutex::new(HashMap::new())),
                 clip_cancel: Arc::new(AtomicBool::new(false)),
                 tagger_cancel: Arc::new(AtomicBool::new(false)),
+                batch_tagger_cancel: Arc::new(AtomicBool::new(false)),
                 migration_coordinator: migration_coordinator.clone(),
+                backup_worker: backup_scheduler::BackupWorker::start(
+                    data_dir.clone(),
+                    database_path.clone(),
+                ),
             });
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -186,6 +198,7 @@ pub fn run() {
             commands::set_file_nsfw,
             commands::set_files_nsfw,
             commands::get_prompt_stats,
+            commands::get_prompt_insights,
             commands::get_checkpoint_models,
             commands::import_model_cache_file,
             commands::resolve_model_hash,
@@ -231,13 +244,16 @@ pub fn run() {
             commands::find_similar_to_file,
             commands::list_tagger_models,
             commands::load_tagger_model,
+            commands::unload_tagger_model,
             commands::get_loaded_tagger_model,
             commands::download_tagger_model,
             commands::cancel_tagger_download,
             commands::auto_tag_file,
             commands::batch_auto_tag_files,
+            commands::cancel_batch_auto_tag,
             commands::list_clip_models,
             commands::load_clip_model,
+            commands::unload_clip_model,
             commands::get_loaded_clip_model,
             commands::get_clip_index_status,
             commands::index_clip_images_batch,
@@ -278,6 +294,8 @@ pub fn run() {
             commands::cloud_backup_create_snapshot,
             commands::cloud_backup_list_snapshots,
             commands::cloud_backup_restore_snapshot,
+            commands::cloud_backup_get_schedule_status,
+            commands::cloud_sync_preview_namespace,
             commands::cloud_sync_start,
             commands::cloud_sync_cancel,
             commands::cloud_sync_get_progress,
@@ -290,6 +308,13 @@ pub fn run() {
             commands::confirm_legacy_cleanup,
             commands::defer_legacy_cleanup,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(state) = app.try_state::<AppState>() {
+                    state.backup_worker.stop();
+                }
+            }
+        });
 }

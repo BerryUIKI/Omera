@@ -2,6 +2,8 @@
 
 Status: design direction; optimizations require measurements and append-only migrations.
 
+Current transformed records: the existing files.metadata JSON stores verified published pixel dimensions in the same update as path/container/size/mtime. Raw generator Size parameters remain provenance; metadata.format is null for dimension-only records after stripping or unsupported metadata extraction. No schema version change, new index, or curation identity change is needed.
+
 Ownership: lead maintainer/Codex. General engineers may supply fixtures and benchmark results; authoritative schema, migration, recovery and database-layout changes remain lead-owned.
 
 ## Decision
@@ -26,11 +28,55 @@ Do not add indexes for every column or introduce a second authoritative database
 
 ## Schema and migration rules
 
+Library batch transformations take short locks for folder/file reads and the
+single-row derivative update. Decode, verification, publication, archive/Trash
+and progress callbacks run outside the application database mutex. Transform
+jobs remain serialized by a separate job gate to avoid overlapping staging.
+Publication uses an atomic compare-and-update against the original row's path,
+folder, size and modification time. A changed/deleted row rejects publication
+and preserves the source; the derivative is compensated using the existing
+failure path. Curation fields are never rewritten from the earlier snapshot.
+No schema migration is needed. This is not a general filesystem transaction.
+
 - Applied migrations remain unchanged and ordered. Append new migrations in the storage crate; crate renaming moves the file without rewriting its history.
 - Backfill large new structures in bounded resumable batches. Do not expose incomplete indexes as complete search results. Define schema compatibility and recovery before switching readers.
 - Use foreign keys, uniqueness constraints, and explicit version/revision fields where required by actual ownership. Verify `integrity_check` and `foreign_key_check` on migrated copies.
 - Store migration receipts outside the source database so failure never requires modifying the only good copy. Legacy discovery and cleanup follow [OMERA_MIGRATION.md](OMERA_MIGRATION.md).
 - Keep authoritative databases on local storage; media may reside on network shares. A shared multi-user service is a separate future architecture, not a connection-string toggle.
+
+### Cloud root identity foundation (schema v17)
+
+`cloud_sync_roots` maps each registered folder ID to an immutable random UUID
+and the basename observed at first allocation. `Database::ensure_cloud_sync_root`
+allocates lazily; repeated calls, folder path changes, restart, and SQLite snapshots
+retain the mapping. Folder removal cascades the mapping so registering another
+folder with a reused numeric ID creates a new UUID. Existing folders, files,
+curation, and migrations remain intact; there is no eager library backfill.
+
+Cloud sync now previews and saves a compatibility manifest and requires explicit
+user acknowledgement before publishing under the versioned UUID namespace. It
+retains legacy remote objects and source media, identifies ambiguous mappings,
+and never infers authorization to delete or adopt them. This table is separate from
+`storage_roots`, whose workstation mappings are not linked to registered folders.
+
+`omera_scan::cloud_sync` provides the shared planning services:
+`build_namespace_manifest`, `collect_sync_plan`, and `save_namespace_manifest`.
+They map selected roots to `<prefix>/v2-root-<uuid>`, flag ambiguous legacy
+basenames (including unselected registered roots), and reject unsafe paths or
+case-insensitive duplicate keys before returning any transfer queue. The plan
+requires acknowledgement of the current manifest's SHA-256 ID. Manifests are
+atomically saved under `cloud-sync-manifests/layout-<id>.json` without replacing
+earlier evidence; a damaged existing manifest fails closed. A flat UUID segment
+avoids nesting beneath legacy folders named `v2`; an exact overlap with a known
+legacy basename requires manual reconciliation before any transfer.
+
+The Settings caller previews the mapping, displays it with the saved manifest
+path, and starts only after confirmation. IPC revalidates the acknowledgement and
+preflights the complete selection in a blocking worker. Database locks end before
+manifest persistence and provider I/O. Tests exercise actual LocalPath uploads,
+mocked S3/WebDAV HEAD/PUT requests and exact bodies, legacy preservation, and
+stable keys after root rename, restart, and staged snapshot restore. Provider
+fixtures establish protocol behavior, not live-cloud or release qualification.
 
 ## Benchmark and acceptance plan
 

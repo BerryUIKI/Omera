@@ -41,7 +41,7 @@ La ventana utiliza un diseño sin marcos con una barra de título personalizada 
   - `Preferencias / Configuración...` (`Ctrl + ,` / `Cmd + ,`): Abrir la ventana central de ajustes de 8 pestañas.
   - `Salir` (`Alt + F4`): Cerrar Omera de forma ordenada.
 - **Edición**:
-  - `Seleccionar todo` (`Ctrl + A` / `Cmd + A`): Seleccionar todos los activos de la vista de galería activa.
+  - `Seleccionar elementos cargados` (`Ctrl + A` / `Cmd + A`): Selecciona solo elementos cargados. Expande las pilas para incluir sus imágenes y repite tras cargar más páginas.
   - `Deseleccionar todo` (`Esc`): Desmarcar todos los elementos seleccionados.
   - `Añadir etiquetas por lotes...`: Asignar o quitar etiquetas a los archivos seleccionados.
   - `Añadir al álbum por lotes...`: Asignar los archivos seleccionados a un álbum.
@@ -111,6 +111,8 @@ El espacio central es donde explora, selecciona y cura sus activos:
 
 ---
 
+En la vista Tabla, abre **Columnas** para mostrar u ocultar campos y cambiar su ancho en píxeles; después pulsa **Guardar columnas**. **Restablecer columnas** recupera el borrador compacto. El nombre de archivo y la selección siempre están disponibles. El contador de pila expande o contrae los miembros coincidentes. Un error al guardar conserva el borrador y el diseño actual.
+
 ## 5. Inspector de propiedades derecho (`InspectorPane.vue`)
 
 El inspector lateral derecho (`I` para alternar) desvela metadatos exhaustivos y sin pérdidas para la selección activa:
@@ -151,7 +153,7 @@ Ubicada en la parte inferior de la ventana:
 
 Cuando se seleccionan una o más tarjetas, aparece una barra de herramientas flotante en la parte inferior central del lienzo:
 
-- Indicador de elementos seleccionados (`X de Y seleccionados`) con botones de Seleccionar todo / Deseleccionar.
+- Indicador de elementos seleccionados (`X de Y seleccionados`) con botones de Seleccionar elementos cargados / Deseleccionar.
 - Desplegable de puntuación por lotes (0 a 10 estrellas).
 - Botones modales para «Añadir al álbum» y «Añadir etiqueta».
 - Activador de «Autoetiquetar (WD14)».

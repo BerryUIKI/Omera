@@ -66,6 +66,12 @@ jobs:
       - name: Build frontend
         run: pnpm build
 
+      - name: Run frontend tests
+        run: pnpm run test:stack
+
+      - name: Check IPC reference for drift
+        run: node scripts/generate-ipc-reference.mjs --check
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -74,3 +80,8 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace
+
+      - name: Verify real disposable update signatures
+        run: |
+          cargo build -p omera --bin verify-update
+          node scripts/test-update-signing.mjs

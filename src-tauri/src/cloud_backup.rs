@@ -3,17 +3,26 @@
 use std::fs::{self, File};
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 use omera_domain::{
     CloudBackupConfig, CloudBackupResult, CloudPingResult, CloudRestoreResult, CloudSnapshotMeta,
     CloudStorageProvider,
 };
+use omera_scan::transfer::TransferControl;
 use omera_storage::Database;
 use sha2::{Digest, Sha256};
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
+
+fn media_transfer_agent() -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(2))
+        .timeout_read(Duration::from_secs(2))
+        .timeout_write(Duration::from_secs(2))
+        .build()
+}
 
 // -----------------------------------------------------------------------------
 // Cryptographic & SigV4 Utilities
@@ -48,22 +57,6 @@ pub fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
 pub(crate) fn sha256_hex(data: &[u8]) -> String {
     let hash = Sha256::digest(data);
     hex::encode(hash)
-}
-
-/// Calculate SHA-256 of an on-disk file in streaming 64KB chunks.
-pub(crate) fn sha256_file(path: &Path) -> std::io::Result<String> {
-    use std::io::Read;
-    let mut file = std::fs::File::open(path)?;
-    let mut hasher = Sha256::new();
-    let mut buffer = [0u8; 65536];
-    loop {
-        let n = file.read(&mut buffer)?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buffer[..n]);
-    }
-    Ok(hex::encode(hasher.finalize()))
 }
 
 fn format_iso8601_basic(time: SystemTime) -> (String, String) {
@@ -197,6 +190,17 @@ impl<'a> S3Client<'a> {
         payload: &[u8],
         extra_headers: &[(&str, &str)],
     ) -> (String, Vec<(String, String)>) {
+        self.sign_request_hash(method, path, query, &sha256_hex(payload), extra_headers)
+    }
+
+    fn sign_request_hash(
+        &self,
+        method: &str,
+        path: &str,
+        query: &str,
+        payload_hash: &str,
+        extra_headers: &[(&str, &str)],
+    ) -> (String, Vec<(String, String)>) {
         let (date_str, datetime_str) = format_iso8601_basic(SystemTime::now());
 
         let url_parsed = self
@@ -205,7 +209,7 @@ impl<'a> S3Client<'a> {
             .trim_start_matches("http://");
         let host = url_parsed.split('/').next().unwrap_or(url_parsed);
 
-        let payload_hash = sha256_hex(payload);
+        let payload_hash = payload_hash.to_owned();
 
         let canonical_uri = if path.starts_with('/') {
             path.to_string()
@@ -291,32 +295,31 @@ impl<'a> S3Client<'a> {
         }
     }
 
-    pub fn put_object(&self, filename: &str, data: &[u8]) -> Result<(), String> {
-        let key = self.object_key(filename);
-        self.put_object_raw(&key, data, None)
-    }
-
-    pub(crate) fn put_object_raw(
+    pub(crate) fn put_object_stream(
         &self,
         key: &str,
-        data: &[u8],
-        sha256_hex: Option<&str>,
+        source: impl Read,
+        length: u64,
+        digest: &str,
+        checksum: Option<&str>,
     ) -> Result<(), String> {
         let path = format!("/{}/{}", self.bucket, key);
-        let extra = if let Some(sha) = sha256_hex {
+        let extra = if let Some(sha) = checksum {
             vec![("x-amz-meta-sha256", sha)]
         } else {
             vec![]
         };
-        let (url, headers) = self.sign_request_ext("PUT", &path, "", data, &extra);
+        let (url, headers) = self.sign_request_hash("PUT", &path, "", digest, &extra);
 
-        let mut req = ureq::put(&url);
+        let mut req = media_transfer_agent()
+            .put(&url)
+            .set("Content-Length", &length.to_string());
         for (k, v) in headers {
             req = req.set(&k, &v);
         }
 
         let resp = req
-            .send_bytes(data)
+            .send(source)
             .map_err(|e| format!("S3 PUT failed: {e}"))?;
         if resp.status() >= 200 && resp.status() < 300 {
             Ok(())
@@ -329,7 +332,9 @@ impl<'a> S3Client<'a> {
         let path = format!("/{}/{}", self.bucket, key);
         let (url, headers) = self.sign_request("HEAD", &path, "", &[]);
 
-        let mut req = ureq::head(&url);
+        let mut req = media_transfer_agent()
+            .head(&url)
+            .timeout(Duration::from_secs(2));
         for (k, v) in headers {
             req = req.set(&k, &v);
         }
@@ -470,7 +475,9 @@ impl<'a> WebDavClient<'a> {
     ) -> Result<Option<(u64, Option<String>)>, String> {
         let clean = relative_path.trim_start_matches('/');
         let url = format!("{}/{}", self.endpoint, clean);
-        let mut req = ureq::head(&url);
+        let mut req = media_transfer_agent()
+            .head(&url)
+            .timeout(Duration::from_secs(2));
         if let Some(auth) = self.auth_header() {
             req = req.set("Authorization", &auth);
         }
@@ -489,7 +496,11 @@ impl<'a> WebDavClient<'a> {
         }
     }
 
-    pub(crate) fn ensure_collection(&self, relative_dir: &str) -> Result<(), String> {
+    fn ensure_collection_with_control(
+        &self,
+        relative_dir: &str,
+        control: Option<&TransferControl>,
+    ) -> Result<(), String> {
         let clean = relative_dir.trim_matches('/');
         if clean.is_empty() {
             return Ok(());
@@ -497,35 +508,51 @@ impl<'a> WebDavClient<'a> {
         let parts: Vec<&str> = clean.split('/').collect();
         let mut current = String::new();
         for part in parts {
+            if let Some(control) = control {
+                control.check_cancelled().map_err(|e| e.to_string())?;
+            }
             if current.is_empty() {
                 current = part.to_string();
             } else {
                 current = format!("{current}/{part}");
             }
             let url = format!("{}/{}", self.endpoint, current);
-            let mut req = ureq::request("MKCOL", &url);
+            let mut req = media_transfer_agent()
+                .request("MKCOL", &url)
+                .timeout(Duration::from_secs(2));
             if let Some(auth) = self.auth_header() {
                 req = req.set("Authorization", &auth);
             }
             let _ = req.call(); // 405 Method Not Allowed means collection already exists
+            if let Some(control) = control {
+                control.check_cancelled().map_err(|e| e.to_string())?;
+            }
         }
         Ok(())
     }
 
-    pub(crate) fn put_object_path(&self, relative_path: &str, data: &[u8]) -> Result<(), String> {
+    pub(crate) fn put_object_stream(
+        &self,
+        relative_path: &str,
+        source: impl Read,
+        length: u64,
+        control: Option<&TransferControl>,
+    ) -> Result<(), String> {
         let clean = relative_path.trim_start_matches('/');
         if let Some(idx) = clean.rfind('/') {
             let parent_dir = &clean[..idx];
-            let _ = self.ensure_collection(parent_dir);
+            self.ensure_collection_with_control(parent_dir, control)?;
         }
         let url = format!("{}/{}", self.endpoint, clean);
-        let mut req = ureq::put(&url);
+        let mut req = media_transfer_agent()
+            .put(&url)
+            .set("Content-Length", &length.to_string());
         if let Some(auth) = self.auth_header() {
             req = req.set("Authorization", &auth);
         }
 
         let resp = req
-            .send_bytes(data)
+            .send(source)
             .map_err(|e| format!("WebDAV upload failed: {e}"))?;
         if resp.status() >= 200 && resp.status() < 300 {
             Ok(())
@@ -534,13 +561,20 @@ impl<'a> WebDavClient<'a> {
         }
     }
 
-    pub fn put_object(&self, filename: &str, data: &[u8]) -> Result<(), String> {
-        self.put_object_path(filename, data)
+    pub fn get_object(&self, filename: &str) -> Result<Vec<u8>, String> {
+        let mut bytes = Vec::new();
+        self.get_object_stream(filename)?
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("Failed to read WebDAV payload: {e}"))?;
+        Ok(bytes)
     }
 
-    pub fn get_object(&self, filename: &str) -> Result<Vec<u8>, String> {
+    pub(crate) fn get_object_stream(
+        &self,
+        filename: &str,
+    ) -> Result<Box<dyn Read + Send + Sync>, String> {
         let url = format!("{}/{}", self.endpoint, filename);
-        let mut req = ureq::get(&url);
+        let mut req = media_transfer_agent().get(&url);
         if let Some(auth) = self.auth_header() {
             req = req.set("Authorization", &auth);
         }
@@ -549,11 +583,7 @@ impl<'a> WebDavClient<'a> {
             .call()
             .map_err(|e| format!("WebDAV download failed: {e}"))?;
         if resp.status() >= 200 && resp.status() < 300 {
-            let mut bytes = Vec::new();
-            resp.into_reader()
-                .read_to_end(&mut bytes)
-                .map_err(|e| format!("Failed to read WebDAV payload: {e}"))?;
-            Ok(bytes)
+            Ok(resp.into_reader())
         } else {
             Err(format!("WebDAV GET returned status: {}", resp.status()))
         }
@@ -673,26 +703,28 @@ pub fn create_cloud_snapshot(
     description: Option<String>,
 ) -> Result<CloudBackupResult, String> {
     let start_time = Instant::now();
-    let stats = db
-        .get_database_stats()
-        .map_err(|e| format!("Failed to query database stats: {e}"))?;
-
     let now_secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
     let (date_str, _) = format_iso8601_basic(SystemTime::now());
-    let snapshot_id = format!("omera_snapshot_{date_str}_{now_secs}");
+    let snapshot_id = format!(
+        "omera_snapshot_{date_str}_{now_secs}_{}",
+        uuid::Uuid::new_v4()
+    );
     let filename = format!("{snapshot_id}.zip");
 
-    // 1. Point-in-time consistent SQLite database backup using VACUUM INTO
-    let temp_db_path = temp_dir.join(format!("{snapshot_id}.db"));
+    // A private spool owns every staging file, including ordinary error cleanup.
+    let spool = tempfile::Builder::new()
+        .prefix(".omera-backup-")
+        .tempdir_in(temp_dir)
+        .map_err(|e| format!("Failed to stage snapshot: {e}"))?;
+    let temp_db_path = spool.path().join("omera.db");
     db.backup_database(&temp_db_path.to_string_lossy())
         .map_err(|e| format!("SQLite VACUUM INTO backup failed: {e}"))?;
-
-    let db_bytes = fs::read(&temp_db_path)
-        .map_err(|e| format!("Failed to read generated SQLite snapshot: {e}"))?;
-    let _ = fs::remove_file(&temp_db_path);
+    let stats = Database::connect(&temp_db_path)
+        .and_then(|snapshot| snapshot.get_database_stats())
+        .map_err(|e| format!("Failed to validate snapshot stats: {e}"))?;
 
     // 2. Build metadata manifest
     let manifest = CloudSnapshotMeta {
@@ -711,29 +743,44 @@ pub fn create_cloud_snapshot(
     let manifest_bytes = serde_json::to_vec_pretty(&manifest)
         .map_err(|e| format!("Failed to serialize snapshot manifest: {e}"))?;
 
-    // 3. Assemble zip bundle
-    let mut zip_buffer = Vec::new();
+    // Zip the stable SQLite snapshot to disk; library size does not become a Vec.
+    let archive_path = spool.path().join("snapshot.zip");
     {
-        let mut zip = ZipWriter::new(Cursor::new(&mut zip_buffer));
+        let archive_file =
+            File::create(&archive_path).map_err(|e| format!("Failed to stage archive: {e}"))?;
+        let mut zip = ZipWriter::new(archive_file);
         let zip_opts =
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-
         zip.start_file("manifest.json", zip_opts)
             .map_err(|e| format!("Failed to start manifest in zip: {e}"))?;
         zip.write_all(&manifest_bytes)
             .map_err(|e| format!("Failed to write manifest in zip: {e}"))?;
-
         zip.start_file("omera.db", zip_opts)
             .map_err(|e| format!("Failed to start omera.db in zip: {e}"))?;
-        zip.write_all(&db_bytes)
-            .map_err(|e| format!("Failed to write omera.db in zip: {e}"))?;
-
+        let mut snapshot = File::open(&temp_db_path)
+            .map_err(|e| format!("Failed to open SQLite snapshot: {e}"))?;
+        std::io::copy(&mut snapshot, &mut zip)
+            .map_err(|e| format!("Failed to archive SQLite snapshot: {e}"))?;
         zip.finish()
+            .and_then(|archive| {
+                archive
+                    .sync_all()
+                    .map(|_| archive)
+                    .map_err(zip::result::ZipError::Io)
+            })
             .map_err(|e| format!("Failed to finish zip bundle: {e}"))?;
     }
-
+    let length = fs::metadata(&archive_path)
+        .map_err(|e| e.to_string())?
+        .len();
     let mut final_manifest = manifest;
-    final_manifest.size_bytes = zip_buffer.len() as u64;
+    final_manifest.size_bytes = length;
+    let transfer = TransferControl::new(
+        0,
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    );
+    let mut lease = transfer.acquire().map_err(|e| e.to_string())?;
+    let open_archive = || File::open(&archive_path).map_err(|e| e.to_string());
 
     // 4. Upload to target cloud provider
     match config.provider {
@@ -746,16 +793,35 @@ pub fn create_cloud_snapshot(
             fs::create_dir_all(dest_dir)
                 .map_err(|e| format!("Failed to create destination dir: {e}"))?;
             let out_file = dest_dir.join(&filename);
-            fs::write(&out_file, &zip_buffer)
-                .map_err(|e| format!("Failed to write snapshot to local path: {e}"))?;
+            let mut staged =
+                tempfile::NamedTempFile::new_in(dest_dir).map_err(|e| e.to_string())?;
+            lease
+                .copy(open_archive()?, staged.as_file_mut())
+                .map_err(|e| e.to_string())?;
+            staged.as_file().sync_all().map_err(|e| e.to_string())?;
+            staged
+                .persist_noclobber(&out_file)
+                .map_err(|e| format!("Failed to publish snapshot without overwrite: {e}"))?;
         }
         CloudStorageProvider::WebDav => {
             let client = WebDavClient::from_config(config)?;
-            client.put_object(&filename, &zip_buffer)?;
+            client.put_object_stream(
+                &filename,
+                lease.reader_exact(open_archive()?, length),
+                length,
+                Some(&transfer),
+            )?;
         }
         CloudStorageProvider::S3 => {
             let client = S3Client::from_config(config)?;
-            client.put_object(&filename, &zip_buffer)?;
+            let digest = lease.hash(open_archive()?).map_err(|e| e.to_string())?;
+            client.put_object_stream(
+                &client.object_key(&filename),
+                lease.reader_exact(open_archive()?, length),
+                length,
+                &digest,
+                None,
+            )?;
         }
     }
 
@@ -881,41 +947,34 @@ pub fn restore_cloud_snapshot(
         .read_to_end(&mut restored_db_bytes)
         .map_err(|e| format!("Failed to unpack database from snapshot: {e}"))?;
 
-    // 3. Write to temporary validation database and verify schema integrity
-    let temp_validation_path = active_db_path.with_extension("restore_temp.db");
-    fs::write(&temp_validation_path, &restored_db_bytes)
-        .map_err(|e| format!("Failed to write temporary validation database: {e}"))?;
+    // 3. Write to temporary staging database, validate stats, and stage restore safely
+    let temp_dir = tempfile::tempdir_in(
+        active_db_path
+            .parent()
+            .ok_or_else(|| "Missing active database directory".to_string())?,
+    )
+    .map_err(|e| format!("Failed to create temporary directory for restore: {e}"))?;
+    let temp_unpacked_path = temp_dir.path().join("unpacked.db");
+    fs::write(&temp_unpacked_path, &restored_db_bytes)
+        .map_err(|e| format!("Failed to write unpacked database: {e}"))?;
 
-    let restored_file_count = match Database::connect(&temp_validation_path) {
+    let restored_file_count = match Database::connect(&temp_unpacked_path) {
         Ok(db_check) => match db_check.get_database_stats() {
             Ok(stats) => stats.file_count,
             Err(e) => {
-                let _ = fs::remove_file(&temp_validation_path);
                 return Err(format!("Restored database integrity check failed: {e}"));
             }
         },
         Err(e) => {
-            let _ = fs::remove_file(&temp_validation_path);
             return Err(format!("Cannot open restored SQLite database: {e}"));
         }
     };
 
-    // 4. Create safe rollback backup of current live database
-    let rollback_path = active_db_path.with_extension("pre_restore_bak");
-    if active_db_path.exists() {
-        let _ = fs::copy(active_db_path, &rollback_path);
-    }
-
-    // 5. Atomic rename replacement
-    if let Err(e) = fs::copy(&temp_validation_path, active_db_path) {
-        // Rollback
-        if rollback_path.exists() {
-            let _ = fs::copy(&rollback_path, active_db_path);
-        }
-        let _ = fs::remove_file(&temp_validation_path);
-        return Err(format!("Failed to replace live database: {e}"));
-    }
-    let _ = fs::remove_file(&temp_validation_path);
+    // 4. Route through the safe staged recovery lifecycle.
+    // This validates database integrity, schema version, foreign key constraints,
+    // and creates an atomic pending-restore database without clobbering active connections or WAL.
+    // The pending restore will be safely applied at startup/restart via `apply_pending_restore`.
+    omera_storage::recovery::stage_restore(&temp_unpacked_path, active_db_path)?;
 
     Ok(CloudRestoreResult {
         success: true,
@@ -1006,5 +1065,171 @@ mod tests {
         assert!(serialized.contains("omera_version"));
         let deserialized: CloudSnapshotMeta = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.omera_version.as_deref(), Some("0.3.0"));
+    }
+
+    #[test]
+    fn snapshots_preserve_wal_data_have_unique_names_and_clean_staging() {
+        let root = tempfile::tempdir().unwrap();
+        let staging = root.path().join("staging");
+        let destination = root.path().join("backups");
+        fs::create_dir(&staging).unwrap();
+        let db = Database::connect(&root.path().join("active.db")).unwrap();
+        db.connection()
+            .execute("INSERT INTO tags(name) VALUES ('wal_tag')", [])
+            .unwrap();
+        let config = CloudBackupConfig {
+            local_path: Some(destination.to_string_lossy().into()),
+            ..Default::default()
+        };
+        let first = create_cloud_snapshot(&db, &config, &staging, None)
+            .unwrap()
+            .snapshot
+            .unwrap();
+        let second = create_cloud_snapshot(&db, &config, &staging, None)
+            .unwrap()
+            .snapshot
+            .unwrap();
+        assert_ne!(first.filename, second.filename);
+        assert_eq!(fs::read_dir(&staging).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 2);
+        assert_eq!(first.tag_count, 1);
+        let archive_path = destination.join(&first.filename);
+        assert_eq!(first.size_bytes, fs::metadata(&archive_path).unwrap().len());
+        let mut archive = ZipArchive::new(File::open(archive_path).unwrap()).unwrap();
+        assert_eq!(archive.len(), 2);
+        let restored_path = root.path().join("restored.db");
+        std::io::copy(
+            &mut archive.by_name("omera.db").unwrap(),
+            &mut File::create(&restored_path).unwrap(),
+        )
+        .unwrap();
+        let restored = Database::connect(&restored_path).unwrap();
+        assert_eq!(
+            restored.get_database_stats().unwrap().tag_count,
+            first.tag_count
+        );
+        assert_eq!(db.get_database_stats().unwrap().tag_count, 1);
+    }
+
+    #[test]
+    fn failed_snapshot_target_preserves_existing_file_and_cleans_private_spool() {
+        let root = tempfile::tempdir().unwrap();
+        let staging = root.path().join("staging");
+        fs::create_dir(&staging).unwrap();
+        let db = Database::connect(&root.path().join("active.db")).unwrap();
+        let target = root.path().join("existing-file");
+        fs::write(&target, b"preserved").unwrap();
+        let config = CloudBackupConfig {
+            local_path: Some(target.to_string_lossy().into()),
+            ..Default::default()
+        };
+        assert!(create_cloud_snapshot(&db, &config, &staging, None).is_err());
+        assert_eq!(fs::read(target).unwrap(), b"preserved");
+        assert_eq!(fs::read_dir(staging).unwrap().count(), 0);
+        assert!(db.get_database_stats().is_ok());
+    }
+
+    #[test]
+    fn snapshot_streaming_uploads_retain_provider_paths_and_content_lengths() {
+        for provider in [CloudStorageProvider::S3, CloudStorageProvider::WebDav] {
+            let mut server = mockito::Server::new();
+            let path = if provider == CloudStorageProvider::S3 {
+                r"^/bucket/backups/omera_snapshot_.*\.zip$"
+            } else {
+                r"^/omera_snapshot_.*\.zip$"
+            };
+            let upload = server
+                .mock("PUT", mockito::Matcher::Regex(path.into()))
+                .match_header(
+                    "content-length",
+                    mockito::Matcher::Regex("^[1-9][0-9]*$".into()),
+                )
+                .with_status(201)
+                .create();
+            let root = tempfile::tempdir().unwrap();
+            let db = Database::connect(&root.path().join("active.db")).unwrap();
+            let config = CloudBackupConfig {
+                provider,
+                s3_endpoint: Some(server.url()),
+                s3_bucket: Some("bucket".into()),
+                s3_access_key: Some("fixture-key".into()),
+                s3_secret_key: Some("fixture-secret".into()),
+                s3_prefix: Some("backups/".into()),
+                webdav_endpoint: Some(server.url()),
+                ..Default::default()
+            };
+            assert!(
+                create_cloud_snapshot(&db, &config, root.path(), None)
+                    .unwrap()
+                    .success
+            );
+            upload.assert();
+            assert!(!fs::read_dir(root.path()).unwrap().any(|entry| entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".omera-backup-")));
+        }
+    }
+
+    #[test]
+    fn test_restore_cloud_snapshot_stages_recovery_without_overwriting_active() {
+        let dir = tempfile::tempdir().unwrap();
+        let active_db = dir.path().join("omera.db");
+        let live_db = Database::connect(&active_db).unwrap();
+        live_db
+            .connection()
+            .execute("INSERT INTO tags(name) VALUES ('live_tag')", [])
+            .unwrap();
+
+        // Create a snapshot archive with a restored database containing 'cloud_tag'
+        let backup_db_path = dir.path().join("backup.db");
+        let backup_db = Database::connect(&backup_db_path).unwrap();
+        backup_db
+            .connection()
+            .execute("INSERT INTO tags(name) VALUES ('cloud_tag')", [])
+            .unwrap();
+        drop(backup_db);
+
+        let backup_bytes = fs::read(&backup_db_path).unwrap();
+        let snapshot_filename = "omera_snapshot_test.zip";
+        let snapshot_path = dir.path().join(snapshot_filename);
+
+        let mut zip_buffer = Vec::new();
+        {
+            let mut zip = ZipWriter::new(Cursor::new(&mut zip_buffer));
+            let zip_opts =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+            zip.start_file("omera.db", zip_opts).unwrap();
+            zip.write_all(&backup_bytes).unwrap();
+            zip.finish().unwrap();
+        }
+        fs::write(&snapshot_path, &zip_buffer).unwrap();
+
+        let config = CloudBackupConfig {
+            provider: CloudStorageProvider::LocalPath,
+            local_path: Some(dir.path().to_string_lossy().to_string()),
+            ..Default::default()
+        };
+
+        // Execute restore_cloud_snapshot
+        let res = restore_cloud_snapshot(&active_db, &config, snapshot_filename).unwrap();
+        assert!(res.success);
+
+        // Crucial verification: live database connection and contents are NOT clobbered!
+        // The active db still contains live_tag because restore is staged.
+        assert_eq!(live_db.list_tags().unwrap()[0].name, "live_tag");
+
+        // The staged pending restore exists:
+        let pending = active_db.with_extension("pending-restore.db");
+        assert!(pending.exists(), "Pending restore database must exist");
+
+        // After closing live connection, apply_pending_restore applies the snapshot safely
+        drop(live_db);
+        omera_storage::recovery::apply_pending_restore(&active_db).unwrap();
+
+        // The active database now has the restored content
+        let reopened = Database::connect(&active_db).unwrap();
+        assert_eq!(reopened.list_tags().unwrap()[0].name, "cloud_tag");
     }
 }

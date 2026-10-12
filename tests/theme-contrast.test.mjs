@@ -113,11 +113,6 @@ test("Core components and modals use semantic theme variables instead of hardcod
   assert.doesNotMatch(diagModal, /background:\s*#1e1e24/);
   assert.match(diagModal, /background:\s*var\(--color-bg-primary\)/);
 
-  // PreviewPane
-  const previewPane = fs.readFileSync(path.join(rootDir, "src", "components", "PreviewPane.vue"), "utf-8");
-  assert.doesNotMatch(previewPane, /\.preview-dialog\s*\{[^}]*background:\s*#1e1e1e/);
-  assert.match(previewPane, /\.preview-dialog\s*\{[^}]*background:\s*var\(--color-bg-primary\)/);
-
   // AutoTagModal
   const autoTagModal = fs.readFileSync(path.join(rootDir, "src", "components", "AutoTagModal.vue"), "utf-8");
   assert.match(autoTagModal, /\.section-title\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
@@ -125,3 +120,35 @@ test("Core components and modals use semantic theme variables instead of hardcod
   assert.match(autoTagModal, /\.source-label\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
   assert.match(autoTagModal, /\.no-tags-prompt\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
 });
+
+test("Modal dialogs and dropdowns use semantic text tokens without illegible light-mode fallbacks", () => {
+  const css = fs.readFileSync(path.join(rootDir, "src", "style.css"), "utf-8");
+  assert.match(css, /--text-primary:\s*var\(--color-text-primary\);/);
+  assert.match(css, /--text-secondary:\s*var\(--color-text-secondary\);/);
+
+  const targets = [
+    "DatabaseManagerModal.vue",
+    "FileOperationModal.vue",
+    "LoraManagerModal.vue",
+    "ModelManagerModal.vue",
+    "ShortcutsHelpModal.vue",
+    "LanguageSelector.vue",
+  ];
+
+  for (const file of targets) {
+    const content = fs.readFileSync(path.join(rootDir, "src", "components", file), "utf-8");
+    assert.doesNotMatch(content, /var\(--text-primary,\s*#[0-9a-fA-F]+\)/, `${file} should not have hardcoded dark text-primary fallback`);
+    assert.doesNotMatch(content, /var\(--text-secondary,\s*#[0-9a-fA-F]+\)/, `${file} should not have hardcoded dark text-secondary fallback`);
+  }
+});
+
+test("InspectorPane.vue uses semantic theme tokens for title, tags, and container borders", () => {
+  const vue = fs.readFileSync(path.join(rootDir, "src", "components", "InspectorPane.vue"), "utf-8");
+  assert.match(vue, /\.inspector-title\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
+  assert.match(vue, /\.tag-pill\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
+  assert.match(vue, /\.file-name\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
+  assert.match(vue, /\.detected-name\s*\{[^}]*color:\s*var\(--color-text-primary\)/);
+  assert.doesNotMatch(vue, /\.inspector-title\s*\{[^}]*color:\s*#f1f5f9/);
+  assert.doesNotMatch(vue, /\.tag-pill\s*\{[^}]*color:\s*#f1f5f9/);
+});
+

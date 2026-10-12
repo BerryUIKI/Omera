@@ -12,14 +12,14 @@ General implementation engineers own the bounded GUI, localization, parser, test
 
 The integration branch is `dev`; `codex/repository-review-fixes` is an unmerged review branch. The existing code work is preserved at commit `5fabdd8` in [draft PR #138](https://github.com/BerryUIKI/Omera/pull/138), not a release candidate. Documentation PR #136 has merged. The current documentation follow-up starts from `dev` commit `4f57246`. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md) for exact evidence and [TASK_ASSIGNMENT_BOARD.md](TASK_ASSIGNMENT_BOARD.md) for ready versus gated work. Do not silently use the draft snapshot as an approved integration baseline or duplicate changes already present in it.
 
-The GitHub repository has already moved to [BerryUIKI/Omera](https://github.com/BerryUIKI/Omera). Runtime product/identifier, database, crates, and settings have **not** yet completed migration. Existing `berry-*` source paths in this handoff are intentional until the maintainer's coordinated rename lands.
+The GitHub repository is [BerryUIKI/Omera](https://github.com/BerryUIKI/Omera). The repository and runtime identity migration to Omera (`com.berryuiki.omera`, `crates/omera-*`, `omera.db`, and `omera_` settings prefix) is complete. Pre-1.0 discovery, legacy import paths, and safe migration coordinators for historical `com.berryuiki.berryaistudio` installations remain mandatory compatibility obligations under lead ownership.
 
 ## Reserved high-impact work
 
 | ID | Scope | Gate before dependent work |
 | --- | --- | --- |
 | L1 / [#134](https://github.com/BerryUIKI/Omera/issues/134) | Full Omera identity; pre-1.0 discovery; resumable database/config/credential migration; verified, separately confirmed cleanup | Follow [OMERA_MIGRATION.md](OMERA_MIGRATION.md); stable status/preview/execute contracts before cleanup UI |
-| L2 / [#98](https://github.com/BerryUIKI/Omera/issues/98) | Safe staged restore and startup connection lifecycle | WAL-inclusive snapshots, no active file replacement, retained recovery copies, interrupted restore tests |
+| L2 / [#98](https://github.com/BerryUIKI/Omera/issues/98) | Safe staged restore and startup connection lifecycle | Implemented and verified via `recovery::stage_restore` and `recovery::apply_pending_restore` for both local and cloud restores; WAL-inclusive snapshots, no live file replacement, retained recovery points, and restart recovery |
 | L3 / [#106](https://github.com/BerryUIKI/Omera/issues/106), [#112](https://github.com/BerryUIKI/Omera/issues/112) | Atomic authoritative config, credentials, revision conflicts, legacy key precedence | Compatible defaults on both sides; old origin export/import fallback; no secret loss or repeated migration |
 | L4 / [#101](https://github.com/BerryUIKI/Omera/issues/101) | Signed updates, explicit platform/architecture selection, new repository trust, real installer migration | Release signing provisioned; tampered/missing signatures rejected; direct old-version and subsequent-update tests |
 | L5 / [#135](https://github.com/BerryUIKI/Omera/issues/135) | Measured schema/query evolution and storage decision | [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md); baseline before a schema/index change |
@@ -110,7 +110,7 @@ Files: `TitleBar.vue`, theme CSS, seven locale files, relevant cards/settings.
 
 ### E10 — Metadata parser fixtures (#121, #122)
 
-Files: `crates/berry-metadata/`, parser tests and Inspector display.
+Files: `crates/omera-metadata/`, parser tests and Inspector display.
 
 - Add sanitized real fixtures for ComfyUI Flux/CLIPTextEncodeFlux, supported Easy-Use chains and linked prompt nodes; handle cycles/missing nodes with bounded traversal.
 - Parse WebUI/Liblib footer `Lora N` entries and retain existing LoRA extraction behavior.
@@ -130,17 +130,18 @@ Create a one-command version bump using an agreed authoritative source. Update g
 
 ### Image transformation and transcoding (#118)
 
-Follows `IMAGE_TRANSFORM_PLAN.md`. Phase 6 packages T0 (export contract/pure-Rust AVIF/WebP), T1 (instant export size estimation & savings badge), T2 (managed vault import transcode/resize presets), T3 (gallery batch transformation with safe keep/archive/trash disposition, linked folder read-only protection, and metadata preservation), and T4 (advanced target-size controls, scale percentage, pixel alignment, and reusable presets) are all implemented and fully validated on `dev`. All Phase 6 packages are complete.
+Follows `IMAGE_TRANSFORM_PLAN.md`. Phase 6 packages T0 (export contract/pure-Rust AVIF/WebP), T1 (instant export size estimation & savings badge), T2 (managed vault import transcode/resize presets), T3 (gallery batch transformation with safe keep/archive/trash disposition, linked folder read-only protection, and metadata preservation), and T4 (advanced target-size controls, scale percentage, pixel alignment, and reusable presets) are all implemented and fully validated on `dev`. Package W04 (R33 / #262) consolidates duplicate publication logic across IPC and reusable services into `crates/omera-scan::transform`, enforcing managed destination validation, collision policies, sidecar preservation, and interruption compensation. Follow-up task R33-pipeline / #293 extracts pipeline harvesting and deferred cleanup business logic into `crates/omera-scan::pipeline` behind thin Tauri command adapters, with full collision handling, debounce control, structured per-item reporting, and strict source/destination revalidation before trash disposal. Task R31 / #260 verifies and hardens linked, pipeline, and missing destination rejection across both public IPC and reusable transform services with zero destination side effects. Task R08 / #238 enforces database persistence and destination validation before original disposition during batch library transforms, ensuring that failed SQLite updates leave indexed originals intact, rollback unindexed derivatives, and resolve archive collisions cleanly. Task R32 / #261 ensures `cull_stack_drafts` checks filesystem trash operations (`trash::delete_all`) before deleting database records and returns honest completed counts. All Phase 6 packages are complete.
 
 ## In-progress code: known limits
 
 - The working tree already contains attempts for #98–#117. They are not all complete, and no issue should be closed merely because related code exists.
 - `recovery::migrate_copy` is a tested database-copy primitive, not the complete L1 migration coordinator, receipt, discovery, or cleanup UX.
-- Omera identity activation is pending. Old WebView-origin settings and macOS sandbox access still require explicit migration coverage.
+- Omera runtime identity is active. Old WebView-origin settings and macOS sandbox access still require explicit migration coverage.
 - Signed update verification exists in progress; signing-key provisioning, release signing and real installer tests remain incomplete.
 - Long-running synchronous inference/network handlers remain under #102. Split this work into named commands and document lock ownership; do not mechanically mark handlers async while leaving blocking work on the runtime thread.
 - Thumbnail worker connections now have an explicit release hook. Lifecycle callers must stop submissions before release; the hook alone is not concurrent restore safety.
 - CSP, watcher initialization/revocation, config revision conflicts, credential entry reuse, file-operation partial results and detail invalidation need their acceptance cases completed.
+- Cloud media synchronization in `cloud_sync.rs` is an upload-oriented one-way mirroring tool from local library to remote S3, WebDAV, or local path destinations. It does not implement remote-to-local pull, bidirectional reconciliation, or ETag-driven cache validation (#257).
 - Native GUI and installer acceptance tests have not been completed. Do not label the working tree release-ready.
 
 ## Definition of done

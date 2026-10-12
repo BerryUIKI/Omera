@@ -16,41 +16,37 @@ Konfigurieren Sie Remote-Endpunkte unter **Einstellungen > Cloud & Backup**:
 
 ---
 
-## 2. Konsistente SQLite-Snapshots im laufenden Betrieb (`cloud_backup_create_snapshot`)
+## 2. Datenbank-Snapshots
 
-Omera sichert Ihre Datenbank über den nativen SQLite-Befehl `VACUUM INTO`:
+Snapshots enthalten `omera.db` und `manifest.json` mit Bibliotheksdaten, Tags und Bewertungen. Medien, Einstellungen und Zugangsdaten sind ausgeschlossen. Wählen Sie unter **Einstellungen > Cloud & Backup** ein Ziel und **Snapshot jetzt erstellen** für eine manuelle Sicherung. Archive haben eindeutige Namen; lokale Veröffentlichung erfolgt atomar. Vorhandene Sicherungen werden nicht automatisch gelöscht.
 
-```mermaid
-sequenceDiagram
-    participant UI as Omera Studio UI
-    participant Rust as Backend (cloud_backup.rs)
-    participant DB as SQLite WAL (omera.db)
-    participant Remote as Cloud-Speicher (S3/WebDAV)
+### Automatische Sicherungen
 
-    UI->>Rust: Backup-Snapshot anfordern
-    Rust->>DB: VACUUM INTO temp_snapshot.db (Blockierungsfrei)
-    DB-->>Rust: Konsistente Datenbankkopie zum Zeitpunkt X
-    Rust->>Rust: In ZIP-Archiv mit manifest.json packen
-    Rust->>Remote: Streaming-Upload (SigV4 / WebDAV PUT)
-    Remote-->>Rust: Upload bestätigt (200 OK)
-    Rust-->>UI: Snapshot erfolgreich erstellt
-```
+Standardmäßig **deaktiviert**, Intervall **sieben Tage**. Aktivieren, **1–365 Tage** wählen und **Einstellungen speichern**. Abbrechen und fehlgeschlagenes Speichern behalten den gespeicherten Zeitplan. Solange Omera läuft, prüft es alle 30 Sekunden; der erste Versuch beginnt bei der nächsten Prüfung. Das nächste Intervall beginnt nach erfolgreicher Sicherung. Beenden stoppt die Planung. Deaktivieren stoppt künftige Versuche; ein laufender darf fertig werden.
 
-### Snapshot-Garantien:
-- **Blockierungsfrei (Non-Locking)**: Nutzt die Online-Vacuum-API von SQLite. Sie können ohne Unterbrechung weiter in der Galerie arbeiten, bewerten und Bilder generieren.
-- **Rollback-Sicherheit**: Beim Wiederherstellen eines Snapshots erstellt Omera automatisch eine lokale Sicherheitskopie (`omera.db.rollback`), bevor die Remote-Datenbank eingespielt wird. Dies schützt vor Netzwerkabbrüchen oder beschädigten Downloads.
+**Gespeicherter Zeitplan** zeigt unabhängig von Entwürfen Laufstatus, letzten Erfolg/Versuch, nächsten Termin, Archiv und Fehler. Fehler oder Unterbrechungen führen auch nach Neustart zu **einer Stunde** Wartezeit. Ein anderes Ziel startet einen neuen Zeitplan; neue Zugangsdaten allein ändern ihn nicht. Beschädigter Status bleibt erhalten und pausiert die Planung bis zur Reparatur und zum Neustart.
+
+### Wiederherstellung
+
+Wiederherstellung validiert den Snapshot und bereitet ihn für den nächsten App-Start vor. Omera schließen und neu starten; Fenster-Neuladen genügt nicht. Vor der transaktionalen Aktivierung bleibt die aktuelle Datenbank als `omera.pre-restore-<UUID>.db` erhalten. Fehlende Medien oder Zugangsdaten werden nicht wiederhergestellt.
 
 ---
 
 ## 3. Inkrementelle Medienspiegelung & Delta-Sync (`cloud_sync.rs`)
 
-Während Snapshots Ihre Datenbankstruktur und Metadaten sichern, spiegelt der **Delta-Sync** die physischen Bild- und Videodateien zwischen lokalem Speicher und Cloud-Ziel.
+Während Snapshots Ihre Datenbankstruktur und Metadaten sichern, bietet der **Delta-Sync** eine einseitige inkrementelle Upload-Spiegelung physischer Bild- und Videodateien aus Ihrer lokalen Bibliothek auf Remote- oder Netzwerkspeicher.
 
-### Synchronisationsfähigkeiten:
+### Synchronisationsfähigkeiten (Implementiert):
 - **Strategien zur Änderungserkennung**:
-  - *Schneller Fingerabdruck*: Vergleicht die lokale Dateigröße und den Remote-HTTP-ETag (besonders schnell bei langsameren Verbindungen).
-  - *Strikte Prüfsumme*: Berechnet fortlaufende SHA-256-Prüfsummen für eine garantierte Byte-für-Byte-Konsistenz.
+  - *Schneller Fingerabdruck*: Vergleicht die lokale Dateigröße mit der Remote-Dateigröße über HTTP-HEAD-Metadaten (besonders schnell bei langsameren Verbindungen).
+  - *Strikte Prüfsumme*: Berechnet lokale SHA-256-Prüfsummen zum Abgleich mit Remote-Headern (benutzerdefinierter `x-amz-meta-sha256`-Header auf S3) für garantierte Byte-für-Byte-Konsistenz.
 - **Bandbreitenbegrenzung (Token-Bucket)**: Legen Sie ein Upload-Limit (KB/s) fest, damit Hintergrundübertragungen die Internetleitung Ihres Studios nicht blockieren.
-- **Übertragungs-Threads (Worker Concurrency)**: Konfigurierbare Thread-Anzahl (1 bis 8 parallele Uploads).
-- **Testlauf-Modus (Dry-Run)**: Simuliert den Abgleich und meldet hochzuladende, zu überspringende oder zu löschende Dateien, ohne Daten auf dem Remote-Speicher zu verändern.
-- **Echtzeit-Fortschrittsanzeige**: Sendet kontinuierliche Status-Updates mit übertragenen Bytes, Durchsatzrate, Prozentsatz und geschätzter Restzeit (ETA).
+- **Übertragungs-Threads (Worker Concurrency)**: Konfigurierbare Thread-Anzahl (1 bis 16 parallele Uploads, Standard 4).
+- **Testlauf-Modus (Dry-Run)**: Simuliert den Abgleich und meldet hochzuladende und zu überspringende Dateien, ohne Daten auf dem Remote-Speicher zu verändern.
+- **Echtzeit-Fortschrittsanzeige**: Sendet kontinuierliche Status-Updates mit übertragenen Bytes, Durchsatzrate, Prozentsatz und geschätzter Restzeit (ETA) sowie atomarer kooperativer Abbruchunterstützung.
+
+### Aktuelle Einschränkungen & Geplante Funktionen:
+- **Nur unidirektionaler Upload**: Der aktuelle Synchronisationspfad lädt lokale indizierte Dateien zum Remote-Ziel hoch. Ein Herunterladen/Abgleich von Remote nach Lokal ist nicht implementiert.
+- **Keine Synchronisation von Löschungen**: Lokal gelöschte Dateien werden auf dem Remote-Speicher nicht gelöscht; Remote-Dateien bleiben erhalten.
+- **Kein ETag-basierter Delta-Abgleich**: Die Änderungserkennung nutzt Dateigröße und SHA-256; HTTP-ETags werden nicht zur Cache-Invalidierung ausgewertet.
+- **Geplante bidirektionale Synchronisation**: Eine vollständige bidirektionale Synchronisation mit Erkennung von Remote-Änderungen, Pull-Downloads und Konfliktlösungsrichtlinien ist für zukünftige Versionen geplant.

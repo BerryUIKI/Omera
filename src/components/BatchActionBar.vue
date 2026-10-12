@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { t } from "../i18n";
 import type { ImageFile } from "../types";
 
 const props = defineProps<{
   selectedFiles: ImageFile[];
   totalCount: number;
+  loadedCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 const hasStacks = computed(
   () => props.selectedFiles.some((f) => !!f.stack_id),
 );
+const selectableLoadedCount = computed(() => props.loadedCount ?? props.totalCount);
 
 const allFavorites = computed(
   () => props.selectedFiles.length > 0 && props.selectedFiles.every((f) => f.is_favorite),
@@ -47,10 +49,56 @@ const ratingMenuOpen = ref(false);
 const moreMenuOpen = ref(false);
 const isCompact = ref(false);
 const barContainerRef = ref<HTMLElement | null>(null);
+const barRef = ref<HTMLElement | null>(null);
 const copiedPaths = ref(false);
 const copiedPrompts = ref(false);
 
 let resizeObserver: ResizeObserver | null = null;
+let lastUncompactWidth = 1150;
+
+function updateLayout() {
+  if (!barContainerRef.value) return;
+  const parent = barContainerRef.value.parentElement;
+  const availableWidth = (parent ? parent.clientWidth : window.innerWidth) - 48;
+
+  if (!isCompact.value) {
+    if (barRef.value) {
+      const scrollW = barRef.value.scrollWidth;
+      const clientW = barRef.value.clientWidth;
+      if (scrollW > 0) {
+        lastUncompactWidth = Math.max(lastUncompactWidth, scrollW);
+      }
+      if (scrollW > availableWidth || scrollW > clientW + 2) {
+        isCompact.value = true;
+        return;
+      }
+    }
+    if (availableWidth < lastUncompactWidth) {
+      isCompact.value = true;
+    }
+  } else {
+    if (availableWidth >= lastUncompactWidth + 30) {
+      isCompact.value = false;
+      nextTick(() => {
+        if (barRef.value) {
+          const scrollW = barRef.value.scrollWidth;
+          const clientW = barRef.value.clientWidth;
+          if (scrollW > availableWidth || scrollW > clientW + 2) {
+            isCompact.value = true;
+            lastUncompactWidth = Math.max(lastUncompactWidth, scrollW);
+          }
+        }
+      });
+    }
+  }
+}
+
+watch(
+  () => props.selectedFiles.length,
+  () => {
+    nextTick(updateLayout);
+  },
+);
 
 function onWindowKeyDown(e: KeyboardEvent) {
   if (e.key === "Escape") {
@@ -70,14 +118,12 @@ onMounted(() => {
   window.addEventListener("keydown", onWindowKeyDown);
   window.addEventListener("click", onWindowClick);
   if (typeof ResizeObserver !== "undefined" && barContainerRef.value?.parentElement) {
-    resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        isCompact.value = width < 920;
-      }
+    resizeObserver = new ResizeObserver(() => {
+      updateLayout();
     });
     resizeObserver.observe(barContainerRef.value.parentElement);
   }
+  nextTick(updateLayout);
 });
 
 onUnmounted(() => {
@@ -152,15 +198,21 @@ function onTrash() {
     class="batch-bar-container"
     :class="{ compact: isCompact }"
   >
-    <div class="batch-bar" role="toolbar" aria-label="Batch Actions">
+    <div ref="barRef" class="batch-bar" role="toolbar" aria-label="Batch Actions">
       <div class="batch-info">
-        <span class="batch-badge">
-          {{ selectedFiles.length }} {{ t.batch.selectedOf }} {{ totalCount }} {{ t.batch.selectedCount }}
-        </span>
+        <div class="batch-counts">
+          <span class="batch-badge">
+            {{ selectedFiles.length }} {{ t.batch.selectedOf }} {{ totalCount }} {{ t.batch.selectedCount }}
+          </span>
+          <span class="loaded-count" :title="t.view.loadedSelectionHint">
+            {{ t.view.loadedItems.replace('{count}', String(selectableLoadedCount)) }}
+          </span>
+        </div>
         <button
-          v-if="selectedFiles.length < totalCount"
+          v-if="selectedFiles.length < selectableLoadedCount"
           type="button"
           class="btn-text"
+          :title="t.view.loadedSelectionHint"
           @click="emit('selectAll')"
         >
           {{ t.view.selectAll }}
@@ -246,7 +298,7 @@ function onTrash() {
             title="Auto-tag selected images with WD14"
             @click="emit('autoTagSelected')"
           >
-            🤖 {{ t.batch.batchAutoTag }}
+            {{ t.batch.batchAutoTag }}
           </button>
 
           <!-- NSFW -->
@@ -348,7 +400,7 @@ function onTrash() {
               📁 {{ t.batch.album }}
             </button>
             <button type="button" class="more-opt" @click="emit('autoTagSelected'); moreMenuOpen = false">
-              🤖 {{ t.batch.batchAutoTag }}
+              {{ t.batch.batchAutoTag }}
             </button>
             <button type="button" class="more-opt" @click="emit('toggleNsfw', !allNsfw); moreMenuOpen = false">
               {{ allNsfw ? t.batch.nsfw : t.batch.sfw }}
@@ -466,7 +518,7 @@ function onTrash() {
   display: block;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   .secondary-actions-inline {
     display: none !important;
   }
@@ -530,6 +582,19 @@ function onTrash() {
   color: #fff;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
+  white-space: nowrap;
+}
+
+.batch-counts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.loaded-count {
+  font-size: 0.72em;
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 

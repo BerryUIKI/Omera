@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -24,6 +24,7 @@ import {
   type ThumbnailCacheStats,
 } from "../utils/thumbnail";
 import { formatBytes } from "../utils/image";
+import { startCloudSyncWithConfirmation } from "../utils/cloud-sync-namespace";
 import {
   currentLocaleSetting,
   setLocale,
@@ -39,16 +40,21 @@ import {
   openStorageDir,
   resetSuppressedWarnings,
   type StoragePaths,
+  type AppConfig,
 } from "../utils/config";
 import { applyTheme, normalizeTheme, type AppTheme } from "../utils/theme";
 import ThumbnailDiagnosticsModal from "./ThumbnailDiagnosticsModal.vue";
 import MigrationWizardModal from "./MigrationWizardModal.vue";
+import LegacyMigrationModal from "./LegacyMigrationModal.vue";
+import AutomaticBackupSettings from "./AutomaticBackupSettings.vue";
+import { normalizeBackupInterval, useAutomaticBackupStatus } from "../utils/automatic-backup";
 import { checkServiceStatus } from "../utils/generation";
 import { open } from "@tauri-apps/plugin-dialog";
 import { collaborationSync, pingDatabase } from "../utils/collaborationSync";
 
 const showDiagnosticsModal = ref(false);
 const showMigrationWizardModal = ref(false);
+const showLegacyMigrationModal = ref(false);
 
 const props = defineProps<{
   show: boolean;
@@ -69,10 +75,12 @@ const emit = defineEmits<{
     thumbnailCacheBudgetMb: number;
     autoCheckUpdate: boolean;
     allowMultipleStacksOpen: boolean;
+    allowOverrideExistingPrompt?: boolean;
   }): void;
 }>();
 
-const activeTab = ref<"general" | "display" | "stacking" | "interop" | "collaboration" | "cloudBackup" | "parsers" | "about">("general");
+const activeTab = ref<"general" | "display" | "stacking" | "interop" | "collaboration" | "cloudBackup" | "parsers" | "developer" | "about">("general");
+const allowOverrideExistingPrompt = ref(false);
 
 // Settings state (backed by persistent config.json)
 const selectedLocale = ref<LocaleSetting>(currentLocaleSetting.value);
@@ -181,10 +189,15 @@ const cloudS3SecretKey = ref("");
 const cloudS3Prefix = ref("backups/");
 const cloudAutoBackup = ref(false);
 const cloudAutoIntervalDays = ref(7);
+const { status: backupScheduleStatus, error: backupScheduleError, loading: backupScheduleLoading } =
+  useAutomaticBackupStatus(computed(() => props.show && activeTab.value === "cloudBackup"));
 
 const cloudPingStatus = ref<"unknown" | "testing" | "success" | "error">("unknown");
 const cloudPingLatency = ref<number | null>(null);
 const cloudPingMessage = ref("");
+
+const savingSettings = ref(false);
+const saveError = ref("");
 
 const cloudSnapshots = ref<CloudSnapshotMeta[]>([]);
 const cloudSnapshotsLoading = ref(false);
@@ -208,7 +221,7 @@ function getCurrentCloudConfig(): CloudBackupConfig {
     s3_secret_key: cloudS3SecretKey.value.trim() || null,
     s3_prefix: cloudS3Prefix.value.trim() || "backups/",
     auto_backup_enabled: cloudAutoBackup.value,
-    auto_backup_interval_days: cloudAutoIntervalDays.value,
+    auto_backup_interval_days: normalizeBackupInterval(cloudAutoIntervalDays.value),
   };
 }
 
@@ -322,16 +335,28 @@ async function handleStartCloudSync() {
   syncStarting.value = true;
   syncSummary.value = null;
   try {
-    await invoke("cloud_sync_start", {
-      config: getCurrentCloudConfig(),
-      options: {
+    const started = await startCloudSyncWithConfirmation(
+      getCurrentCloudConfig(),
+      {
         strategy: syncStrategy.value,
         concurrency: syncConcurrency.value,
         bandwidth_limit_kbs: syncBandwidthLimit.value > 0 ? syncBandwidthLimit.value : null,
         dry_run: syncDryRun.value,
         remote_prefix: syncRemotePrefix.value,
       },
-    });
+      (preview) => {
+        const text = t.value.settings.cloudBackup;
+        const mappings = preview.manifest.roots.map((root) =>
+          `${root.source_path}\n${root.legacy_prefix} → ${root.new_prefix}`,
+        ).join("\n\n");
+        const ambiguous = preview.manifest.roots.some((root) => root.legacy_ambiguous)
+          ? `\n\n${text.layoutAmbiguous}` : "";
+        return window.confirm(
+          `${text.layoutConfirm}\n\n${mappings}${ambiguous}\n\n${text.layoutSaved}\n${preview.manifest_path}`,
+        );
+      },
+    );
+    if (!started) return;
     await fetchSyncProgress();
   } catch (err: any) {
     window.alert(String(err));
@@ -368,6 +393,9 @@ async function fetchSyncProgress() {
 // Storage paths state
 const storagePaths = ref<StoragePaths | null>(null);
 
+// Track the loaded config for revision detection
+const loadedConfig = ref<AppConfig | null>(null);
+
 // Cache stats
 const cacheStats = ref<ThumbnailCacheStats | null>(null);
 const clearingCache = ref(false);
@@ -384,6 +412,7 @@ async function loadCacheStats() {
 async function loadSettingsAndPaths() {
   try {
     const config = await loadAppConfig();
+    loadedConfig.value = config;
     selectedLocale.value = (config.locale as LocaleSetting) || currentLocaleSetting.value;
     autoScanOnStartup.value = config.auto_scan;
     startupScanIntervalMinutes.value = config.startup_scan_interval_minutes ?? 360;
@@ -406,7 +435,8 @@ async function loadSettingsAndPaths() {
     void checkComfyConnection();
     void checkWebuiConnection();
 
-    storageBackend.value = "sqlite";
+    storageBackend.value =
+      (config.storage_backend as "sqlite" | "mysql" | "postgres") || "sqlite";
     remoteConnectionUrl.value = config.remote_connection_url || "";
     clientIdentifier.value = config.client_identifier || "local_client";
     rootMappings.value = config.root_mappings ? { ...config.root_mappings } : {};
@@ -427,8 +457,10 @@ async function loadSettingsAndPaths() {
       cloudS3SecretKey.value = cb.s3_secret_key || "";
       cloudS3Prefix.value = cb.s3_prefix || "backups/";
       cloudAutoBackup.value = cb.auto_backup_enabled ?? false;
-      cloudAutoIntervalDays.value = cb.auto_backup_interval_days ?? 7;
+      cloudAutoIntervalDays.value = normalizeBackupInterval(cb.auto_backup_interval_days ?? 7);
     }
+
+    allowOverrideExistingPrompt.value = config.allow_override_existing_prompt ?? false;
 
     storagePaths.value = await getStoragePaths();
     void checkDesktopShortcut();
@@ -548,16 +580,15 @@ onUnmounted(() => {
 });
 
 async function saveSettings() {
-  setLocale(selectedLocale.value);
-  setThumbnailMaxEdge(thumbnailMaxEdge.value);
-  setThumbnailCacheBudgetMb(thumbnailCacheBudgetMb.value);
-  applyTheme(selectedTheme.value);
+  if (savingSettings.value) return;
+  savingSettings.value = true;
+  saveError.value = "";
 
-  // Write to persistent config.json
+  // Write to persistent config.json using the originally loaded config
   try {
-    const existing = await loadAppConfig();
-    await saveAppConfig({
-      ...existing,
+    const baseConfig = loadedConfig.value || await loadAppConfig();
+    const updatedConfig: AppConfig = {
+      ...baseConfig,
       locale: selectedLocale.value,
       auto_scan: autoScanOnStartup.value,
       startup_scan_interval_minutes: startupScanIntervalMinutes.value,
@@ -576,31 +607,45 @@ async function saveSettings() {
       allow_multiple_open_stacks: allowMultipleStacksOpen.value,
       comfyui_url: comfyuiUrl.value,
       webui_url: webuiUrl.value,
-      storage_backend: "sqlite",
+      storage_backend: storageBackend.value,
       remote_connection_url: remoteConnectionUrl.value,
       client_identifier: clientIdentifier.value,
       root_mappings: rootMappings.value,
       cloud_backup: getCurrentCloudConfig(),
+      allow_override_existing_prompt: allowOverrideExistingPrompt.value,
+    };
+    await saveAppConfig(updatedConfig);
+    // Update loadedConfig to the newly saved version
+    loadedConfig.value = updatedConfig;
+
+    setLocale(selectedLocale.value);
+    setThumbnailMaxEdge(thumbnailMaxEdge.value);
+    setThumbnailCacheBudgetMb(thumbnailCacheBudgetMb.value);
+    applyTheme(selectedTheme.value);
+
+    void loadCacheStats();
+
+    emit("save", {
+      locale: selectedLocale.value,
+      autoScan: autoScanOnStartup.value,
+      startupScanIntervalMinutes: startupScanIntervalMinutes.value,
+      theme: selectedTheme.value,
+      blurNsfw: blurNsfwDefault.value,
+      showCardBadges: showCardBadges.value,
+      defaultView: defaultView.value,
+      thumbnailMaxEdge: thumbnailMaxEdge.value,
+      thumbnailCacheBudgetMb: thumbnailCacheBudgetMb.value,
+      autoCheckUpdate: autoCheckUpdate.value,
+      allowMultipleStacksOpen: allowMultipleStacksOpen.value,
+      allowOverrideExistingPrompt: allowOverrideExistingPrompt.value,
     });
+    emit("close");
   } catch (e) {
     console.error("Failed to save config.json:", e);
+    saveError.value = String(e);
+  } finally {
+    savingSettings.value = false;
   }
-  void loadCacheStats();
-
-  emit("save", {
-    locale: selectedLocale.value,
-    autoScan: autoScanOnStartup.value,
-    startupScanIntervalMinutes: startupScanIntervalMinutes.value,
-    theme: selectedTheme.value,
-    blurNsfw: blurNsfwDefault.value,
-    showCardBadges: showCardBadges.value,
-    defaultView: defaultView.value,
-    thumbnailMaxEdge: thumbnailMaxEdge.value,
-    thumbnailCacheBudgetMb: thumbnailCacheBudgetMb.value,
-    autoCheckUpdate: autoCheckUpdate.value,
-    allowMultipleStacksOpen: allowMultipleStacksOpen.value,
-  });
-  emit("close");
 }
 </script>
 
@@ -688,6 +733,16 @@ async function saveSettings() {
             @click="activeTab = 'parsers'"
           >
             <span aria-hidden="true">⌘</span><span>{{ t.settings.tabs.parsers }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: activeTab === 'developer' }"
+            role="tab"
+            :aria-selected="activeTab === 'developer'"
+            @click="activeTab = 'developer'"
+          >
+            <span aria-hidden="true">🛠️</span><span>{{ t.settings.developer }}</span>
           </button>
           <button
             type="button"
@@ -1164,6 +1219,24 @@ async function saveSettings() {
                 </button>
               </div>
             </div>
+
+            <!-- Legacy Berry Migration Card -->
+            <div class="settings-subsection migration-card-section" style="margin-top: 14px;">
+              <div class="migration-card-header">
+                <div>
+                  <h5 class="subsection-title">📦 {{ t.legacyMigration.title }}</h5>
+                  <p class="panel-subtitle">{{ t.legacyMigration.subtitle }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="btn-open-wizard"
+                  style="background: #0284c7; border-color: #38bdf8;"
+                  @click="showLegacyMigrationModal = true"
+                >
+                  📥 {{ t.legacyMigration.openSettingsMigration }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Tab: Cloud Snapshot Backup & Restore -->
@@ -1172,6 +1245,12 @@ async function saveSettings() {
               <h4 class="panel-title">{{ t.settings.cloudBackup.title }}</h4>
               <p class="panel-subtitle">{{ t.settings.cloudBackup.subtitle }}</p>
             </div>
+
+            <AutomaticBackupSettings
+              v-model:enabled="cloudAutoBackup" v-model:interval-days="cloudAutoIntervalDays"
+              :status="backupScheduleStatus" :loading="backupScheduleLoading"
+              :error="backupScheduleError" :saving="savingSettings"
+            />
 
             <!-- Provider Selection -->
             <div class="setting-row">
@@ -1638,6 +1717,25 @@ async function saveSettings() {
             </div>
           </div>
 
+          <!-- Tab: Developer Options -->
+          <div v-if="activeTab === 'developer'" class="settings-panel">
+            <div class="panel-heading">
+              <h4 class="panel-title">{{ t.settings.developerOptions }}</h4>
+              <p class="panel-subtitle">{{ t.settings.developerDesc }}</p>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="row-label">{{ t.settings.allowOverrideExistingPrompt }}</span>
+                <span class="row-desc">{{ t.settings.allowOverrideExistingPromptDesc }}</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" v-model="allowOverrideExistingPrompt" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
           <!-- Tab: About & Storage -->
           <div v-if="activeTab === 'about'" class="settings-panel">
             <div class="panel-heading">
@@ -1704,12 +1802,16 @@ async function saveSettings() {
 
       <!-- Footer -->
       <div class="dialog-footer">
+        <div v-if="saveError" class="error-message" role="alert">{{ saveError }}</div>
         <button type="button" class="btn secondary" @click="emit('close')">{{ t.settings.cancel }}</button>
-        <button type="button" class="btn primary" @click="saveSettings">{{ t.settings.save }}</button>
+        <button type="button" class="btn primary" @click="saveSettings" :disabled="savingSettings">
+          {{ savingSettings ? "..." : t.settings.save }}
+        </button>
       </div>
     </div>
     <ThumbnailDiagnosticsModal :show="showDiagnosticsModal" @close="showDiagnosticsModal = false" />
     <MigrationWizardModal :show="showMigrationWizardModal" @close="showMigrationWizardModal = false" />
+    <LegacyMigrationModal :show="showLegacyMigrationModal" @close="showLegacyMigrationModal = false" />
   </div>
 </template>
 
@@ -2323,19 +2425,19 @@ async function saveSettings() {
 
 .ping-message {
   font-size: 0.8rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
 }
 
 .settings-subsection {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border-color);
 }
 
 .subsection-title {
   font-size: 0.92rem;
   font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--color-text-primary);
   margin: 0 0 4px 0;
 }
 
@@ -2351,8 +2453,8 @@ async function saveSettings() {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 0.82rem;
 }
@@ -2364,13 +2466,13 @@ async function saveSettings() {
 }
 
 .mapping-arrow {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-muted);
 }
 
 .mapping-path {
   flex: 1;
   font-family: monospace;
-  color: var(--text-secondary, #cbd5e1);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2400,28 +2502,28 @@ async function saveSettings() {
 .mapping-input-uuid {
   width: 140px;
   padding: 7px 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--color-text-primary);
   font-size: 0.82rem;
 }
 
 .mapping-input-path {
   flex: 1;
   padding: 7px 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--color-text-primary);
   font-size: 0.82rem;
 }
 
 .btn-browse-mapping {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--color-text-primary);
   padding: 7px 12px;
   font-size: 0.8rem;
   cursor: pointer;

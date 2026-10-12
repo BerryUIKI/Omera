@@ -10,13 +10,14 @@ pub enum CloudStorageProvider {
     #[default]
     LocalPath,
     /// WebDAV server (Nextcloud, Synology DSM, QNAP, ownCloud, etc.).
+    #[serde(rename = "webdav", alias = "web_dav")]
     WebDav,
     /// S3-compatible object storage (AWS S3, Cloudflare R2, MinIO, Backblaze B2).
     S3,
 }
 
 /// User configuration for cloud backup and disaster recovery.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudBackupConfig {
     /// Selected storage provider.
     #[serde(default)]
@@ -51,6 +52,26 @@ pub struct CloudBackupConfig {
     /// Scheduled interval in days (e.g. 1 = daily, 7 = weekly).
     #[serde(default = "default_auto_backup_days")]
     pub auto_backup_interval_days: u32,
+}
+
+impl Default for CloudBackupConfig {
+    fn default() -> Self {
+        Self {
+            provider: CloudStorageProvider::LocalPath,
+            local_path: None,
+            webdav_endpoint: None,
+            webdav_username: None,
+            webdav_password: None,
+            s3_endpoint: None,
+            s3_bucket: None,
+            s3_region: None,
+            s3_access_key: None,
+            s3_secret_key: None,
+            s3_prefix: None,
+            auto_backup_enabled: false,
+            auto_backup_interval_days: default_auto_backup_days(),
+        }
+    }
 }
 
 fn default_auto_backup_days() -> u32 {
@@ -115,6 +136,27 @@ pub struct CloudRestoreResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn webdav_provider_matches_frontend_and_reads_legacy_spelling() {
+        assert_eq!(
+            serde_json::to_string(&CloudStorageProvider::WebDav).unwrap(),
+            "\"webdav\""
+        );
+        for spelling in ["webdav", "web_dav"] {
+            let config: CloudBackupConfig =
+                serde_json::from_value(serde_json::json!({"provider": spelling})).unwrap();
+            assert_eq!(config.provider, CloudStorageProvider::WebDav);
+        }
+    }
+
+    #[test]
+    fn missing_legacy_schedule_matches_explicit_defaults() {
+        let legacy: CloudBackupConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(legacy, CloudBackupConfig::default());
+        assert!(!legacy.auto_backup_enabled);
+        assert_eq!(legacy.auto_backup_interval_days, 7);
+    }
 
     #[test]
     fn test_cloud_backup_config_serde_roundtrip() {

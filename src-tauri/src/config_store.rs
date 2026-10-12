@@ -94,6 +94,40 @@ pub fn load(path: &Path) -> Result<AppConfig, String> {
     Ok(config)
 }
 
+/// Read configuration without mutating the source file or migrating credentials.
+/// Keyring-referenced credentials will be resolved in-memory if available, but
+/// plaintext credentials will remain intact in memory and the file on disk is never written.
+pub fn load_readonly(path: &Path) -> Result<AppConfig, String> {
+    let _guard = CONFIG_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut config = read(path)?;
+    // Resolve any existing keyring references without rewriting the source file
+    let _ = secrets(&mut config, resolve);
+    config.storage_backend = "sqlite".into();
+    Ok(config)
+}
+
+/// Scheduling reads saved preferences without accessing or changing credentials.
+pub(crate) fn backup_preferences(path: &Path) -> Result<omera_domain::CloudBackupConfig, String> {
+    let _guard = CONFIG_LOCK.lock().map_err(|e| e.to_string())?;
+    Ok(read(path)?.cloud_backup)
+}
+
+/// Resolve only backup credentials, and fail closed if any entry is unavailable.
+pub(crate) fn resolve_backup_credentials(
+    mut config: omera_domain::CloudBackupConfig,
+) -> Result<omera_domain::CloudBackupConfig, String> {
+    use omera_domain::CloudStorageProvider;
+    match config.provider {
+        CloudStorageProvider::LocalPath => {}
+        CloudStorageProvider::WebDav => resolve(&mut config.webdav_password)?,
+        CloudStorageProvider::S3 => {
+            resolve(&mut config.s3_access_key)?;
+            resolve(&mut config.s3_secret_key)?;
+        }
+    }
+    Ok(config)
+}
+
 pub fn save(path: &Path, mut config: AppConfig) -> Result<AppConfig, String> {
     let _guard = CONFIG_LOCK.lock().map_err(|e| e.to_string())?;
     let current = read(path)?;
@@ -114,6 +148,30 @@ pub fn save(path: &Path, mut config: AppConfig) -> Result<AppConfig, String> {
     atomic_write(
         path,
         &serde_json::to_vec_pretty(&config).map_err(|e| e.to_string())?,
+    )?;
+    Ok(result)
+}
+
+/// Save a legacy configuration during migration into the destination path.
+///
+/// If the destination configuration does not yet exist, its baseline revision is 0,
+/// so the migrated configuration's revision is reset to 0 to pass optimistic concurrency
+/// and initialized to revision 1 upon first persistence.
+/// If the destination configuration already exists, it is kept authoritative and this function
+/// returns `Ok(existing_config)` without overwriting.
+pub fn save_migrated(path: &Path, mut legacy_config: AppConfig) -> Result<AppConfig, String> {
+    let _guard = CONFIG_LOCK.lock().map_err(|e| e.to_string())?;
+    if path.exists() {
+        return read(path);
+    }
+    legacy_config.config_revision = 0;
+    legacy_config.config_revision += 1;
+    legacy_config.storage_backend = "sqlite".into();
+    let result = legacy_config.clone();
+    secrets(&mut legacy_config, protect)?;
+    atomic_write(
+        path,
+        &serde_json::to_vec_pretty(&legacy_config).map_err(|e| e.to_string())?,
     )?;
     Ok(result)
 }
@@ -215,5 +273,85 @@ mod tests {
         assert_eq!(saved.config_revision, 1);
         assert!(save(&path, original).is_err());
         assert!(path.with_extension("json.bak").exists());
+    }
+
+    #[test]
+    fn load_readonly_preserves_file_bytes_and_reads_plaintext() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let mut cfg = AppConfig::default();
+        cfg.cloud_backup.webdav_password = Some("my_secret_password".into());
+        let raw_bytes = serde_json::to_vec_pretty(&cfg).unwrap();
+        std::fs::write(&path, &raw_bytes).unwrap();
+
+        let loaded = load_readonly(&path).expect("load_readonly must succeed");
+        assert_eq!(
+            loaded.cloud_backup.webdav_password.as_deref(),
+            Some("my_secret_password")
+        );
+
+        // Verify the source file on disk was not modified in any byte
+        let on_disk_bytes = std::fs::read(&path).unwrap();
+        assert_eq!(on_disk_bytes, raw_bytes);
+    }
+
+    #[test]
+    fn backup_preferences_do_not_resolve_or_rewrite_credentials() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let mut config = AppConfig::default();
+        config.cloud_backup.webdav_password = Some("keyring:missing-backup-fixture".into());
+        config.remote_connection_url = "keyring:missing-remote-fixture".into();
+        let bytes = serde_json::to_vec(&config).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        let preferences = backup_preferences(&path).unwrap();
+        assert_eq!(preferences, config.cloud_backup);
+        // An inactive provider must not ask the credential store for unrelated entries.
+        assert_eq!(
+            resolve_backup_credentials(preferences.clone()).unwrap(),
+            preferences
+        );
+        assert_eq!(std::fs::read(path).unwrap(), bytes);
+    }
+
+    #[test]
+    fn save_migrated_nonzero_revision_succeeds_on_absent_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let legacy_cfg = AppConfig {
+            config_revision: 42,
+            theme: "nord".to_string(),
+            ..Default::default()
+        };
+
+        let saved = save_migrated(&path, legacy_cfg).expect("save_migrated should succeed");
+        assert_eq!(saved.config_revision, 1);
+        assert_eq!(saved.theme, "nord");
+
+        let readback = load_readonly(&path).expect("load_readonly should succeed");
+        assert_eq!(readback.config_revision, 1);
+        assert_eq!(readback.theme, "nord");
+    }
+
+    #[test]
+    fn save_migrated_preserves_existing_destination_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let existing_cfg = AppConfig {
+            theme: "existing_theme".to_string(),
+            ..Default::default()
+        };
+        save(&path, existing_cfg).expect("save existing config should succeed");
+
+        let legacy_cfg = AppConfig {
+            theme: "legacy_theme".to_string(),
+            ..Default::default()
+        };
+        let result =
+            save_migrated(&path, legacy_cfg).expect("save_migrated should return existing");
+        assert_eq!(result.theme, "existing_theme");
+
+        let readback = load_readonly(&path).expect("load_readonly should succeed");
+        assert_eq!(readback.theme, "existing_theme");
     }
 }

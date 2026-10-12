@@ -41,7 +41,7 @@ Das Anwendungsfenster verwendet ein rahmenloses Design mit einer individuellen, 
   - `Einstellungen...` (`Strg + ,` / `Cmd + ,`): Das zentrale Einstellungsfenster mit 8 Kategorien öffnen.
   - `Beenden` (`Alt + F4`): Omera sauber schließen.
 - **Bearbeiten**:
-  - `Alles auswählen` (`Strg + A` / `Cmd + A`): Alle Assets in der aktuellen Galerieansicht markieren.
+  - `Geladene Einträge auswählen` (`Ctrl + A` / `Cmd + A`): Wählt nur geladene Einträge aus. Stapel erweitern, um ihre Bilder einzubeziehen; nach dem Laden weiterer Seiten erneut auswählen.
   - `Auswahl aufheben` (`Esc`): Alle Markierungen aufheben.
   - `Tags stapelweise hinzufügen...`: Tags für ausgewählte Dateien zuweisen oder entfernen.
   - `Zu Album hinzufügen...`: Ausgewählte Dateien einem Album zuordnen.
@@ -111,6 +111,8 @@ Der zentrale Arbeitsbereich dient zum Durchsuchen, Auswählen und Kuratieren von
 
 ---
 
+In der Tabellenansicht unter **Spalten** Felder ein-/ausblenden und die Breite in Pixeln ändern, danach **Spalten speichern**. **Spalten zurücksetzen** stellt den kompakten Entwurf wieder her; zum Anwenden speichern. Dateiname und Auswahl bleiben verfügbar. Die Stapelanzahl öffnet/schließt passende Mitglieder. Fehlgeschlagene Speicherungen behalten Entwurf und aktuelle Ansicht.
+
 ## 5. Rechter Eigenschafts-Inspektor (`InspectorPane.vue`)
 
 Der rechte Inspektor (`I` zum Umschalten) liefert tiefgehende, verlustfreie Generierungs-Metadaten für das aktive Element:
@@ -151,7 +153,7 @@ Am unteren Fensterrand platziert:
 
 Sobald eine oder mehrere Karten ausgewählt sind, erscheint am unteren Rand eine schwebende Aktionsleiste:
 
-- Mehrfachauswahl-Zähler (`X von Y ausgewählt`) mit Schaltflächen für „Alle auswählen“ und „Auswahl aufheben“.
+- Mehrfachauswahl-Zähler (`X von Y ausgewählt`) mit Schaltflächen für „Geladene Einträge auswählen“ und „Auswahl aufheben“.
 - Stapel-Bewertungs-Dropdown (0 bis 5 Sterne).
 - Dialoge für „Zu Album hinzufügen“ und „Tag hinzufügen“.
 - „Auto-Tag (WD14)“-Aktion.

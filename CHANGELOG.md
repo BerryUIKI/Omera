@@ -5,6 +5,50 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-10-12
+
+### Added
+
+- Opt-in automatic database/configuration snapshot backups, interval settings,
+  last-result feedback and restart/failure recovery. Media and external credentials
+  are not included in these snapshots.
+- Saved Table column preferences, expandable Table stacks, clearer selection
+  scope, prompt insights and a session masking shortcut.
+- Signed update installers with adjacent `.minisig` files, pinned verification
+  trust, fail-closed download/install checks and manual installation guidance.
+
+### Fixed
+
+- Windows setup now checks the required system Microsoft Visual C++ x64 runtime.
+  The EXE installer links to Microsoft's official download page and rechecks after
+  you install or repair the runtime. MSI explains the requirement and stops before
+  changing the installation. Runtime DLLs are not bundled; administrator approval
+  may be needed for Microsoft's runtime installer.
+- Legacy migration, staged restore, source retention, import collisions and
+  incomplete scans preserve existing data more reliably.
+- Transformation metadata/privacy, sidecar handling and derivative dimensions
+  stay consistent with published files. AVIF discovery no longer claims unsupported
+  managed-library decoding.
+- Cloud transfer limits, cancellation, root namespaces and checksum comparisons
+  handle concurrent and same-size changed files more reliably.
+- Settings save failures, stale forms, batch refresh, keyboard interaction,
+  localized feedback and table/gallery selection behavior are corrected.
+
+### Release testing
+
+This release is published at the owner's request for further testing. Automated
+regressions and installer/signing checks are separate from native acceptance.
+The owner reports successful automatic-update testing with no issues; the exact
+platform/version pair has not yet been recorded. Windows Sandbox testing is
+postponed at the owner's request.
+The complete installed-update matrix on Windows x64, macOS Apple Silicon and
+Linux x64 remains pending, including library/settings preservation and official
+next-release discovery/download/install ([#256](https://github.com/BerryUIKI/Omera/issues/256)).
+The clean Windows Sandbox 0.4.3 baseline failed startup because its system runtime
+was missing; 0.4.4 adds prerequisite guidance before installation.
+
+---
+
 ## [0.4.3] - 2026-10-05
 
 ### Phase 6 T4 Advanced Transform Controls, Resilient In-App Updater & Windows NSIS Integration
@@ -143,7 +187,7 @@ Version 0.3.0 is a major milestone release delivering batch format conversion an
 - **Filename Pattern Templating & Sidecars (12.1)**: Flexible export naming with tokens (`{name}`, `{date}`, `{model}`, `{id}`, `{rating}`) and optional `.txt` prompt or `.json` metadata sidecars.
 - **Standalone Interactive HTML Showcase (12.2)**: Zero-dependency, single `index.html` export containing responsive dark-theme gallery, fullscreen pan/zoom lightbox with keyboard navigation (`Esc`, `←`, `→`), prompt inspector with one-click copying, and instant keyword filter.
 - **S3 & WebDAV Snapshot Backup & Restore (12.3)**: Automated and manual snapshot creation targeting AWS S3 (SigV4), Cloudflare R2, MinIO, Backblaze B2, and WebDAV servers (Nextcloud/Synology). Includes hot SQLite `VACUUM INTO`, schema verification, pre-restore rollback backup, and live database connection hot-swapping.
-- **Incremental Remote Asset Mirroring & Delta Sync (12.4)**: ETag and streaming SHA-256 change detection for bidirectional asset sync, with a token-bucket `RateLimiter` aggregate bandwidth throttle, atomic cancellation, dry-run simulation, and live animated UI progress.
+- **Incremental Remote Asset Mirroring & Delta Sync (12.4)**: File-size and SHA-256 change detection for one-way remote asset upload mirroring (bidirectional sync planned), with a token-bucket `RateLimiter` aggregate bandwidth throttle, atomic cancellation, dry-run simulation, and live animated UI progress.
 
 #### ⚡ Keyset Cursor Deep Pagination & Scalability (Milestone 13)
 - **Keyset Cursor Deep Pagination**: Virtual gallery scrolling directly integrated with keyset cursors (`search_files_cursor_page` and `search_files_by_query_cursor_page`), eliminating SQLite `OFFSET N` scans and decoupling window counting for \(O(1)\) row traversal (< 1 ms at 40k+ assets, an 84x speedup over offset paging).

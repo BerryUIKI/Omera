@@ -28,6 +28,12 @@ Omera 採用基於 **Tauri v2**、**Rust** 與 **SQLite WAL** 的極致效能原
 請從 [GitHub Releases 發布頁面](https://github.com/BerryUIKI/Omera/releases) 或 [官方網站](https://berryuiki.github.io/Omera/) 下載官方正式組建安裝包。
 
 ### Windows
+安裝需要相容的 Microsoft Visual C++ x64 系統執行階段。若安裝程式提示缺少執行階段，
+請開啟 [Microsoft 官方下載頁面](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)，
+安裝或修復最新的 **x64** 可轉散發套件（可能需要系統管理員核准），再返回 EXE 安裝程式按「下一步」。
+使用 MSI 時，請在執行階段安裝完成後重新執行安裝程式。無訊息或被動安裝會在缺少執行階段時停止；
+Omera 不包含執行階段 DLL，也不會自動安裝可轉散發套件。
+
 1. **標準安裝程式 (`Omera_Windows_x64.exe`)**：
    - 按兩下安裝執行檔。
    - 依照安裝精靈指示選擇安裝位置，並建立桌面與開始功能表捷徑。

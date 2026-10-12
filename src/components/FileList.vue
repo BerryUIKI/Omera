@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
-import type { ImageFile } from "../types";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import type { FileSortField, ImageFile, SortDirection } from "../types";
+import { normalizeTableColumns, type TableColumnId, type TableColumnPreference } from "../utils/table-columns";
+import { resolveStackHeroPaths } from "../utils/stack";
+import { fileSelectionLabel } from "../utils/selection";
 import {
   assetUrl,
   formatBytes,
@@ -19,7 +22,13 @@ import {
   invalidateThumbnail,
 } from "../utils/thumbnail";
 import { t } from "../i18n";
+import { hasActiveDialog, isEditableTarget } from "../utils/dialog";
 import { useGalleryNavigation } from "../utils/gallery-navigation";
+import {
+  isSensitiveMasked,
+  isSensitiveRevealed,
+  useGalleryPrivacy,
+} from "../utils/gallery-privacy";
 
 const props = defineProps<{
   files: ImageFile[];
@@ -30,8 +39,17 @@ const props = defineProps<{
   selectedFilePaths?: Set<string>;
   contextKey?: string;
   fileRevision?: number;
+  stackMap?: Record<string, { count: number; heroId: number | null }>;
+  expandedStacks?: Set<string>;
+  columns?: TableColumnPreference[];
+  columnsSaving?: boolean;
+  columnsError?: string;
   emptyMessage?: string;
   emptyActionText?: string;
+  sortField?: FileSortField;
+  sortDirection?: SortDirection;
+  blurNsfw?: boolean;
+  revealedNsfw?: Set<string>;
 }>();
 
 const emit = defineEmits<{
@@ -39,9 +57,66 @@ const emit = defineEmits<{
   (e: "activate", file: ImageFile): void;
   (e: "toggleSelect", file: ImageFile): void;
   (e: "toggleAll"): void;
+  (e: "saveColumns", columns: TableColumnPreference[]): void;
+  (e: "toggleStackExpand", stackId: string): void;
   (e: "loadMore"): void;
   (e: "recover"): void;
+  (e: "update:sortField", value: FileSortField): void;
+  (e: "update:sortDirection", value: SortDirection): void;
+  (e: "toggleReveal", path: string): void;
 }>();
+
+const columnMenuRef = ref<HTMLDetailsElement | null>(null);
+const draftColumns = ref(normalizeTableColumns(props.columns));
+const activeColumns = computed(() => normalizeTableColumns(props.columns));
+const shownColumns = computed(() => activeColumns.value.filter(column => column.visible));
+const columnCount = computed(() => shownColumns.value.length + 1);
+const tableWidth = computed(() => shownColumns.value.reduce((width, column) => width + column.width, 28));
+function showColumn(id: TableColumnId): boolean {
+  return activeColumns.value.some(column => column.id === id && column.visible);
+}
+function columnLabel(id: TableColumnId): string {
+  const labels = {preview:t.value.preview.preview,name:t.value.sort.name,container:t.value.preview.container,
+    size:t.value.sort.size,modified:t.value.sort.modified,platform:t.value.preview.platform,
+    prompt:t.value.preview.prompt,dimensions:t.value.preview.dimensions,model:t.value.preview.modelName};
+  return labels[id];
+}
+function closeColumnMenu() {
+  if (columnMenuRef.value) columnMenuRef.value.open = false;
+}
+watch(() => props.columns, value => {
+  draftColumns.value = normalizeTableColumns(value);
+  closeColumnMenu();
+});
+
+const privacy = useGalleryPrivacy();
+
+function isMasked(file: ImageFile | null | undefined): boolean {
+  const revealedSet = props.revealedNsfw ?? privacy.revealedPaths.value;
+  return isSensitiveMasked(file, props.blurNsfw ?? true, revealedSet);
+}
+
+function isRevealed(path: string): boolean {
+  const revealedSet = props.revealedNsfw ?? privacy.revealedPaths.value;
+  return isSensitiveRevealed(path, revealedSet);
+}
+
+function toggleNsfwReveal(path: string) {
+  emit("toggleReveal", path);
+  if (!props.revealedNsfw) {
+    privacy.toggleReveal(path);
+  }
+}
+
+const stackHeroPaths = computed(() => resolveStackHeroPaths(props.files, props.stackMap ?? {}));
+function isStackCover(file: ImageFile): boolean {
+  return Boolean(file.stack_id && (props.stackMap?.[file.stack_id]?.count ?? 1) > 1 &&
+    stackHeroPaths.value.get(file.stack_id) === file.path);
+}
+function stackLabel(file: ImageFile): string {
+  const operation = props.expandedStacks?.has(file.stack_id!) ? t.value.nav.collapse : t.value.nav.expand;
+  return `${operation}: ${getFileName(file.path)} · ${props.stackMap?.[file.stack_id!]?.count} ${t.value.stack.stackCount}`;
+}
 
 const ROW_HEIGHT = 46;
 const OVERSCAN = 6;
@@ -152,10 +227,10 @@ function getRowImageSrc(file: ImageFile): string | null {
 
 // Prefetch thumbnails for visible rows
 watch(
-  visibleFiles,
-  (batch) => {
+  [visibleFiles, () => showColumn("preview")],
+  ([batch, previewVisible]) => {
     const generation = beginThumbnailRequestCycle();
-    if (!batch || batch.length === 0) return;
+    if (!previewVisible || !batch || batch.length === 0) return;
     for (const file of batch) {
       if (
         file.container !== "mp4" && file.container !== "txt" &&
@@ -209,16 +284,6 @@ watch(
   { immediate: true, flush: "post" },
 );
 
-onUnmounted(() => {
-  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
-  if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-  }
-  cancelThumbnailRequests();
-});
-
 function snippet(text: string | null | undefined, max = 48): string {
   if (!text) return "—";
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -228,10 +293,116 @@ function size(meta: ImageFile["metadata"]): string {
   if (!meta?.width || !meta?.height) return "—";
   return `${meta.width} × ${meta.height}`;
 }
+
+function onHeaderSort(field: FileSortField) {
+  if (props.sortField === field) {
+    const nextDir = props.sortDirection === "desc" ? "asc" : "desc";
+    emit("update:sortDirection", nextDir);
+  } else {
+    emit("update:sortField", field);
+    emit("update:sortDirection", "desc");
+  }
+}
+
+function scrollToIndex(index: number) {
+  if (!containerRef.value) return;
+  const targetTop = index * ROW_HEIGHT;
+  const targetBottom = targetTop + ROW_HEIGHT;
+  const currentScrollTop = containerRef.value.scrollTop;
+  const viewportHeight = containerRef.value.clientHeight;
+
+  if (targetTop < currentScrollTop) {
+    containerRef.value.scrollTop = targetTop;
+  } else if (targetBottom > currentScrollTop + viewportHeight) {
+    containerRef.value.scrollTop = targetBottom - viewportHeight;
+  }
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (
+    e.defaultPrevented ||
+    hasActiveDialog() ||
+    isEditableTarget(e.target) ||
+    isEditableTarget(document.activeElement)
+  ) {
+    return;
+  }
+
+  if (!props.files.length) return;
+
+  const currentIndex = props.selectedFile
+    ? props.files.findIndex((f) => f.path === props.selectedFile?.path)
+    : -1;
+
+  let nextIndex = currentIndex;
+
+  switch (e.key) {
+    case "ArrowDown":
+      nextIndex = currentIndex < props.files.length - 1 ? currentIndex + 1 : 0;
+      break;
+    case "ArrowUp":
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : props.files.length - 1;
+      break;
+    case "r":
+    case "R": {
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && props.selectedFile) {
+        if (props.selectedFile.is_nsfw && (props.blurNsfw ?? true)) {
+          e.preventDefault();
+          toggleNsfwReveal(props.selectedFile.path);
+        }
+      }
+      return;
+    }
+    default:
+      return;
+  }
+
+  if (nextIndex >= 0 && nextIndex < props.files.length && nextIndex !== currentIndex) {
+    e.preventDefault();
+    emit("select", props.files[nextIndex]);
+    scrollToIndex(nextIndex);
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyDown);
+  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
+  if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
+  cancelThumbnailRequests();
+});
 </script>
 
 <template>
   <section class="files">
+    <div class="table-controls">
+      <details ref="columnMenuRef" class="column-menu" @keydown.esc.prevent.stop="closeColumnMenu">
+        <summary>{{ t.view.columns }}</summary>
+        <div class="column-panel">
+          <div v-for="column in draftColumns" :key="column.id" class="column-option">
+            <label>
+              <input v-model="column.visible" type="checkbox" :disabled="column.id === 'name' || columnsSaving" />
+              {{ columnLabel(column.id) }}
+            </label>
+            <input v-model.number="column.width" type="number" :min="['name','prompt','model'].includes(column.id) ? 80 : 44"
+              max="640" step="10" :disabled="columnsSaving"
+              :aria-label="`${columnLabel(column.id)} · ${t.view.columnWidth}`" />
+          </div>
+          <p v-if="columnsError" role="alert">{{ t.view.columnSaveError }}: {{ columnsError }}</p>
+          <div class="column-actions">
+            <button type="button" :disabled="columnsSaving" @click="draftColumns = normalizeTableColumns([])">{{ t.view.resetColumns }}</button>
+            <button type="button" :disabled="columnsSaving" @click="emit('saveColumns', normalizeTableColumns(draftColumns))">{{ t.view.saveColumns }}</button>
+          </div>
+        </div>
+      </details>
+    </div>
     <p v-if="loading" class="empty">{{ t.view.loading }}</p>
     <div v-else-if="!files.length" class="empty empty-state">
       <span class="empty-state-message">{{ emptyMessage || t.review.noMatches }}</span>
@@ -245,38 +416,82 @@ function size(meta: ImageFile["metadata"]): string {
     </div>
 
     <div v-else ref="containerRef" class="scroll" @scroll.passive="onScroll">
-      <table class="table" role="table" :aria-label="t.review.gallery">
+      <table class="table" role="grid" :aria-label="t.review.gallery" :style="{ minWidth: `${tableWidth}px` }">
+        <colgroup>
+          <col style="width: 28px" />
+          <col v-for="column in shownColumns" :key="column.id" :style="{ width: `${column.width}px` }" />
+        </colgroup>
         <thead class="sticky-header">
-          <tr>
-            <th class="th-checkbox">
+          <tr role="row">
+            <th class="th-checkbox" role="columnheader">
               <input
                 type="checkbox"
                 :checked="files.length > 0 && selectedFilePaths?.size === files.length"
-                :title="t.view.selectAll"
+                :aria-label="t.view.selectAll"
+                :title="t.view.loadedSelectionHint"
                 @click.stop="emit('toggleAll')"
               />
             </th>
-            <th class="th-preview">{{ t.preview.preview }}</th>
-            <th>{{ t.sort.name }}</th>
-            <th>{{ t.preview.container }}</th>
-            <th>{{ t.sort.size }}</th>
-            <th>{{ t.sort.modified }}</th>
-            <th>{{ t.preview.platform }}</th>
-            <th>{{ t.preview.prompt }}</th>
-            <th>{{ t.preview.dimensions }}</th>
-            <th>{{ t.preview.modelName }}</th>
+            <th v-if="showColumn('preview')" class="th-preview" role="columnheader">{{ t.preview.preview }}</th>
+            <th
+              v-if="showColumn('name')"
+              class="th-sortable"
+              role="columnheader"
+              :aria-sort="sortField === 'path' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : 'none'"
+              tabindex="0"
+              @click="onHeaderSort('path')"
+              @keydown.enter.prevent="onHeaderSort('path')"
+              @keydown.space.prevent="onHeaderSort('path')"
+            >
+              <span>{{ t.sort.name }}</span>
+              <span v-if="sortField === 'path'" class="sort-indicator">{{ sortDirection === 'desc' ? '↓' : '↑' }}</span>
+            </th>
+            <th v-if="showColumn('container')" role="columnheader">{{ t.preview.container }}</th>
+            <th
+              v-if="showColumn('size')"
+              class="th-sortable"
+              role="columnheader"
+              :aria-sort="sortField === 'size_bytes' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : 'none'"
+              tabindex="0"
+              @click="onHeaderSort('size_bytes')"
+              @keydown.enter.prevent="onHeaderSort('size_bytes')"
+              @keydown.space.prevent="onHeaderSort('size_bytes')"
+            >
+              <span>{{ t.sort.size }}</span>
+              <span v-if="sortField === 'size_bytes'" class="sort-indicator">{{ sortDirection === 'desc' ? '↓' : '↑' }}</span>
+            </th>
+            <th
+              v-if="showColumn('modified')"
+              class="th-sortable"
+              role="columnheader"
+              :aria-sort="sortField === 'modified_at' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : 'none'"
+              tabindex="0"
+              @click="onHeaderSort('modified_at')"
+              @keydown.enter.prevent="onHeaderSort('modified_at')"
+              @keydown.space.prevent="onHeaderSort('modified_at')"
+            >
+              <span>{{ t.sort.modified }}</span>
+              <span v-if="sortField === 'modified_at'" class="sort-indicator">{{ sortDirection === 'desc' ? '↓' : '↑' }}</span>
+            </th>
+            <th v-if="showColumn('platform')" role="columnheader">{{ t.preview.platform }}</th>
+            <th v-if="showColumn('prompt')" role="columnheader">{{ t.preview.prompt }}</th>
+            <th v-if="showColumn('dimensions')" role="columnheader">{{ t.preview.dimensions }}</th>
+            <th v-if="showColumn('model')" role="columnheader">{{ t.preview.modelName }}</th>
           </tr>
         </thead>
         <tbody>
           <!-- Top Spacer for Virtualization -->
           <tr v-if="topSpacerHeight > 0" :style="{ height: `${topSpacerHeight}px` }" class="spacer-row">
-            <td colspan="10" class="spacer-cell"></td>
+            <td :colspan="columnCount" class="spacer-cell"></td>
           </tr>
 
           <!-- Visible Rows -->
           <tr
-            v-for="file in visibleFiles"
+            v-for="(file, offset) in visibleFiles"
             :key="file.id ?? file.path"
+            role="row"
+            :aria-rowindex="startRow + offset + 1"
+            :aria-selected="selectedFile?.path === file.path || selectedFilePaths?.has(file.path)"
             class="data-row"
             :class="{
               'row-selected': selectedFile?.path === file.path,
@@ -289,74 +504,122 @@ function size(meta: ImageFile["metadata"]): string {
               <input
                 type="checkbox"
                 :checked="selectedFilePaths?.has(file.path)"
+                :aria-label="fileSelectionLabel(file.path, !!selectedFilePaths?.has(file.path), t.view)"
                 @click.stop="emit('toggleSelect', file)"
               />
             </td>
-            <td class="preview-cell">
-              <img
-                v-if="
-                  !isVideoContainer(file.container) &&
-                  file.container !== 'txt' &&
-                  getRowImageSrc(file)
-                "
-                :src="getRowImageSrc(file) || undefined"
-                :alt="getFileName(file.path)"
-                class="thumb"
-                loading="lazy"
-                decoding="async"
-                @error="onImageError(file.path)"
-              />
-              <div
-                v-else-if="failedImages.has(file.path)"
-                class="thumb-placeholder thumb-failed"
-              >
-                <button
-                  type="button"
-                  class="retry-thumb-btn table-retry-btn"
-                  :title="t.preview.retryThumbnail"
-                  :aria-label="t.preview.retryThumbnail"
-                  @click.stop="retryImage(file)"
+            <td v-if="showColumn('preview')" class="preview-cell">
+              <div class="table-thumb-wrapper">
+                <img
+                  v-if="
+                    !isVideoContainer(file.container) &&
+                    file.container !== 'txt' &&
+                    getRowImageSrc(file)
+                  "
+                  :src="getRowImageSrc(file) || undefined"
+                  :alt="getFileName(file.path)"
+                  class="thumb"
+                  :class="{ 'nsfw-blurred': isMasked(file) }"
+                  loading="lazy"
+                  decoding="async"
+                  @error="onImageError(file.path)"
+                />
+                <div
+                  v-else-if="failedImages.has(file.path)"
+                  class="thumb-placeholder thumb-failed"
                 >
-                  ↻
+                  <button
+                    type="button"
+                    class="retry-thumb-btn table-retry-btn"
+                    :title="t.preview.retryThumbnail"
+                    :aria-label="t.preview.retryThumbnail"
+                    @click.stop="retryImage(file)"
+                  >
+                    ↻
+                  </button>
+                </div>
+                <div
+                  v-else-if="!isVideoContainer(file.container) && file.container !== 'txt'"
+                  class="thumb-placeholder thumb-pending"
+                  :class="{ 'nsfw-blurred': isMasked(file) }"
+                  aria-hidden="true"
+                />
+                <video
+                  v-else-if="isVideoContainer(file.container)"
+                  :src="assetUrl(file.path)"
+                  class="thumb thumb-video"
+                  :class="{ 'nsfw-blurred': isMasked(file) }"
+                  muted
+                  preload="metadata"
+                  playsinline
+                />
+                <div
+                  v-else
+                  class="thumb-placeholder"
+                  :class="{ 'nsfw-blurred': isMasked(file) }"
+                >
+                  {{ file.container.toUpperCase() }}
+                </div>
+
+                <!-- Sensitive content blur overlay (click to reveal) -->
+                <button
+                  v-if="isMasked(file)"
+                  type="button"
+                  class="table-nsfw-overlay"
+                  :title="t.preview.clickToReveal"
+                  :aria-label="t.preview.clickToReveal"
+                  @click.stop="toggleNsfwReveal(file.path)"
+                >
+                  <span class="table-nsfw-badge" aria-hidden="true">🔞</span>
+                </button>
+
+                <!-- Sensitive content re-mask button (when revealed) -->
+                <button
+                  v-else-if="file.is_nsfw && (props.blurNsfw ?? true) && isRevealed(file.path)"
+                  type="button"
+                  class="table-nsfw-remask-btn"
+                  :title="t.preview.remaskContent"
+                  :aria-label="t.preview.remaskContent"
+                  @click.stop="toggleNsfwReveal(file.path)"
+                >
+                  <span class="table-remask-icon" aria-hidden="true">🔒</span>
                 </button>
               </div>
-              <div
-                v-else-if="!isVideoContainer(file.container) && file.container !== 'txt'"
-                class="thumb-placeholder thumb-pending"
-                aria-hidden="true"
-              />
-              <video
-                v-else-if="isVideoContainer(file.container)"
-                :src="assetUrl(file.path)"
-                class="thumb thumb-video"
-                muted
-                preload="metadata"
-                playsinline
-              />
-              <div v-else class="thumb-placeholder">
-                {{ file.container.toUpperCase() }}
-              </div>
             </td>
-            <td class="name" :title="normalizePath(file.path)">{{ getFileName(file.path) }}</td>
-            <td>{{ file.container }}</td>
-            <td>{{ formatBytes(file.size_bytes) }}</td>
-            <td class="date">{{ formatDateTime(file.modified_at) }}</td>
-            <td>
+            <td v-if="showColumn('name')" class="name" :title="normalizePath(file.path)">
+              <button
+                v-if="isStackCover(file)"
+                type="button"
+                class="table-stack-btn"
+                :title="t.stack.toggleExpand"
+                :aria-label="stackLabel(file)"
+                :aria-expanded="!!expandedStacks?.has(file.stack_id!)"
+                @click.stop="emit('toggleStackExpand', file.stack_id!)"
+                @dblclick.stop
+              >
+                <span aria-hidden="true">{{ expandedStacks?.has(file.stack_id!) ? '▾' : '▸' }} {{ stackMap?.[file.stack_id!]?.count }}</span>
+              </button>
+              {{ getFileName(file.path) }}
+            </td>
+            <td v-if="showColumn('container')">{{ file.container }}</td>
+            <td v-if="showColumn('size')">{{ formatBytes(file.size_bytes) }}</td>
+            <td v-if="showColumn('modified')" class="date">{{ formatDateTime(file.modified_at) }}</td>
+            <td v-if="showColumn('platform')">
               <span v-if="file.metadata" class="format">{{ formatPlatformName(file.metadata.format) }}</span>
               <span v-else class="none">—</span>
             </td>
-            <td class="prompt" :title="file.metadata?.prompt ?? ''">
+            <td v-if="showColumn('prompt')" class="prompt" :title="file.metadata?.prompt ?? ''">
               {{ snippet(file.metadata?.prompt, 80) }}
             </td>
-            <td class="nowrap">{{ size(file.metadata) }}</td>
-            <td class="model" :title="file.metadata?.model_name ?? ''">
+            <td v-if="showColumn('dimensions')" class="nowrap">{{ size(file.metadata) }}</td>
+            <td v-if="showColumn('model')" class="model" :title="file.metadata?.model_name ?? ''">
               {{ snippet(file.metadata?.model_name, 32) }}
             </td>
           </tr>
 
           <!-- Bottom Spacer for Virtualization -->
           <tr v-if="bottomSpacerHeight > 0" :style="{ height: `${bottomSpacerHeight}px` }" class="spacer-row">
-            <td colspan="10" class="spacer-cell"></td>
+            <td :colspan="columnCount" class="spacer-cell"></td>
           </tr>
         </tbody>
       </table>
@@ -413,6 +676,30 @@ function size(meta: ImageFile["metadata"]): string {
   border-color: var(--color-primary);
 }
 
+.table-controls { display: flex; justify-content: flex-end; flex: 0 0 auto; padding: 4px 8px; }
+.column-menu { position: relative; font-size: 0.82em; }
+.column-menu summary { cursor: pointer; padding: 4px 8px; }
+.column-panel { position: absolute; right: 0; top: 100%; z-index: 20; width: min(320px, calc(100vw - 40px));
+  padding: 12px; background: var(--color-bg-primary); border: 1px solid var(--border-color); border-radius: 6px; }
+.column-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.column-option label { min-width: 0; }
+.column-option input[type="number"] { width: 72px; background: var(--color-bg-secondary); color: var(--color-text-primary); }
+.column-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.table-stack-btn {
+  margin-right: 6px;
+  padding: 2px 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+}
+.table-stack-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .scroll {
   flex: 1;
   overflow-y: auto;
@@ -423,6 +710,7 @@ function size(meta: ImageFile["metadata"]): string {
 }
 
 .table {
+  table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82em;
@@ -442,6 +730,8 @@ function size(meta: ImageFile["metadata"]): string {
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table th {
@@ -450,6 +740,28 @@ function size(meta: ImageFile["metadata"]): string {
   font-size: 0.8em;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.th-sortable {
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.th-sortable:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.th-sortable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.sort-indicator {
+  margin-left: 4px;
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .spacer-row {
@@ -491,6 +803,17 @@ function size(meta: ImageFile["metadata"]): string {
   padding: 0.25rem 0.4rem !important;
 }
 
+.table-thumb-wrapper {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
 .thumb {
   width: 36px;
   height: 36px;
@@ -498,6 +821,80 @@ function size(meta: ImageFile["metadata"]): string {
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.1);
   display: block;
+}
+
+.thumb.nsfw-blurred {
+  filter: blur(14px) brightness(0.65);
+  transform: scale(1.15);
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.table-nsfw-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 2;
+  transition: background var(--transition-fast, 0.15s ease);
+  border-radius: 4px;
+}
+
+.table-nsfw-overlay:hover,
+.table-nsfw-overlay:focus-visible {
+  background: rgba(0, 0, 0, 0.75);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.table-nsfw-badge {
+  font-size: 1.15rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.table-nsfw-remask-btn {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  opacity: 0;
+  padding: 0;
+  transition: opacity var(--transition-fast, 0.15s ease), background var(--transition-fast, 0.15s ease);
+}
+
+.data-row:hover .table-nsfw-remask-btn,
+.data-row.row-selected .table-nsfw-remask-btn,
+.table-nsfw-remask-btn:focus-visible {
+  opacity: 1;
+}
+
+.table-nsfw-remask-btn:hover,
+.table-nsfw-remask-btn:focus-visible {
+  background: rgba(220, 38, 38, 0.9);
+  border-color: rgba(255, 255, 255, 0.8);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.table-remask-icon {
+  font-size: 0.65rem;
+  line-height: 1;
 }
 
 .thumb-video {
@@ -567,12 +964,16 @@ function size(meta: ImageFile["metadata"]): string {
     animation: none;
     background: rgba(255, 255, 255, 0.04);
   }
+  .thumb.nsfw-blurred,
+  .table-nsfw-overlay,
+  .table-nsfw-remask-btn {
+    transition: none;
+  }
 }
 
 .name {
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   word-break: break-all;
-  max-width: 22rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -583,13 +984,11 @@ function size(meta: ImageFile["metadata"]): string {
 }
 
 .prompt {
-  max-width: 24rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .model {
-  max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.85em;

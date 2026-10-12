@@ -16,41 +16,37 @@ Configure los puntos de enlace remotos en **Preferencias > Copia en la nube**:
 
 ---
 
-## 2. Copias de instantáneas SQLite en caliente (`cloud_backup_create_snapshot`)
+## 2. Instantáneas de la base de datos
 
-Omera realiza copias de seguridad de su base de datos utilizando la instrucción nativa `VACUUM INTO` de SQLite:
+Las instantáneas contienen `omera.db` y `manifest.json`, con registros, etiquetas y valoraciones. Excluyen medios, ajustes y credenciales. Configura el destino en **Ajustes > Nube y copias** y elige **Crear instantánea ahora**. Los nombres son únicos; la publicación local es atómica. Las copias existentes no se borran automáticamente.
 
-```mermaid
-sequenceDiagram
-    participant UI as Interfaz Omera Studio
-    participant Rust as Backend (cloud_backup.rs)
-    participant DB as SQLite WAL (omera.db)
-    participant Remote as Almacenamiento nube (S3/WebDAV)
+### Copias automáticas
 
-    UI->>Rust: Solicitar instantánea de copia
-    Rust->>DB: VACUUM INTO temp_snapshot.db (Sin bloqueo)
-    DB-->>Rust: Copia consistente en ese punto en el tiempo
-    Rust->>Rust: Empaquetar en ZIP con manifest.json
-    Rust->>Remote: Carga en flujo continuo (SigV4 / WebDAV PUT)
-    Remote-->>Rust: Carga confirmada (200 OK)
-    Rust-->>UI: Instantánea creada correctamente
-```
+Por defecto están **desactivadas**, con intervalo de **siete días**. Actívalas, elige **1–365 días** y **Guarda las preferencias**. Cancelar o un fallo al guardar conserva la programación guardada. Omera comprueba cada 30 segundos mientras está abierto; el primer intento comienza en la siguiente comprobación. El siguiente intervalo empieza tras una copia correcta. Cerrar Omera detiene la programación. Desactivar detiene futuros intentos; el actual puede terminar.
 
-### Garantías de las instantáneas:
-- **Sin bloqueos (Non-Locking)**: Utiliza la API en caliente de SQLite. Puede continuar explorando, calificando y generando imágenes sin interrupciones.
-- **Seguridad ante reversiones**: Al restaurar una instantánea, Omera crea automáticamente una copia de seguridad local previa (`omera.db.rollback`) antes de sobreescribir con la copia remota, protegiéndole frente a caídas de red o descargas corruptas.
+**Programación guardada** muestra, separada de los cambios pendientes, el estado, último éxito/intento, próxima fecha, archivo y error. Un fallo o interrupción espera **una hora** antes de reintentar, incluso tras reiniciar. Otro destino inicia una nueva programación; cambiar solo las credenciales conserva sus tiempos. Un estado dañado se conserva y pausa la programación hasta repararlo y reiniciar.
+
+### Restauración
+
+La restauración valida la instantánea y la prepara para el siguiente inicio. Cierra y reinicia Omera; recargar la ventana no basta. La base actual se conserva como `omera.pre-restore-<UUID>.db` antes de la activación transaccional. No se restauran medios ni credenciales perdidos.
 
 ---
 
 ## 3. Reflejo incremental de medios y sincronización delta (`cloud_sync.rs`)
 
-Mientras que las instantáneas aseguran la base de datos, la **Sincronización delta** replica los archivos físicos de imagen y vídeo entre su almacenamiento local y el servidor en la nube.
+Mientras que las instantáneas aseguran la base de datos, la **Sincronización delta** proporciona una duplicación unidireccional de subida incremental de archivos físicos de imagen y vídeo desde su biblioteca local hacia almacenamiento remoto o en red.
 
-### Capacidades de sincronización:
+### Capacidades de sincronización (Implementadas):
 - **Estrategias de detección de cambios**:
-  - *Huella rápida*: Compara el tamaño del archivo local con la cabecera HTTP ETag remota (la más veloz, perfecta para enlaces lentos).
-  - *Suma de comprobación estricta*: Calcula hashes SHA-256 en flujo continuo para asegurar una correspondencia byte por byte absoluta.
+  - *Huella rápida*: Compara el tamaño del archivo local con el tamaño remoto mediante metadatos HTTP HEAD (la más veloz, perfecta para enlaces lentos).
+  - *Suma de comprobación estricta*: Calcula hashes SHA-256 locales para contrastar con cabeceras remotas (`x-amz-meta-sha256` en S3), asegurando correspondencia byte a byte.
 - **Limitador de ancho de banda (Token-Bucket)**: Configure un límite de velocidad de subida (KB/s) para que la sincronización en segundo plano no sature el ancho de banda del estudio.
-- **Hilos de transferencia concurrentes**: Ajuste el número de subprocesos paralelos (de 1 a 8 hilos).
-- **Modo de simulación de prueba (Dry-run)**: Analiza el proceso y reporta qué archivos se subirían, omitirían o eliminarían sin modificar el almacenamiento remoto.
-- **Reporte de progreso en tiempo real**: Emite eventos periódicos con los bytes transferidos, velocidad de transmisión, porcentaje completado y tiempo estimado (ETA).
+- **Hilos de transferencia concurrentes**: Ajuste el número de subprocesos paralelos (de 1 a 16 hilos, 4 por defecto).
+- **Modo de simulación de prueba (Dry-run)**: Analiza el proceso y reporta qué archivos se subirían u omitirían sin modificar el almacenamiento remoto.
+- **Reporte de progreso en tiempo real**: Emite eventos periódicos con los bytes transferidos, velocidad de transmisión, porcentaje completado y tiempo estimado (ETA), con cancelación atómica cooperativa.
+
+### Limitaciones actuales y capacidades planificadas:
+- **Solo subida unidireccional**: La ruta de sincronización actual envía los archivos indexados locales al destino remoto. La descarga o reconciliación de remoto a local no está implementada.
+- **Sin sincronización de eliminaciones remotas**: Eliminar un archivo local no borra el objeto remoto; los archivos remotos se conservan.
+- **Sin validación delta por ETag**: La detección de cambios emplea tamaño de archivo y SHA-256; las cabeceras HTTP ETag no se emplean para invalidación de caché.
+- **Sincronización bidireccional planificada**: Una reconciliación bidireccional completa con detección de cambios remotos, descargas pull y resolución de conflictos está planificada para futuras versiones.

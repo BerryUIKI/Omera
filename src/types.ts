@@ -21,10 +21,13 @@ export interface Folder {
   auto_harvest?: boolean;
 }
 
-export type Container = "png" | "jpg" | "webp" | "mp4" | "webm" | "txt";
+// Native Serde enum names plus historical canonical IDs accepted by UI helpers.
+export type Container = "Png" | "Jpeg" | "WebP" | "Avif" | "Mp4" | "Webm" | "Txt"
+  | "png" | "jpg" | "webp" | "avif" | "mp4" | "webm" | "txt";
 
 export interface ExtractedMetadata {
-  format: string;
+  /** null for technical image facts without a generation platform. */
+  format: string | null;
   parameters: string | null;
   raw: string | null;
   prompt: string | null;
@@ -259,6 +262,17 @@ export interface ExportSummary {
 
 export type CloudStorageProvider = "local_path" | "webdav" | "s3";
 
+export interface AutomaticBackupStatus {
+  enabled: boolean;
+  interval_days: number;
+  running: boolean;
+  last_attempt_at: number | null;
+  last_success_at: number | null;
+  next_due_at: number | null;
+  last_error: string | null;
+  last_snapshot: string | null;
+}
+
 export interface CloudBackupConfig {
   provider: CloudStorageProvider;
   local_path?: string | null;
@@ -320,6 +334,28 @@ export interface CloudSyncOptions {
   dry_run?: boolean;
   remote_prefix?: string;
   folder_ids?: number[] | null;
+  namespace_manifest_id?: string | null;
+}
+
+export interface CloudSyncRootMapping {
+  folder_id: number;
+  source_path: string;
+  root_uuid: string;
+  legacy_prefix: string;
+  new_prefix: string;
+  legacy_ambiguous: boolean;
+}
+
+export interface CloudSyncNamespaceManifest {
+  version: number;
+  remote_prefix: string;
+  roots: CloudSyncRootMapping[];
+}
+
+export interface CloudSyncNamespacePreview {
+  manifest_id: string;
+  manifest_path: string;
+  manifest: CloudSyncNamespaceManifest;
 }
 
 export interface CloudSyncProgress {
@@ -536,6 +572,9 @@ export interface TaggerConfig {
   character_threshold: number;
   include_rating: boolean;
   max_tags: number;
+  write_to_prompt?: boolean;
+  append_prompt?: boolean;
+  allow_override_existing_prompt?: boolean;
 }
 
 export interface TaggerModelSummary {
@@ -549,6 +588,18 @@ export interface TaggerModelSummary {
 export interface BatchTagResult {
   processed_files: number;
   tags_added: number;
+}
+
+export interface BatchTagProgress {
+  current: number;
+  total: number;
+  percent: number;
+  current_file: string;
+  processed_files: number;
+  failed_files: number;
+  tags_added: number;
+  is_complete: boolean;
+  is_canceled: boolean;
 }
 
 export interface TaggerDownloadProgress {
@@ -613,3 +664,101 @@ export interface DetectedLora {
   hash?: string | null;
   model?: LoraModel | null;
 }
+
+export interface DiscoveredSource {
+  source_id: string;
+  identifier: string;
+  root_path: string;
+  database_path: string;
+  config_path?: string | null;
+  file_count: number;
+  database_size_bytes: number;
+  total_size_bytes: number;
+  schema_version: number;
+  is_locked: boolean;
+}
+
+export interface MigratedArtifact {
+  category: string;
+  source_path: string;
+  destination_path: string;
+  status: string;
+  size_bytes: number;
+}
+
+export interface MigrationReceipt {
+  receipt_id: string;
+  source_id: string;
+  source_identifier: string;
+  source_root: string;
+  source_schema_version: number;
+  destination_root: string;
+  destination_db: string;
+  created_at: number;
+  artifacts: MigratedArtifact[];
+  integrity_hash: string;
+  cleanup_status: string;
+}
+
+export interface MigrationError {
+  code: string;
+  message_key: string;
+  retryable: boolean;
+  context?: string | null;
+}
+
+export interface LegacyMigrationStatus {
+  stage: string;
+  discovered_sources: DiscoveredSource[];
+  destination_exists: boolean;
+  active_receipt?: MigrationReceipt | null;
+  available_actions: string[];
+}
+
+export interface LegacyMigrationPreview {
+  plan_id: string;
+  source: DiscoveredSource;
+  destination_root: string;
+  destination_db: string;
+  required_space_bytes: number;
+  available_space_bytes: number;
+  conflicts: string[];
+  exclusions: string[];
+}
+
+export interface LegacyMigrationJob {
+  job_id: string;
+  plan_id: string;
+  status: string;
+  progress: number;
+  current_step: string;
+  error?: MigrationError | null;
+  receipt?: MigrationReceipt | null;
+}
+
+export interface CleanupItem {
+  path: string;
+  category: string;
+  size_bytes: number;
+  eligible: boolean;
+  reason?: string | null;
+}
+
+export interface LegacyCleanupPreview {
+  preview_id: string;
+  receipt_id: string;
+  expires_at: number;
+  items: CleanupItem[];
+  total_size_bytes: number;
+  destination_healthy: boolean;
+}
+
+export interface LegacyCleanupResult {
+  receipt_id: string;
+  cleaned_count: number;
+  failed_count: number;
+  cleaned_bytes: number;
+  errors: string[];
+  status: string;
+}
+

@@ -42,11 +42,19 @@ Exit: fresh install and supported Berry-to-Omera migrations pass, including skip
 
 Lead: verify signing configuration and real Windows/macOS/Linux target installers, plus Omera-to-next-Omera updates. Verify data, credentials, shortcuts, uninstall records and restore after update. Publish migration/recovery instructions and known limitations.
 
+The signed-update contract and current trust custody are documented in
+[SIGNED_UPDATES.md](SIGNED_UPDATES.md). Non-publishing signed artifact checks
+precede the installed-version matrix; neither alone authorizes release publication.
+
 Engineers: finish E11 QA evidence and run regression checks against the exact candidate commit. Do not infer success on untested architectures.
 
 Exit: required automated checks and platform/manual matrix pass; release blockers are resolved; only then integrate through `dev` to the release branch and publish. A renamed development build is not a qualified release.
 
 ## Phase 5 — Stabilization and 1.0 review (in progress)
+
+The current October review task sequence and acceptance ledger is
+[STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md). September baseline and
+assignment snapshots are historical; use current approved `dev` for fixes.
 
 All pre-1.0 releases retain legacy detection and supported import. Keep cleanup optional. Resolve verified migration problems before removing compatibility paths. Decide the 1.0 import policy explicitly and document it; never use version 1.0 as permission to erase legacy data. Remote collaboration remains a separate product decision after stabilization.
 

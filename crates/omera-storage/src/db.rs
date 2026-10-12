@@ -6,8 +6,9 @@ use std::path::{Path, PathBuf};
 use omera_domain::{
     Album, ChangeLogEntry, ChangeLogSyncQuery, CheckpointModelStat, CleanupQueueItem, Container,
     CursorFilePage, DatabaseStats, ExtractedMetadata, FilePage, FileSortField, FilesystemChange,
-    Folder, ImageFile, LoraModel, ModelCacheEntry, MutationResult, PageCursor, PromptStat,
-    SearchCriteria, SimilarityMatch, SortDirection, StackSummary, StorageRoot, Tag,
+    Folder, ImageFile, LoraModel, ModelCacheEntry, MutationResult, PageCursor, PromptInsights,
+    PromptKeywordStat, PromptStat, SearchCriteria, SimilarityMatch, SortDirection, StackSummary,
+    StorageRoot, Tag,
 };
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use uuid::Uuid;
@@ -129,6 +130,24 @@ const UPSERT_FILE_SQL: &str =
          is_nsfw         = files.is_nsfw,
          stack_id        = coalesce(excluded.stack_id, files.stack_id),
          stack_order     = coalesce(excluded.stack_order, files.stack_order)";
+
+/// SQL that inserts or updates a file row keyed by its unique path, returning the affected row id.
+const UPSERT_FILE_RETURNING_ID_SQL: &str =
+    "INSERT INTO files (folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+     ON CONFLICT(path) DO UPDATE SET
+         folder_id       = excluded.folder_id,
+         container       = excluded.container,
+         size_bytes      = excluded.size_bytes,
+         modified_at     = excluded.modified_at,
+         metadata        = excluded.metadata,
+         rating          = coalesce(excluded.rating, files.rating),
+         aesthetic_score = coalesce(excluded.aesthetic_score, files.aesthetic_score),
+         is_favorite     = files.is_favorite,
+         is_nsfw         = files.is_nsfw,
+         stack_id        = coalesce(excluded.stack_id, files.stack_id),
+         stack_order     = coalesce(excluded.stack_order, files.stack_order)
+     RETURNING id";
 
 /// A SQLite database with a fully migrated schema.
 pub struct Database {
@@ -440,8 +459,8 @@ impl Database {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
-        self.conn.execute(
-            UPSERT_FILE_SQL,
+        let id = self.conn.query_row(
+            UPSERT_FILE_RETURNING_ID_SQL,
             params![
                 file.folder_id,
                 file.path,
@@ -456,8 +475,9 @@ impl Database {
                 file.stack_id,
                 file.stack_order as i64,
             ],
+            |row| row.get(0),
         )?;
-        Ok(self.conn.last_insert_rowid())
+        Ok(id)
     }
 
     /// Insert or update many files in a single transaction, returning the
@@ -621,6 +641,51 @@ impl Database {
         }
     }
 
+    /// Update or append prompt metadata for an image file.
+    /// If `allow_override` is false and an existing prompt is already non-empty,
+    /// returns `Ok(false)` without modifying the prompt.
+    /// Returns `Ok(true)` if prompt was updated.
+    pub fn update_file_prompt(
+        &self,
+        file_id: i64,
+        prompt: &str,
+        append: bool,
+        allow_override: bool,
+    ) -> Result<bool, DatabaseError> {
+        let file = match self.get_file_by_id(file_id)? {
+            Some(f) => f,
+            None => return Err(DatabaseError::FileNotFound(file_id)),
+        };
+
+        let mut meta = file.metadata.unwrap_or_default();
+        let target_prompt = if let Some(ref existing) = meta.prompt {
+            let trimmed = existing.trim();
+            if !trimmed.is_empty() {
+                if !allow_override {
+                    return Ok(false);
+                }
+                if append {
+                    format!("{trimmed}, {prompt}")
+                } else {
+                    prompt.to_string()
+                }
+            } else {
+                prompt.to_string()
+            }
+        } else {
+            prompt.to_string()
+        };
+
+        meta.prompt = Some(target_prompt);
+        let meta_json = serde_json::to_string(&meta)?;
+
+        self.conn.execute(
+            "UPDATE files SET metadata = ?1 WHERE id = ?2",
+            params![meta_json, file_id],
+        )?;
+        Ok(true)
+    }
+
     /// Update file path and folder_id when a file is moved.
     pub fn move_file_record(
         &self,
@@ -656,6 +721,69 @@ impl Database {
             return Err(DatabaseError::FileNotFound(file_id));
         }
         Ok(())
+    }
+
+    /// Atomically replace derivative facts and policy-filtered metadata while
+    /// retaining the file identity and all user curation/relationships.
+    pub fn update_file_transformed_with_metadata(
+        &self,
+        file_id: i64,
+        derivative: &ImageFile,
+    ) -> Result<(), DatabaseError> {
+        let metadata = derivative
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let affected = self.conn.execute(
+            "UPDATE files SET path = ?1, container = ?2, size_bytes = ?3, modified_at = ?4,
+             metadata = ?5 WHERE id = ?6",
+            params![
+                derivative.path,
+                derivative.container.id(),
+                derivative.size_bytes as i64,
+                derivative.modified_at,
+                metadata,
+                file_id
+            ],
+        )?;
+        if affected == 0 {
+            return Err(DatabaseError::FileNotFound(file_id));
+        }
+        Ok(())
+    }
+
+    /// Publish only if the source row still matches the snapshot used by the codec.
+    /// Returns false for a changed/deleted source. Curation columns stay untouched.
+    pub fn update_file_transformed_if_current(
+        &self,
+        file_id: i64,
+        source: &ImageFile,
+        derivative: &ImageFile,
+    ) -> Result<bool, DatabaseError> {
+        let metadata = derivative
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let affected = self.conn.execute(
+            "UPDATE files SET path = ?1, container = ?2, size_bytes = ?3, modified_at = ?4,
+             metadata = ?5 WHERE id = ?6 AND path = ?7 AND folder_id = ?8
+             AND size_bytes = ?9 AND modified_at = ?10",
+            params![
+                derivative.path,
+                derivative.container.id(),
+                derivative.size_bytes as i64,
+                derivative.modified_at,
+                metadata,
+                file_id,
+                source.path,
+                source.folder_id,
+                source.size_bytes as i64,
+                source.modified_at
+            ],
+        )?;
+        Ok(affected == 1)
     }
 
     /// Delete a file record by path (e.g. after trashing).
@@ -1835,6 +1963,64 @@ impl Database {
     }
 
     // --- Prompt Statistics ---
+
+    /// Stream the complete analysis population without materializing library files.
+    pub fn get_prompt_insights(&self, limit: usize) -> Result<PromptInsights, DatabaseError> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT json_extract(metadata, '$.prompt'),
+                    json_extract(metadata, '$.negative_prompt'),
+                    json_extract(metadata, '$.model_name'),
+                    json_extract(metadata, '$.sampler')
+             FROM files WHERE metadata IS NOT NULL",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut frequencies: [HashMap<String, usize>; 4] = Default::default();
+        let mut total_analyzed = 0;
+        while let Some(row) = rows.next()? {
+            let mut analyzed = false;
+            for (index, counts) in frequencies.iter_mut().enumerate() {
+                let value: Option<String> = row.get(index)?;
+                let value = value.as_deref().unwrap_or("");
+                let keywords: HashSet<&str> = if index < 2 {
+                    value
+                        .split(',')
+                        .map(|part| part.trim().trim_matches('"').trim())
+                        .filter(|part| part.len() > 1)
+                        .collect()
+                } else {
+                    std::iter::once(value.trim())
+                        .filter(|part| !part.is_empty())
+                        .collect()
+                };
+                analyzed |= !keywords.is_empty();
+                for keyword in keywords {
+                    *counts.entry(keyword.to_owned()).or_default() += 1;
+                }
+            }
+            total_analyzed += usize::from(analyzed);
+        }
+        let ranked = |counts: HashMap<String, usize>| {
+            let mut items: Vec<_> = counts
+                .into_iter()
+                .map(|(keyword, count)| PromptKeywordStat { keyword, count })
+                .collect();
+            items.sort_by(|a, b| {
+                b.count
+                    .cmp(&a.count)
+                    .then_with(|| a.keyword.cmp(&b.keyword))
+            });
+            items.truncate(limit.min(100));
+            items
+        };
+        let [positive, negative, models, samplers] = frequencies;
+        Ok(PromptInsights {
+            total_analyzed,
+            top_positive_words: ranked(positive),
+            top_negative_words: ranked(negative),
+            top_models: ranked(models),
+            top_samplers: ranked(samplers),
+        })
+    }
 
     /// Extract and rank prompt tags by occurrence across all indexed files.
     pub fn get_prompt_stats(
@@ -3092,6 +3278,8 @@ impl Database {
         source_path: &str,
         target_file_id: i64,
         grace_period_hours: i32,
+        source_size_bytes: i64,
+        source_hash: &str,
     ) -> Result<i64, DatabaseError> {
         let created_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -3100,12 +3288,14 @@ impl Database {
         let scheduled_delete_at = created_at + (grace_period_hours.max(0) as i64 * 3600);
 
         self.conn.execute(
-            "INSERT INTO pipeline_cleanup_queue (source_file_path, target_file_id, scheduled_delete_at, created_at, status)
-             VALUES (?1, ?2, ?3, ?4, 'pending')
+            "INSERT INTO pipeline_cleanup_queue (source_file_path, target_file_id, scheduled_delete_at, created_at, status, source_size_bytes, source_hash)
+             VALUES (?1, ?2, ?3, ?4, 'pending', ?5, ?6)
              ON CONFLICT(source_file_path) DO UPDATE SET
                  scheduled_delete_at = excluded.scheduled_delete_at,
-                 status = 'pending'",
-            params![source_path, target_file_id, scheduled_delete_at, created_at],
+                 status = 'pending',
+                 source_size_bytes = excluded.source_size_bytes,
+                 source_hash = excluded.source_hash",
+            params![source_path, target_file_id, scheduled_delete_at, created_at, source_size_bytes, source_hash],
         )?;
 
         Ok(self.conn.last_insert_rowid())
@@ -3117,7 +3307,7 @@ impl Database {
         now_timestamp: i64,
     ) -> Result<Vec<CleanupQueueItem>, DatabaseError> {
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, source_file_path, target_file_id, scheduled_delete_at, created_at, status
+            "SELECT id, source_file_path, target_file_id, scheduled_delete_at, created_at, status, source_size_bytes, source_hash
              FROM pipeline_cleanup_queue
              WHERE status = 'pending' AND scheduled_delete_at <= ?1
              ORDER BY scheduled_delete_at ASC",
@@ -3130,6 +3320,8 @@ impl Database {
                 scheduled_delete_at: row.get(3)?,
                 created_at: row.get(4)?,
                 status: row.get(5)?,
+                source_size_bytes: row.get(6)?,
+                source_hash: row.get(7)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -3161,6 +3353,8 @@ impl Database {
                 scheduled_delete_at: row.get(3)?,
                 created_at: row.get(4)?,
                 status: row.get(5)?,
+                source_size_bytes: None,
+                source_hash: None,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -3552,6 +3746,129 @@ mod tests {
         let files = db.list_files(folder.id).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].size_bytes, 200);
+    }
+
+    #[test]
+    fn transformed_metadata_and_path_commit_together_without_replacing_curation() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/img").unwrap();
+        let mut source = image(folder.id, "/img/private.png");
+        source.metadata = Some(ExtractedMetadata {
+            prompt: Some("private".into()),
+            ..Default::default()
+        });
+        source.rating = Some(8);
+        source.is_favorite = true;
+        source.is_nsfw = true;
+        let id = db.upsert_file(&source).unwrap();
+        let tag = db.create_tag("curated", None).unwrap();
+        db.tag_file(id, tag.id).unwrap();
+        let album = db.create_album("curated", None).unwrap();
+        db.add_file_to_album(album.id, id).unwrap();
+        let mut derivative = image(folder.id, "/img/clean.png");
+        derivative.size_bytes = 123;
+        // An unrelated caller's defaults must not overwrite manual curation.
+        db.update_file_transformed_with_metadata(id, &derivative)
+            .unwrap();
+        let updated = db.get_file_by_id(id).unwrap().unwrap();
+        assert_eq!(updated.path, derivative.path);
+        assert_eq!(updated.size_bytes, 123);
+        assert!(updated.metadata.is_none());
+        assert_eq!(updated.rating, Some(8));
+        assert!(updated.is_favorite && updated.is_nsfw);
+        assert_eq!(db.get_file_tags(id).unwrap()[0].id, tag.id);
+        assert_eq!(db.list_album_files(album.id).unwrap()[0].id, Some(id));
+
+        derivative.path = "/img/rejected.png".into();
+        derivative.metadata = source.metadata;
+        db.connection().execute_batch("CREATE TRIGGER reject_transform BEFORE UPDATE ON files BEGIN SELECT RAISE(ABORT, 'injected'); END;").unwrap();
+        assert!(db
+            .update_file_transformed_with_metadata(id, &derivative)
+            .is_err());
+        assert_eq!(db.get_file_by_id(id).unwrap().unwrap(), updated);
+    }
+
+    #[test]
+    fn transformed_snapshot_rejects_stale_paths_and_preserves_newer_curation() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/synthetic").unwrap();
+        let source = image(folder.id, "/synthetic/source.png");
+        let id = db.upsert_file(&source).unwrap();
+        let mut derivative = source.clone();
+        derivative.path = "/synthetic/derivative.png".into();
+        db.set_file_rating(id, Some(5)).unwrap();
+        assert!(db
+            .update_file_transformed_if_current(id, &source, &derivative)
+            .unwrap());
+        let current = db.get_file_by_id(id).unwrap().unwrap();
+        assert_eq!(current.rating, Some(5));
+        assert_eq!(current.path, derivative.path);
+        assert!(!db
+            .update_file_transformed_if_current(id, &source, &source)
+            .unwrap());
+        assert_eq!(db.get_file_by_id(id).unwrap().unwrap(), current);
+        db.delete_file_by_id(id).unwrap();
+        assert!(!db
+            .update_file_transformed_if_current(id, &current, &source)
+            .unwrap());
+    }
+
+    #[test]
+    fn upsert_existing_path_returns_actual_id_after_intervening_inserts() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/img").unwrap();
+
+        let file_a = image(folder.id, "/img/a.png");
+        let id_a = db.upsert_file(&file_a).unwrap();
+
+        let file_b = image(folder.id, "/img/b.png");
+        let id_b = db.upsert_file(&file_b).unwrap();
+        assert_ne!(id_a, id_b);
+
+        let file_c = image(folder.id, "/img/c.png");
+        let id_c = db.upsert_file(&file_c).unwrap();
+        assert_ne!(id_a, id_c);
+        assert_ne!(id_b, id_c);
+
+        // Upsert existing file_a after intervening inserts must return id_a, not id_c
+        let mut updated_a = file_a.clone();
+        updated_a.size_bytes = 9999;
+        let returned_id_a = db.upsert_file(&updated_a).unwrap();
+        assert_eq!(
+            returned_id_a, id_a,
+            "Upserting existing file A must return A's row ID"
+        );
+
+        // Upsert existing file_b after intervening update must return id_b
+        let mut updated_b = file_b.clone();
+        updated_b.size_bytes = 8888;
+        let returned_id_b = db.upsert_file(&updated_b).unwrap();
+        assert_eq!(
+            returned_id_b, id_b,
+            "Upserting existing file B must return B's row ID"
+        );
+
+        // Verify downstream associations (tag, album, cleanup queue) attach to the correct row
+        let tag = db.create_tag("test_tag", None).unwrap();
+        db.tag_file(returned_id_a, tag.id).unwrap();
+        let a_tags = db.get_file_tags(id_a).unwrap();
+        assert_eq!(a_tags.len(), 1);
+        assert_eq!(a_tags[0].name, "test_tag");
+
+        let b_tags = db.get_file_tags(id_b).unwrap();
+        assert_eq!(b_tags.len(), 0, "File B must not receive File A's tag");
+
+        let album = db.create_album("test_album", None).unwrap();
+        db.add_file_to_album(album.id, returned_id_a).unwrap();
+        let album_files = db.list_album_files(album.id).unwrap();
+        assert_eq!(album_files.len(), 1);
+        assert_eq!(album_files[0].id, Some(id_a));
+
+        db.enqueue_cleanup("/source/a.png", returned_id_a, 0, 100, "hash_a")
+            .unwrap();
+        let pending = db.list_due_cleanups(i64::MAX).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].target_image_id, id_a);
     }
 
     #[test]
@@ -4339,6 +4656,62 @@ mod tests {
     }
 
     #[test]
+    fn prompt_insights_count_usable_files_and_rank_real_categories() {
+        let db = Database::connect_in_memory().unwrap();
+        assert_eq!(
+            db.get_prompt_insights(40).unwrap(),
+            PromptInsights::default()
+        );
+        let folder = db.add_folder("/insights").unwrap();
+        for (index, prompt, negative, model, sampler) in [
+            (1, "cat, cat, sky", "blur, blur", " model A ", " Euler "),
+            (2, "cat", "", "model B", "Euler"),
+            (3, "", "", "model A", ""),
+            (4, " , a, \"\"", "  ", " ", " "),
+        ] {
+            let mut file = image(folder.id, &format!("/insights/{index}.png"));
+            file.metadata = Some(sample_meta(prompt, negative, model, sampler, 20, 7.0, "1"));
+            db.upsert_file(&file).unwrap();
+        }
+        db.upsert_file(&image(folder.id, "/insights/plain.png"))
+            .unwrap();
+        let result = db.get_prompt_insights(40).unwrap();
+        assert_eq!(result.total_analyzed, 3);
+        assert_eq!(
+            result.top_positive_words[0],
+            PromptKeywordStat {
+                keyword: "cat".into(),
+                count: 2
+            }
+        );
+        assert_eq!(result.top_negative_words[0].count, 1);
+        assert_eq!(
+            result.top_models[0],
+            PromptKeywordStat {
+                keyword: "model A".into(),
+                count: 2
+            }
+        );
+        assert_eq!(
+            result.top_samplers[0],
+            PromptKeywordStat {
+                keyword: "Euler".into(),
+                count: 2
+            }
+        );
+        assert_eq!(db.get_prompt_insights(1).unwrap().top_models.len(), 1);
+        assert_eq!(db.get_prompt_insights(0).unwrap().total_analyzed, 3);
+        assert!(db.get_prompt_insights(0).unwrap().top_models.is_empty());
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["top_models"][0]["keyword"], "model A");
+        assert_eq!(json["total_analyzed"], 3);
+        assert_eq!(
+            serde_json::from_value::<PromptInsights>(json).unwrap(),
+            result
+        );
+    }
+
+    #[test]
     fn checkpoint_models_and_cache() {
         let db = Database::connect_in_memory().unwrap();
         let folder = db.add_folder("/img").unwrap();
@@ -4496,7 +4869,6 @@ mod tests {
     fn migration_creates_revision_aware_embedding_failures() {
         let db = Database::connect_in_memory().unwrap();
         assert_eq!(db.user_version().unwrap(), LATEST_VERSION);
-        assert_eq!(LATEST_VERSION, 15);
         db.connection()
             .prepare("SELECT file_id, model_id, modified_at, error FROM embedding_failures LIMIT 0")
             .unwrap();
@@ -5707,7 +6079,9 @@ mod tests {
         assert_eq!(cull_ids, vec![id3]);
 
         // 5. Cleanup queue
-        let q_id = db.enqueue_cleanup("/source/temp.png", id1, 24).unwrap();
+        let q_id = db
+            .enqueue_cleanup("/source/temp.png", id1, 24, 100, "test_hash")
+            .unwrap();
         assert!(q_id > 0);
 
         let due_now = db.list_due_cleanups(0).unwrap();
@@ -5898,5 +6272,58 @@ mod tests {
         let res_root = db.search_files(&root_single).unwrap();
         assert_eq!(res_root.len(), 1);
         assert_eq!(res_root[0].path, "/library/root_img.png");
+    }
+
+    #[test]
+    fn update_file_prompt_works_and_respects_safeguards() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/test_prompt").unwrap();
+        let mut file = image(folder.id, "/test_prompt/img.png");
+        file.metadata = None;
+        let id = db.upsert_file(&file).unwrap();
+
+        // 1. Write prompt to file with no initial prompt
+        let updated = db
+            .update_file_prompt(id, "1girl, solo, smile", false, false)
+            .unwrap();
+        assert!(updated);
+        let reloaded = db.get_file_by_id(id).unwrap().unwrap();
+        assert_eq!(
+            reloaded.metadata.as_ref().unwrap().prompt.as_deref(),
+            Some("1girl, solo, smile")
+        );
+
+        // 2. Attempt to overwrite when allow_override is false -> should return false and not overwrite
+        let overwritten = db
+            .update_file_prompt(id, "new prompt", false, false)
+            .unwrap();
+        assert!(!overwritten);
+        let reloaded2 = db.get_file_by_id(id).unwrap().unwrap();
+        assert_eq!(
+            reloaded2.metadata.as_ref().unwrap().prompt.as_deref(),
+            Some("1girl, solo, smile")
+        );
+
+        // 3. Append to existing prompt when allow_override is true
+        let appended = db
+            .update_file_prompt(id, "night sky, outdoors", true, true)
+            .unwrap();
+        assert!(appended);
+        let reloaded3 = db.get_file_by_id(id).unwrap().unwrap();
+        assert_eq!(
+            reloaded3.metadata.as_ref().unwrap().prompt.as_deref(),
+            Some("1girl, solo, smile, night sky, outdoors")
+        );
+
+        // 4. Overwrite when allow_override is true
+        let replaced = db
+            .update_file_prompt(id, "masterpiece, best quality", false, true)
+            .unwrap();
+        assert!(replaced);
+        let reloaded4 = db.get_file_by_id(id).unwrap().unwrap();
+        assert_eq!(
+            reloaded4.metadata.as_ref().unwrap().prompt.as_deref(),
+            Some("masterpiece, best quality")
+        );
     }
 }

@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "windows": {
+      "wix": {
+        "fragmentPaths": ["windows/generated/runtime-prerequisite.wxs"],
+        "componentGroupRefs": ["OmeraRuntimePrerequisites"]
+      }
+    }
+  }
+}

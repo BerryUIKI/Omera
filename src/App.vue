@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowRef, triggerRef, watch } from "vue";
 import { GalleryPages } from "./utils/gallery-state";
-import { FileDetailsManager } from "./utils/file-details";
+import { FileDetailsManager, refreshPublishedSelections } from "./utils/file-details";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -46,20 +46,27 @@ import InspectorPane from "./components/InspectorPane.vue";
 import StatusBar from "./components/StatusBar.vue";
 import BatchActionBar from "./components/BatchActionBar.vue";
 import { t } from "./i18n";
-import { countActiveFilters, criteriaToQuery } from "./utils/search";
+import { countActiveFilters, criteriaToQuery, parseSearchQuery } from "./utils/search";
 import {
   getStorageItem,
   setStorageItem,
   isWarningSuppressed,
   loadAppConfig,
+  type AppConfig,
   saveAppConfig,
   STACK_MERGE_WARNING_ID,
   suppressWarning,
 } from "./utils/config";
 import { checkForUpdates } from "./utils/updater";
 import { applyTheme, normalizeTheme, type AppTheme } from "./utils/theme";
+import ToastContainer from "./components/ToastContainer.vue";
+import { useNotification } from "./utils/notification";
+import { normalizeTableColumns, type TableColumnPreference } from "./utils/table-columns";
+import { actionHistory } from "./utils/history";
+import { applyBooleanFlagMutation } from "./utils/batch-flags";
 import { collaborationSync } from "./utils/collaborationSync";
 import { hasActiveDialog, isEditableTarget } from "./utils/dialog";
+import { useGalleryPrivacy, setSensitiveMasking } from "./utils/gallery-privacy";
 
 const LightboxModal = defineAsyncComponent(() => import("./components/LightboxModal.vue"));
 const FilterDrawer = defineAsyncComponent(() => import("./components/FilterDrawer.vue"));
@@ -91,6 +98,9 @@ const ImportTransformModal = defineAsyncComponent(
 );
 const BatchTransformModal = defineAsyncComponent(
   () => import("./components/BatchTransformModal.vue")
+);
+const LegacyMigrationModal = defineAsyncComponent(
+  () => import("./components/LegacyMigrationModal.vue")
 );
 
 const info = ref<AppInfo | null>(null);
@@ -177,6 +187,32 @@ const importModalFolderId = ref<number | null>(null);
 const importModalAlbumId = ref<number | null>(null);
 const batchTransformModalOpen = ref(false);
 const batchTransformFilesList = ref<ImageFile[]>([]);
+const legacyMigrationModalOpen = ref(false);
+const allowOverrideExistingPrompt = ref(false);
+
+const isAnyModalOpen = computed(() =>
+  updateModalOpen.value ||
+  settingsModalOpen.value ||
+  promptStatsModalOpen.value ||
+  modelManagerModalOpen.value ||
+  dbManagerModalOpen.value ||
+  shortcutsHelpModalOpen.value ||
+  fileOpModalOpen.value ||
+  albumModalOpen.value ||
+  tagModalOpen.value ||
+  autoTagModalOpen.value ||
+  clipModalOpen.value ||
+  loraModalOpen.value ||
+  addFolderModalOpen.value ||
+  onboardingModalOpen.value ||
+  compareModalOpen.value ||
+  cullModalOpen.value ||
+  exportModalOpen.value ||
+  importModalOpen.value ||
+  batchTransformModalOpen.value ||
+  legacyMigrationModalOpen.value ||
+  stackMergeWarningOpen.value
+);
 
 interface StackMergePlan {
   targetStackId: string;
@@ -283,7 +319,35 @@ const viewMode = ref<GalleryViewMode>(
     ? savedViewMode
     : "grid",
 );
+const tableColumns = ref(normalizeTableColumns([]));
+const tableColumnsSaving = ref(false);
+const tableColumnsError = ref("");
+async function onSaveTableColumns(columns: TableColumnPreference[]) {
+  if (tableColumnsSaving.value) return;
+  tableColumnsSaving.value = true;
+  tableColumnsError.value = "";
+  try {
+    const config = await invoke<AppConfig>("get_app_config");
+    config.table_columns = normalizeTableColumns(columns);
+    await saveAppConfig(config);
+    tableColumns.value = normalizeTableColumns(config.table_columns);
+  } catch (err) {
+    tableColumnsError.value = String(err);
+  } finally {
+    tableColumnsSaving.value = false;
+  }
+}
+
 const blurNsfw = ref(getStorageItem("blur_nsfw") !== "false");
+const {
+  revealedPaths: revealedNsfw,
+  toggleReveal: onToggleNsfwReveal,
+  reveal: onRevealNsfw,
+  remask: onRemaskNsfw,
+} = useGalleryPrivacy();
+function onToggleGlobalMasking() {
+  setSensitiveMasking(blurNsfw, !blurNsfw.value, revealedNsfw);
+}
 const showCardBadges = ref(getStorageItem("card_badges") !== "false");
 const appTheme = ref<AppTheme>(normalizeTheme(getStorageItem("theme")));
 applyTheme(appTheme.value);
@@ -303,12 +367,16 @@ function onSettingsSaved(settings: {
   theme?: AppTheme;
   autoCheckUpdate?: boolean;
   allowMultipleStacksOpen?: boolean;
+  allowOverrideExistingPrompt?: boolean;
 }) {
-  blurNsfw.value = settings.blurNsfw;
+  setSensitiveMasking(blurNsfw, settings.blurNsfw, revealedNsfw);
   showCardBadges.value = settings.showCardBadges;
   if (settings.theme) {
     appTheme.value = settings.theme;
     applyTheme(settings.theme);
+  }
+  if (settings.allowOverrideExistingPrompt !== undefined) {
+    allowOverrideExistingPrompt.value = settings.allowOverrideExistingPrompt;
   }
   if (settings.allowMultipleStacksOpen !== undefined) {
     allowMultipleStacksOpen.value = settings.allowMultipleStacksOpen;
@@ -325,6 +393,14 @@ const sortField = ref<FileSortField>("modified_at");
 const sortDirection = ref<SortDirection>("desc");
 const progress = ref<ScanProgress | null>(null);
 const error = ref("");
+const notification = useNotification();
+
+watch(error, (newErr) => {
+  if (newErr) {
+    notification.showError(newErr);
+  }
+});
+
 const organizeLibraryRunning = ref(false);
 const organizeLibraryNotice = ref("");
 let organizeLibraryNoticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -373,6 +449,30 @@ function handleWindowKeyDown(e: KeyboardEvent) {
   }
 
   if (hasActiveDialog()) {
+    return;
+  }
+
+  if (e.defaultPrevented) return;
+  if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "m" || e.key === "M")) {
+    e.preventDefault();
+    onToggleGlobalMasking();
+    return;
+  }
+
+  // Undo: Ctrl+Z / Cmd+Z (without shift)
+  if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+    e.preventDefault();
+    void onUndo();
+    return;
+  }
+
+  // Redo: Ctrl+Y / Cmd+Y or Ctrl+Shift+Z / Cmd+Shift+Z
+  if (
+    ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) ||
+    ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "z" || e.key === "Z"))
+  ) {
+    e.preventDefault();
+    void onRedo();
     return;
   }
 
@@ -541,9 +641,41 @@ function handleWindowKeyDown(e: KeyboardEvent) {
 
   // Open Lightbox: Space or Enter
   if (e.key === " " || e.key === "Enter") {
+    if (
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement.tagName === "BUTTON"
+    ) {
+      return;
+    }
     if (!lightboxFile.value && (selectedFile.value || selectedFilesList.value.length > 0)) {
       e.preventDefault();
       lightboxFile.value = selectedFile.value || selectedFilesList.value[0];
+      return;
+    }
+  }
+
+  // Sensitive content reveal / re-mask toggle: R / r
+  if ((e.key === "r" || e.key === "R") && !e.ctrlKey && !e.metaKey && !e.altKey && !lightboxFile.value) {
+    const targets = selectedFilesList.value.length > 0
+      ? selectedFilesList.value
+      : selectedFile.value
+        ? [selectedFile.value]
+        : [];
+    const sensitiveTargets = targets.filter((f) => f.is_nsfw);
+    if (sensitiveTargets.length > 0 && blurNsfw.value) {
+      e.preventDefault();
+      if (sensitiveTargets.length === 1) {
+        onToggleNsfwReveal(sensitiveTargets[0].path);
+      } else {
+        const anyConcealed = sensitiveTargets.some((f) => !revealedNsfw.value.has(f.path));
+        for (const f of sensitiveTargets) {
+          if (anyConcealed) {
+            onRevealNsfw(f.path);
+          } else {
+            onRemaskNsfw(f.path);
+          }
+        }
+      }
       return;
     }
   }
@@ -605,12 +737,14 @@ onMounted(async () => {
 
     // Load persistent configuration from config.json (auto-migrating localStorage)
     const cfg = await loadAppConfig();
+    tableColumns.value = normalizeTableColumns(cfg.table_columns);
     viewMode.value = cfg.default_view || "grid";
     blurNsfw.value = cfg.blur_nsfw;
     showCardBadges.value = cfg.show_card_badges;
     appTheme.value = normalizeTheme(cfg.theme);
     applyTheme(appTheme.value);
     allowMultipleStacksOpen.value = cfg.allow_multiple_open_stacks ?? false;
+    allowOverrideExistingPrompt.value = cfg.allow_override_existing_prompt ?? false;
 
     await reloadFolders();
     const initialFilesPromise = loadFiles();
@@ -749,14 +883,22 @@ async function loadAlbumsAndTags() {
   }
 }
 
-function onFolderAdded(folder: Folder) {
-  void reloadFolders();
-  void refreshCounts();
-  void reloadFiltersMeta();
+async function onFolderAdded(folder: Folder) {
+  await reloadFolders();
   activeTarget.value = { type: "folder", folder };
   selectedFile.value = null;
   lightboxFile.value = null;
-  void loadFiles();
+
+  // Trigger initial scan for the newly added folder
+  try {
+    await invoke("scan_folder", { folderId: folder.id });
+  } catch (e) {
+    console.error(`Failed to start initial scan for folder ${folder.path}:`, e);
+  }
+
+  await refreshCounts();
+  await reloadFiltersMeta();
+  await loadFiles();
 }
 
 function onFolderRemoved(folderId: number) {
@@ -939,27 +1081,74 @@ function onToggleAll() {
   }
 }
 
-async function onBatchRate(rating: number | null) {
-  const ids = selectedFilesList.value
-    .map((f) => f.id)
-    .filter((id): id is number => id != null);
-  if (ids.length === 0) return;
-
+async function onUndo() {
   try {
-    await invoke("set_files_rating", { fileIds: ids, rating });
-    for (const id of ids) {
-      fileDetailsManager.update(id, { rating: rating ?? undefined });
+    const actionName = await actionHistory.undo();
+    if (actionName) {
+      notification.showSuccess(t.value.history.undid.replace("{action}", actionName), undefined, 2500);
     }
-    const idSet = new Set(ids);
+  } catch (err) {
+    notification.showError(t.value.history.undoFailed.replace("{error}", String(err)));
+  }
+}
+
+async function onRedo() {
+  try {
+    const actionName = await actionHistory.redo();
+    if (actionName) {
+      notification.showSuccess(t.value.history.redid.replace("{action}", actionName), undefined, 2500);
+    }
+  } catch (err) {
+    notification.showError(t.value.history.redoFailed.replace("{error}", String(err)));
+  }
+}
+
+async function onBatchRate(rating: number | null) {
+  const targetFiles = selectedFilesList.value.filter((f): f is ImageFile & { id: number } => f.id != null);
+  if (targetFiles.length === 0) return;
+
+  const previousRatings = new Map<number, number | null>();
+  for (const f of targetFiles) {
+    previousRatings.set(f.id, f.rating ?? null);
+  }
+
+  const applyRatingState = async (ratingsMap: Map<number, number | null>) => {
+    // Group files by rating value for efficient backend calls
+    const grouped = new Map<number | null, number[]>();
+    for (const [id, r] of ratingsMap.entries()) {
+      const list = grouped.get(r) ?? [];
+      list.push(id);
+      grouped.set(r, list);
+    }
+    for (const [r, ids] of grouped.entries()) {
+      await invoke("set_files_rating", { fileIds: ids, rating: r });
+      for (const id of ids) {
+        const rating = r;
+        fileDetailsManager.update(id, { rating: rating ?? undefined });
+      }
+    }
     files.value = files.value.map((f) => {
-      if (f.id != null && idSet.has(f.id)) {
-        return { ...f, rating: rating ?? undefined };
+      if (f.id != null && ratingsMap.has(f.id)) {
+        return { ...f, rating: ratingsMap.get(f.id) ?? undefined };
       }
       return f;
     });
-    if (selectedFile.value?.id != null && idSet.has(selectedFile.value.id)) {
-      selectedFile.value.rating = rating ?? undefined;
+    if (selectedFile.value?.id != null && ratingsMap.has(selectedFile.value.id)) {
+      selectedFile.value.rating = ratingsMap.get(selectedFile.value.id) ?? undefined;
     }
+  };
+
+  try {
+    const newRatingsMap = new Map<number, number | null>();
+    for (const f of targetFiles) {
+      newRatingsMap.set(f.id, rating);
+    }
+
+    await actionHistory.execute({
+      name: t.value.history.rating.replace("{rating}", String(rating ?? 0)).replace("{count}", String(targetFiles.length)),
+      execute: () => applyRatingState(newRatingsMap),
+      undo: () => applyRatingState(previousRatings),
+    });
   } catch (e) {
     error.value = String(e);
   }
@@ -1191,6 +1380,8 @@ async function onToggleStackExpand(stackId: string) {
 
   if (pendingStackExpansions.has(stackId)) return;
   pendingStackExpansions.add(stackId);
+  const context = galleryContextKey.value;
+  const version = libraryRequestVersion;
   try {
     if (!allowMultipleStacksOpen.value) {
       for (const expandedId of [...expandedStacks.value]) {
@@ -1205,7 +1396,7 @@ async function onToggleStackExpand(stackId: string) {
           query,
           context: currentPagedCriteria(0),
         });
-    if (members.length === 0) return;
+    if (members.length === 0 || context !== galleryContextKey.value || version !== libraryRequestVersion) return;
     const insertionIndex = files.value.findIndex((file) => file.stack_id === stackId);
     const nextFiles = files.value.filter((file) => file.stack_id !== stackId);
     nextFiles.splice(insertionIndex >= 0 ? insertionIndex : nextFiles.length, 0, ...members);
@@ -1359,6 +1550,21 @@ async function onBatchTransformCompleted(receipt: TransformJobReceipt) {
     await loadAlbumsAndTags();
     await refreshCounts();
     await loadFiles();
+    try {
+      await refreshPublishedSelections(
+        receipt.items, fileDetailsManager,
+        () => [selectedFile.value, lightboxFile.value],
+        (fileId) => invoke<ImageFile>("get_file_details", { fileId }),
+        (previous, published) => {
+          const matches = (file: ImageFile | null) => file?.id === previous.id &&
+            FileDetailsManager.revisionKey(file) === FileDetailsManager.revisionKey(previous);
+          if (matches(selectedFile.value)) selectedFile.value = { ...published };
+          if (matches(lightboxFile.value)) lightboxFile.value = { ...published };
+        },
+      );
+    } catch (detailError) {
+      console.warn("Failed to refresh transformed selection details:", detailError);
+    }
   }
 }
 
@@ -1382,6 +1588,17 @@ async function onOnboardingComplete() {
     await loadFiles();
   } catch (err) {
     console.warn("Post-onboarding data reload failed:", err);
+  }
+}
+
+async function onLegacyMigrated() {
+  try {
+    await reloadFolders();
+    await loadAlbumsAndTags();
+    await refreshCounts();
+    await loadFiles();
+  } catch (err) {
+    console.warn("Post-legacy migration data reload failed:", err);
   }
 }
 
@@ -1425,51 +1642,95 @@ async function onAutoTagsApplied() {
   }
 }
 
+function patchBatchFlag(ids: number[], flag: "is_favorite" | "is_nsfw", value: boolean) {
+  const changed = new Set(ids);
+  for (const id of ids) fileDetailsManager.update(id, { [flag]: value });
+  files.value = files.value.map(file => file.id != null && changed.has(file.id)
+    ? { ...file, [flag]: value } : file);
+  for (const target of [selectedFile, lightboxFile]) {
+    if (target.value?.id != null && changed.has(target.value.id)) {
+      target.value = { ...target.value, [flag]: value };
+    }
+  }
+}
+
+async function refreshBatchFlagMutation() {
+  const context = galleryContextKey.value;
+  const selectedPaths = new Set(selectedFilePaths.value);
+  const anchor = selectionAnchorPath.value;
+  const loadedCount = files.value.length;
+  const reload = loadFiles();
+  const version = libraryRequestVersion;
+  await Promise.all([refreshCounts(), reload]);
+  if (version !== libraryRequestVersion || context !== galleryContextKey.value) return;
+  // Refill only the extent already loaded, with one bounded page in flight.
+  while (files.value.length < loadedCount && galleryHasMore.value) {
+    const before = nextGalleryOffset.value;
+    await loadMoreFiles();
+    if (version !== libraryRequestVersion || context !== galleryContextKey.value) return;
+    if (nextGalleryOffset.value <= before) break;
+  }
+  const validPaths = new Set(files.value.map(file => file.path));
+  selectedFilePaths.value = new Set([...selectedPaths].filter(path => validPaths.has(path)));
+  selectionAnchorPath.value = anchor && validPaths.has(anchor) ? anchor : null;
+  if (selectedFile.value && !validPaths.has(selectedFile.value.path)) selectedFile.value = null;
+}
+
 async function onBatchToggleFavorite(isFavorite: boolean) {
-  const ids = selectedFilesList.value
-    .map((f) => f.id)
-    .filter((id): id is number => id != null);
-  if (ids.length === 0) return;
+  const targetFiles = selectedFilesList.value.filter((f): f is ImageFile & { id: number } => f.id != null);
+  if (targetFiles.length === 0) return;
+
+  const previousFavs = new Map<number, boolean>();
+  for (const f of targetFiles) {
+    previousFavs.set(f.id, !!f.is_favorite);
+  }
+
+  const applyFavState = (values: Map<number, boolean>) => applyBooleanFlagMutation(
+    values,
+    async (ids, value) => { await invoke("set_files_favorite", { fileIds: ids, isFavorite: value }); },
+    (ids, value) => patchBatchFlag(ids, "is_favorite", value),
+    refreshBatchFlagMutation,
+  );
+
   try {
-    await invoke("set_files_favorite", { fileIds: ids, isFavorite });
-    for (const id of ids) {
-      fileDetailsManager.update(id, { is_favorite: isFavorite });
-    }
-    const updated = files.value.map((f) => {
-      if (selectedFilePaths.value.has(f.path)) {
-        return { ...f, is_favorite: isFavorite };
-      }
-      return f;
+    const newFavMap = new Map<number, boolean>();
+    for (const f of targetFiles) newFavMap.set(f.id, isFavorite);
+
+    await actionHistory.execute({
+      name: (isFavorite ? t.value.history.favorite : t.value.history.unfavorite).replace("{count}", String(targetFiles.length)),
+      execute: () => applyFavState(newFavMap),
+      undo: () => applyFavState(previousFavs),
     });
-    files.value = updated;
-    if (selectedFile.value && selectedFilePaths.value.has(selectedFile.value.path)) {
-      selectedFile.value.is_favorite = isFavorite;
-    }
   } catch (err) {
     error.value = String(err);
   }
 }
 
 async function onBatchToggleNsfw(isNsfw: boolean) {
-  const ids = selectedFilesList.value
-    .map((f) => f.id)
-    .filter((id): id is number => id != null);
-  if (ids.length === 0) return;
+  const targetFiles = selectedFilesList.value.filter((f): f is ImageFile & { id: number } => f.id != null);
+  if (targetFiles.length === 0) return;
+
+  const previousNsfw = new Map<number, boolean>();
+  for (const f of targetFiles) {
+    previousNsfw.set(f.id, !!f.is_nsfw);
+  }
+
+  const applyNsfwState = (values: Map<number, boolean>) => applyBooleanFlagMutation(
+    values,
+    async (ids, value) => { await invoke("set_files_nsfw", { fileIds: ids, isNsfw: value }); },
+    (ids, value) => patchBatchFlag(ids, "is_nsfw", value),
+    refreshBatchFlagMutation,
+  );
+
   try {
-    await invoke("set_files_nsfw", { fileIds: ids, isNsfw });
-    for (const id of ids) {
-      fileDetailsManager.update(id, { is_nsfw: isNsfw });
-    }
-    const updated = files.value.map((f) => {
-      if (selectedFilePaths.value.has(f.path)) {
-        return { ...f, is_nsfw: isNsfw };
-      }
-      return f;
+    const newNsfwMap = new Map<number, boolean>();
+    for (const f of targetFiles) newNsfwMap.set(f.id, isNsfw);
+
+    await actionHistory.execute({
+      name: (isNsfw ? t.value.history.sensitive : t.value.history.safe).replace("{count}", String(targetFiles.length)),
+      execute: () => applyNsfwState(newNsfwMap),
+      undo: () => applyNsfwState(previousNsfw),
     });
-    files.value = updated;
-    if (selectedFile.value && selectedFilePaths.value.has(selectedFile.value.path)) {
-      selectedFile.value.is_nsfw = isNsfw;
-    }
   } catch (err) {
     error.value = String(err);
   }
@@ -1793,6 +2054,9 @@ function exitSimilaritySearch() {
 
 function onSearch(query: string) {
   searchQuery.value = query;
+  if (!isSemanticSearch.value) {
+    activeCriteria.value = parseSearchQuery(query);
+  }
   void loadFiles();
 }
 
@@ -1817,7 +2081,7 @@ function onResetFilters() {
 
 function onApplyStatsSearch(query: string) {
   searchQuery.value = query;
-  activeCriteria.value = {};
+  activeCriteria.value = parseSearchQuery(query);
   void loadFiles();
 }
 
@@ -2029,7 +2293,7 @@ function onResetZoom() {
           type="button"
           class="titlebar-quick-btn"
           :class="{ active: sidebarOpen }"
-          :title="sidebarOpen ? '隐藏导航栏 (B)' : '显示导航栏 (B)'"
+          :title="sidebarOpen ? t.nav.hideSidebar : t.nav.showSidebar"
           style="margin-left: 8px;"
           @click="sidebarOpen = !sidebarOpen"
         >
@@ -2048,17 +2312,20 @@ function onResetZoom() {
           @scan-active="onScanActiveFromMenu"
           @rescan-all="onRescanAllFromMenu"
           @open-db-manager="dbManagerModalOpen = true"
+          @open-legacy-migration="legacyMigrationModalOpen = true"
           @open-settings="settingsModalOpen = true"
           @select-all="onSelectAll"
           @clear-selection="onClearSelection"
           @batch-export="handleOpenExportModal()"
           @batch-album="onBatchAddToAlbum"
+          @batch-auto-tag="handleOpenAutoTag()"
           @toggle-sidebar="sidebarOpen = !sidebarOpen"
           @toggle-inspector="inspectorOpen = !inspectorOpen"
           @open-lightbox="selectedFile ? onActivateFile(selectedFile) : null"
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
           @reset-zoom="onResetZoom"
+          @open-auto-tagger="handleOpenAutoTag()"
           @open-prompt-stats="promptStatsModalOpen = true"
           @open-model-manager="modelManagerModalOpen = true"
           @open-clip-manager="clipModalOpen = true"
@@ -2077,7 +2344,7 @@ function onResetZoom() {
           type="button"
           class="titlebar-quick-btn"
           :class="{ active: inspectorOpen }"
-          :title="inspectorOpen ? '隐藏检查器 (I)' : '显示检查器 (I)'"
+          :title="inspectorOpen ? t.nav.hideInspector : t.nav.showInspector"
           @click="inspectorOpen = !inspectorOpen"
         >
           <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
@@ -2114,6 +2381,7 @@ function onResetZoom() {
         @open-album-modal="() => onOpenAlbumModal()"
         @open-tag-modal="() => onOpenTagModal()"
         @open-prompt-stats="promptStatsModalOpen = true"
+        @open-auto-tagger="handleOpenAutoTag()"
         @open-model-manager="modelManagerModalOpen = true"
         @open-db-manager="dbManagerModalOpen = true"
         @open-shortcuts-help="shortcutsHelpModalOpen = true"
@@ -2155,6 +2423,8 @@ function onResetZoom() {
               v-model:is-semantic="isSemanticSearch"
               :loading="filesLoading"
               :result-count="searchQuery.trim() ? galleryTotal : null"
+              :models="distinctModels"
+              :tags="tags.map((t) => t.name)"
               @search="onSearch"
               @clear="onClearSearch"
               @open-clip-manager="clipModalOpen = true"
@@ -2196,6 +2466,19 @@ function onResetZoom() {
               />
               <span class="zoom-icon large">◼</span>
             </div>
+
+            <button
+              type="button"
+              class="session-mask-btn"
+              :class="{ active: blurNsfw }"
+              :aria-pressed="blurNsfw"
+              :title="t.view.sessionMaskHint"
+              aria-keyshortcuts="Shift+M"
+              @click="onToggleGlobalMasking"
+            >
+              <span aria-hidden="true">{{ blurNsfw ? '🔒' : '👁' }}</span>
+              {{ blurNsfw ? t.view.maskingOn : t.view.contentVisible }}
+            </button>
 
             <!-- View Mode Switch -->
             <div class="view-mode-toggle">
@@ -2300,6 +2583,7 @@ function onResetZoom() {
             :has-more="galleryHasMore"
             :item-min-width="gridItemWidth"
             :blur-nsfw="blurNsfw"
+            :revealed-nsfw="revealedNsfw"
             :show-card-badges="showCardBadges"
             :stack-map="stackMap"
             :expanded-stacks="expandedStacks"
@@ -2313,13 +2597,21 @@ function onResetZoom() {
             @compare-stack="onTriggerCompare"
             @cull-stack="onCullStack"
             @load-more="loadMoreFiles"
+            @toggle-reveal="onToggleNsfwReveal"
           />
 
           <FileList
             v-else
             :context-key="galleryContextKey"
             :files="files"
+            :columns="tableColumns"
+            :columns-saving="tableColumnsSaving"
+            :columns-error="tableColumnsError"
+            @save-columns="onSaveTableColumns"
             :file-revision="galleryRevision"
+            :stack-map="stackMap"
+            :expanded-stacks="expandedStacks"
+            @toggle-stack-expand="onToggleStackExpand"
             :empty-message="emptyGalleryMessage"
             :empty-action-text="emptyGalleryAction"
             @recover="recoverGallery"
@@ -2328,17 +2620,26 @@ function onResetZoom() {
             :loading="filesLoading"
             :loading-more="filesLoadingMore"
             :has-more="galleryHasMore"
+            :sort-field="sortField"
+            :sort-direction="sortDirection"
+            :blur-nsfw="blurNsfw"
+            :revealed-nsfw="revealedNsfw"
+            @update:sort-field="(f) => { sortField = f; void loadFiles(); }"
+            @update:sort-direction="(d) => { sortDirection = d; void loadFiles(); }"
             @select="onFileSelected"
             @activate="onActivateFile"
             @toggle-select="toggleSelectFile"
             @toggle-all="onToggleAll"
             @load-more="loadMoreFiles"
+            @toggle-reveal="onToggleNsfwReveal"
           />
 
           <!-- Floating Batch Action Bar -->
           <BatchActionBar
+            v-if="selectedFilesList.length > 0 && !isAnyModalOpen"
             :selected-count="selectedFilesList.length"
-            :total-count="files.length"
+            :total-count="galleryTotal"
+            :loaded-count="files.length"
             :selected-files="selectedFilesList"
             @clear-selection="onClearSelection"
             @select-all="onSelectAll"
@@ -2479,6 +2780,8 @@ function onResetZoom() {
       :selected-file="autoTagTargetFile"
       :selected-file-count="selectedFilesList.length"
       :selected-file-ids="selectedFilesList.map((f) => f.id).filter((id): id is number => typeof id === 'number')"
+      :selected-files="selectedFilesList"
+      :allow-override-prompt="allowOverrideExistingPrompt"
       @close="autoTagModalOpen = false"
       @tags-applied="onAutoTagsApplied"
     />
@@ -2585,6 +2888,14 @@ function onResetZoom() {
       @completed="onBatchTransformCompleted"
     />
 
+    <!-- Legacy Migration Modal -->
+    <LegacyMigrationModal
+      v-if="legacyMigrationModalOpen"
+      :show="legacyMigrationModalOpen"
+      @close="legacyMigrationModalOpen = false"
+      @migrated="onLegacyMigrated"
+    />
+
     <!-- Help & Feature Guide Drawer -->
     <HelpGuideDrawer
       v-if="helpGuideDrawerOpen"
@@ -2592,6 +2903,9 @@ function onResetZoom() {
       :context="helpGuideContext"
       @close="helpGuideDrawerOpen = false"
     />
+
+    <!-- Floating Error / Info Toast Notifications -->
+    <ToastContainer />
   </div>
 </template>
 
@@ -2648,9 +2962,10 @@ function onResetZoom() {
 }
 
 .gallery-topbar {
-  height: 42px;
+  height: auto;
+  flex-wrap: wrap;
   min-height: 42px;
-  padding: 0 10px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2658,7 +2973,7 @@ function onResetZoom() {
   background: var(--color-bg-primary);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .topbar-left {
@@ -2765,6 +3080,8 @@ function onResetZoom() {
 }
 
 .topbar-right {
+  max-width: 100%;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2798,6 +3115,22 @@ function onResetZoom() {
   accent-color: #a855f7;
   cursor: pointer;
 }
+
+.session-mask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 4px 8px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.session-mask-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.session-mask-btn:not(.active) { border-color: var(--color-warning, #f59e0b); }
 
 .view-mode-toggle {
   display: flex;

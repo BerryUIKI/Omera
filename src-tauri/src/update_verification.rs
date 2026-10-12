@@ -28,7 +28,7 @@ pub fn verify(path: &Path, signature: &str) -> Result<(), String> {
     verify_with_key(path, signature, &trusted_key()?)
 }
 
-fn verify_with_key(path: &Path, signature: &str, key: &PublicKey) -> Result<(), String> {
+pub fn verify_with_key(path: &Path, signature: &str, key: &PublicKey) -> Result<(), String> {
     let signature =
         Signature::decode(signature).map_err(|e| format!("Invalid update signature: {e}"))?;
     let mut verifier = key.verify_stream(&signature).map_err(|e| e.to_string())?;

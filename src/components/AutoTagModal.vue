@@ -9,15 +9,18 @@ import type {
   TaggerConfig,
   TaggerModelSummary,
   TagPrediction,
-  BatchTagResult,
+  BatchTagProgress,
   TaggerDownloadProgress,
 } from "../types";
+import { BatchAutoTagController } from "../utils/batch-tagger";
 
 const props = defineProps<{
   show: boolean;
   selectedFile: ImageFile | null;
   selectedFileCount: number;
   selectedFileIds: number[];
+  selectedFiles?: ImageFile[];
+  allowOverridePrompt?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -33,21 +36,67 @@ const generalThreshold = ref<number>(35);
 const characterThreshold = ref<number>(85);
 const includeRating = ref<boolean>(false);
 const maxTags = ref<number>(50);
+const writeToPrompt = ref(false);
+const appendPrompt = ref(false);
+const batchScope = ref<"all" | "untagged" | "no-prompt">("all");
+
+const hasExistingPrompt = computed(() => {
+  const p = props.selectedFile?.metadata?.prompt;
+  return Boolean(p && p.trim().length > 0);
+});
+
+const isPromptWriteLocked = computed(() => {
+  return hasExistingPrompt.value && !props.allowOverridePrompt;
+});
+
+const filteredBatchFiles = computed(() => {
+  const list = props.selectedFiles || [];
+  if (batchScope.value === "untagged") {
+    // Files with no tags (or empty prompt and empty tags)
+    return list.filter((f) => {
+      const hasPrompt = Boolean(f.metadata?.prompt && f.metadata.prompt.trim().length > 0);
+      return !hasPrompt;
+    });
+  }
+  if (batchScope.value === "no-prompt") {
+    return list.filter((f) => {
+      const prompt = f.metadata?.prompt;
+      return !prompt || prompt.trim().length === 0;
+    });
+  }
+  return list;
+});
+
+const effectiveBatchFileIds = computed<number[]>(() => {
+  if (props.selectedFiles && props.selectedFiles.length > 0) {
+    return filteredBatchFiles.value
+      .map((f) => f.id)
+      .filter((id): id is number => typeof id === "number");
+  }
+  return props.selectedFileIds;
+});
 
 const isDetecting = ref(false);
-const isApplying = ref(false);
+const isApplyingCurrent = ref(false);
+const isApplyingBatch = ref(false);
+const isApplying = computed(() => isApplyingCurrent.value || isApplyingBatch.value);
+const batchController = new BatchAutoTagController();
+const batchProgress = ref<BatchTagProgress | null>(null);
 const isDownloading = ref(false);
 const downloadProgress = ref<TaggerDownloadProgress | null>(null);
 const downloadSource = ref<"auto" | "modelscope" | "hf-mirror" | "huggingface">("auto");
 let unlistenDownload: UnlistenFn | null = null;
 const predictions = ref<TagPrediction[]>([]);
-const message = ref<{ type: "success" | "error"; text: string } | null>(null);
+const message = ref<{ type: "success" | "error" | "info" | "warning"; text: string } | null>(null);
 
 const taggerConfig = computed<TaggerConfig>(() => ({
   general_threshold: generalThreshold.value / 100,
   character_threshold: characterThreshold.value / 100,
   include_rating: includeRating.value,
   max_tags: maxTags.value,
+  write_to_prompt: writeToPrompt.value && !isPromptWriteLocked.value,
+  append_prompt: appendPrompt.value,
+  allow_override_existing_prompt: Boolean(props.allowOverridePrompt),
 }));
 
 async function loadModelList() {
@@ -83,6 +132,21 @@ async function onSelectModel(modelSummary: TaggerModelSummary) {
     selectedModelPath.value = info.model_path;
     // Refresh models list to update is_loaded flags
     models.value = await invoke<TaggerModelSummary[]>("list_tagger_models");
+  } catch (err: any) {
+    message.value = { type: "error", text: String(err) };
+  } finally {
+    isDetecting.value = false;
+  }
+}
+
+async function unloadModel() {
+  try {
+    message.value = null;
+    isDetecting.value = true;
+    await invoke("unload_tagger_model");
+    loadedModel.value = null;
+    models.value = await invoke<TaggerModelSummary[]>("list_tagger_models");
+    message.value = { type: "info", text: t.value.autoTagModal.modelUnloaded || "Model unloaded" };
   } catch (err: any) {
     message.value = { type: "error", text: String(err) };
   } finally {
@@ -149,7 +213,7 @@ async function detectTags() {
 
 async function applyToCurrent() {
   if (!props.selectedFile?.id) return;
-  isApplying.value = true;
+  isApplyingCurrent.value = true;
   message.value = null;
   try {
     const results = await invoke<TagPrediction[]>("auto_tag_file", {
@@ -166,28 +230,76 @@ async function applyToCurrent() {
   } catch (err: any) {
     message.value = { type: "error", text: String(err) };
   } finally {
-    isApplying.value = false;
+    isApplyingCurrent.value = false;
   }
 }
 
 async function applyToBatch() {
-  if (props.selectedFileIds.length === 0) return;
-  isApplying.value = true;
+  const targetIds = effectiveBatchFileIds.value;
+  if (targetIds.length === 0) return;
+
+  if (targetIds.length > 10) {
+    const confirmMsg = t.value.autoTagModal.confirmBatchMessage.replace(
+      "{count}",
+      String(targetIds.length),
+    );
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+  }
+
+  isApplyingBatch.value = true;
+  batchProgress.value = null;
   message.value = null;
   try {
-    const result = await invoke<BatchTagResult>("batch_auto_tag_files", {
-      fileIds: props.selectedFileIds,
+    const result = await batchController.start({
+      fileIds: targetIds,
       config: taggerConfig.value,
+      onProgress: (p) => {
+        batchProgress.value = p;
+      },
     });
-    message.value = {
-      type: "success",
-      text: `${t.value.autoTagModal.success} (${result.processed_files} files, ${result.tags_added} tags)`,
-    };
-    emit("tags-applied");
+
+    if (batchController.status === "completed") {
+      const failed = batchController.progress?.failed_files ?? 0;
+      if (failed > 0) {
+        message.value = {
+          type: "warning",
+          text: `${t.value.autoTagModal.success} (${result.processed_files} ok, ${failed} failed, ${result.tags_added} tags)`,
+        };
+      } else {
+        message.value = {
+          type: "success",
+          text: `${t.value.autoTagModal.success} (${result.processed_files} files, ${result.tags_added} tags)`,
+        };
+      }
+      emit("tags-applied");
+    } else if (batchController.status === "canceled") {
+      message.value = {
+        type: "info",
+        text: t.value.autoTagModal.batchCanceled,
+      };
+      if (result.processed_files > 0) {
+        emit("tags-applied");
+      }
+    }
   } catch (err: any) {
-    message.value = { type: "error", text: String(err) };
+    if (batchController.status === "canceled") {
+      message.value = {
+        type: "info",
+        text: t.value.autoTagModal.batchCanceled,
+      };
+    } else {
+      message.value = { type: "error", text: String(err) };
+    }
   } finally {
-    isApplying.value = false;
+    isApplyingBatch.value = false;
+  }
+}
+
+async function cancelBatchAutoTag() {
+  if (isApplyingBatch.value) {
+    await batchController.cancel();
   }
 }
 
@@ -301,6 +413,7 @@ watch(
       void loadModelList();
     }
   },
+  { immediate: true },
 );
 
 onMounted(async () => {
@@ -447,6 +560,15 @@ onUnmounted(() => {
               </option>
             </select>
             <button
+              v-if="loadedModel"
+              type="button"
+              class="unload-btn"
+              :title="t.autoTagModal.unloadModel"
+              @click="unloadModel"
+            >
+              ⏏ {{ t.autoTagModal.unloadModel }}
+            </button>
+            <button
               type="button"
               class="browse-btn"
               :title="t.autoTagModal.browseFolder"
@@ -520,6 +642,77 @@ onUnmounted(() => {
                 </select>
               </div>
             </div>
+
+            <!-- Prompt Metadata Options -->
+            <div class="control-item-row prompt-opts-row">
+              <label class="checkbox-label" :class="{ disabled: isPromptWriteLocked }">
+                <input
+                  type="checkbox"
+                  v-model="writeToPrompt"
+                  :disabled="isPromptWriteLocked"
+                />
+                <span>{{ t.autoTagModal.writeToPrompt }}</span>
+              </label>
+              <label v-if="writeToPrompt && !isPromptWriteLocked" class="checkbox-label append-label">
+                <input type="checkbox" v-model="appendPrompt" />
+                <span>{{ t.autoTagModal.appendPrompt }}</span>
+              </label>
+              <span v-if="isPromptWriteLocked" class="locked-hint" :title="t.settings.promptProtected">
+                🔒 {{ t.settings.promptProtected }}
+              </span>
+            </div>
+
+            <!-- Batch Scope Selector (When multiple files are selected) -->
+            <div v-if="selectedFileCount > 1" class="control-item-row scope-opts-row">
+              <label class="scope-label">{{ t.autoTagModal.scopeLabel }}:</label>
+              <select v-model="batchScope" class="scope-select">
+                <option value="all">
+                  {{ t.autoTagModal.scopeAll.replace('{count}', String(selectedFileCount)) }}
+                </option>
+                <option value="no-prompt">
+                  {{ t.autoTagModal.scopeNoPromptOnly.replace('{count}', String(effectiveBatchFileIds.length)) }}
+                </option>
+                <option value="untagged">
+                  {{ t.autoTagModal.scopeUntaggedOnly.replace('{count}', String(effectiveBatchFileIds.length)) }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Batch Tagging Progress Bar Card -->
+        <div v-if="isApplyingBatch && batchProgress" class="section-box batch-progress-box">
+          <div class="progress-header">
+            <div class="progress-title-row">
+              <span class="progress-phase">{{ t.autoTagModal.batchProgressTitle }}</span>
+              <span class="progress-ratio">
+                {{
+                  t.autoTagModal.batchProgressRatio
+                    .replace('{current}', String(batchProgress.current))
+                    .replace('{total}', String(batchProgress.total))
+                    .replace('{percent}', String(Math.floor(batchProgress.percent)))
+                }}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="cancel-batch-btn"
+              @click="cancelBatchAutoTag"
+            >
+              {{ t.autoTagModal.cancelBatch }}
+            </button>
+          </div>
+          <div class="progress-bar-track">
+            <div
+              class="progress-bar-fill"
+              :style="{ width: `${Math.min(100, Math.max(0, batchProgress.percent))}%` }"
+            ></div>
+          </div>
+          <div class="progress-info-row">
+            <span class="file-name-hint">{{ batchProgress.current_file }}</span>
+            <span v-if="batchProgress.failed_files > 0" class="failed-badge">
+              {{ batchProgress.failed_files }} failed
+            </span>
           </div>
         </div>
 
@@ -575,13 +768,13 @@ onUnmounted(() => {
             v-if="selectedFileCount > 1"
             type="button"
             class="btn-primary batch-btn"
-            :disabled="isApplying || isDetecting || !loadedModel || isDownloading"
+            :disabled="isApplying || isDetecting || !loadedModel || isDownloading || effectiveBatchFileIds.length === 0"
             @click="applyToBatch"
           >
             {{
-              isApplying
+              isApplyingBatch
                 ? t.autoTagModal.tagging
-                : t.autoTagModal.applyToBatch.replace('{count}', String(selectedFileCount))
+                : t.autoTagModal.applyToBatch.replace('{count}', String(effectiveBatchFileIds.length))
             }}
           </button>
 
@@ -593,7 +786,7 @@ onUnmounted(() => {
             :disabled="isApplying || isDetecting || !loadedModel || isDownloading"
             @click="applyToCurrent"
           >
-            {{ isApplying ? t.autoTagModal.tagging : t.autoTagModal.applyToCurrent }}
+            {{ isApplyingCurrent ? t.autoTagModal.tagging : t.autoTagModal.applyToCurrent }}
           </button>
         </div>
       </div>
@@ -749,6 +942,24 @@ onUnmounted(() => {
 
 .model-dropdown:focus {
   border-color: #6366f1;
+}
+
+.unload-btn {
+  background: var(--color-bg-primary);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.unload-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
 }
 
 .browse-btn {
@@ -981,6 +1192,93 @@ onUnmounted(() => {
   opacity: 1;
 }
 
+.batch-progress-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(99, 102, 241, 0.04);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-phase {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.progress-ratio {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6366f1;
+}
+
+.cancel-batch-btn {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--color-text-primary);
+  opacity: 0.9;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancel-batch-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  opacity: 1;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.progress-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.file-name-hint {
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failed-badge {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 .controls-grid {
   display: flex;
   flex-direction: column;
@@ -1064,6 +1362,32 @@ onUnmounted(() => {
   border: 1px solid var(--border-color);
   color: var(--color-text-primary);
   padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.scope-opts-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.scope-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.scope-select {
+  flex: 1;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--color-text-primary);
+  padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.78rem;
   outline: none;

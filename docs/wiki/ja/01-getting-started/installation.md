@@ -28,6 +28,12 @@ Omera は、**Tauri v2**、**Rust**、および **SQLite WAL** を基盤とし�
 公式リリースパッケージは、[GitHub Releases ページ](https://github.com/BerryUIKI/Omera/releases) または [公式ウェブサイト](https://berryuiki.github.io/Omera/) からダウンロードできます。
 
 ### Windows
+互換性のある Microsoft Visual C++ x64 システムランタイムが必要です。案内が表示されたら、
+[Microsoft 公式ダウンロードページ](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) を開き、
+最新の **x64** 再頒布可能パッケージをインストールまたは修復してください（管理者の承認が必要な場合があります）。
+その後 EXE インストーラーに戻り「次へ」をクリックします。MSI の場合はセットアップを再実行してください。
+サイレント／パッシブセットアップはランタイムが不足すると停止します。Omera はランタイム DLL を同梱せず、自動インストールもしません。
+
 1. **標準インストーラー (`Omera_Windows_x64.exe`)**:
    - インストーラーの実行ファイルをダブルクリックします。
    - セットアップウィザードに従い、インストール先フォルダの指定やデスクトップ／スタートメニューのショートカット作成を行います。
