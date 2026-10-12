@@ -29,7 +29,10 @@ Download official production packages from the [GitHub Releases Page](https://gi
 
 ### Windows
 Setup requires Microsoft Visual C++ v14 Redistributable (x64), with a version
-equal to or newer than the minimum displayed by the installer. An installed x64
+of **14.29.30157.0 or newer** for new builds. This Visual C++ 2019 baseline comes
+from the application dependencies rather than the build machine's installed
+runtime. Previously downloaded 0.4.4 installers retain their embedded requirement
+until a new installer is released. An installed x64
 runtime can still be too old. Setup distinguishes a missing registration, an
 outdated DLL (showing its detected version), and a missing or unreadable DLL.
 It checks x64 registration in both registry views and verifies native System32

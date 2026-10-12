@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { escapeNsis, installerLocales, renderNsis, renderWix, runtimeDownloadUrl } from '../scripts/prepare-installer-prerequisites.mjs';
+import { escapeNsis, installerLocales, minimumRuntimeVersion, renderNsis, renderWix, runtimeDownloadUrl } from '../scripts/prepare-installer-prerequisites.mjs';
 
 test('installer strings preserve literal NSIS metacharacters', () => {
   assert.equal(escapeNsis('A $value "quoted"\nnext'), 'A $$value $\\"quoted$\\"$\\r$\\nnext');
@@ -35,6 +35,7 @@ test('compiled NSIS prerequisite gate stops unmet requirements before later sect
       const installed = nativeRuntimeVersion();
       for (const [name, version, expected, language = 1033] of [
         ['compatible', '0.0.0.0', 0],
+        ['declared-minimum', minimumRuntimeVersion, 0],
         ['installed', installed, 0],
         ['outdated', newerVersion(installed), 1603],
         ['unmet', '99.0.0.0', 1603],
@@ -111,7 +112,7 @@ SectionEnd
     }
   });
 
-test('prerequisite messages cover all installer languages and the exact build minimum', () => {
+test('prerequisite messages cover all installer languages and the declared minimum', () => {
   const rendered = renderNsis('14.51.36260.0');
   assert.equal(installerLocales.length, 7);
   for (const [id, locale] of installerLocales) {
@@ -155,6 +156,7 @@ test('compiled MSI searches reject old runtimes before transactions while allowi
       const installed = nativeRuntimeVersion();
       for (const [name, version, missing] of [
         ['compatible', '0.0.0.0', '0'],
+        ['declared-minimum', minimumRuntimeVersion, '0'],
         ['installed', installed, '0'],
         ['outdated', newerVersion(installed), '1'],
         ['unmet', '99.0.0.0', '1'],

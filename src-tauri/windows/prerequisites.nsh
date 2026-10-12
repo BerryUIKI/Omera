@@ -48,13 +48,7 @@ Function OmeraCheckRuntime
   ${EndIf}
   ; NSIS is 32-bit: inspect native System32, not redirected SysWOW64.
   ${DisableX64FSRedirection}
-  !insertmacro OmeraCheckRuntimeDll "msvcp140.dll"
-  !insertmacro OmeraCheckRuntimeDll "msvcp140_1.dll"
-  !insertmacro OmeraCheckRuntimeDll "msvcp140_2.dll"
-  !insertmacro OmeraCheckRuntimeDll "msvcp140_atomic_wait.dll"
-  !insertmacro OmeraCheckRuntimeDll "msvcp140_codecvt_ids.dll"
-  !insertmacro OmeraCheckRuntimeDll "vcruntime140.dll"
-  !insertmacro OmeraCheckRuntimeDll "vcruntime140_1.dll"
+  !insertmacro OmeraCheckRequiredRuntimeDlls
   StrCpy $OmeraRuntimeReady 1
   StrCpy $OmeraRuntimeDetails ""
   omera_runtime_files_missing:
