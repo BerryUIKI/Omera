@@ -5,6 +5,36 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-10-12
+
+### Fixed
+
+- Windows setup now requires Visual C++ 2019 x64 `14.29.30157.0` instead of
+  inheriting the build machine's newer runtime version. Compatible existing
+  installations can continue without an unnecessary runtime upgrade. The floor
+  is verified against the required CRT imports and a native ONNX CPU inference
+  fixture using the baseline DLLs.
+- Runtime checks search both registry views and verify the four required native
+  system DLLs. Setup explains missing or outdated files with their detected
+  versions and links directly to Microsoft's official x64 redistributable.
+
+### Added
+
+- Windows EXE setup defaults to the system language and lets users select English,
+  Simplified Chinese, Traditional Chinese, Japanese, German, French or Spanish.
+  Runtime guidance and language-selection text are localized. Silent and passive
+  update installations remain free of language-selection dialogs.
+
+### Release testing
+
+Automated regressions, native runtime compatibility and actual Windows installer
+compilation are checked separately from installed-update acceptance. The owner
+authorized this patch release; further Windows Sandbox testing remains deferred.
+The complete Windows x64, macOS Apple Silicon and Linux x64 installed-update
+matrix remains pending ([#256](https://github.com/BerryUIKI/Omera/issues/256)).
+
+---
+
 ## [0.4.4] - 2026-10-12
 
 ### Added

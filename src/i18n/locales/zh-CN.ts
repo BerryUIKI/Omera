@@ -2,12 +2,17 @@ import type { en } from "./en";
 
 export const zhCN: typeof en = {
   installer: {
-    runtimeTitle: "需要 Windows 运行环境",
-    runtimeHelp: "Omera 需要 Microsoft Visual C++ x64。请打开微软下载页面，安装最新的 x64 可再发行组件，然后返回此处并选择“下一步”。Windows 可能会请求管理员批准。",
-    runtimeDownload: "打开微软下载页面",
-    runtimeMinimum: "最低运行环境版本：{version}",
-    runtimeMissing: "所需的 x64 运行环境仍缺失或版本过旧。请安装或修复微软的 x64 可再发行组件后再继续。",
-    runtimeSilent: "Omera 需要 Microsoft Visual C++ x64。请从 https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist 安装最新的 x64 可再发行组件，然后重新运行安装程序。",
+    languageTitle: "安装器语言",
+    languagePrompt: "请选择安装程序使用的语言。",
+    runtimeTitle: "需要 Visual C++ 运行库",
+    runtimeHelp: "Omera 需要 Microsoft Visual C++ v14 可再发行组件（x64）。请安装或修复此运行库，然后返回此处并选择“下一步”。Windows 可能会请求管理员批准。",
+    runtimeDownload: "下载 Microsoft Visual C++ v14 可再发行组件（x64）",
+    runtimeMinimum: "所需 x64 运行库版本：{version} 或更高",
+    runtimeMissing: "请安装或修复 Microsoft Visual C++ v14 可再发行组件（x64），然后重试。",
+    runtimeNotInstalled: "未找到已注册的 Microsoft Visual C++ v14 x64 运行库。",
+    runtimeOutdated: "已检测到 {file}：{detectedVersion}。此 x64 运行库版本低于要求。",
+    runtimeFileMissing: "x64 运行库已注册，但 {file} 缺失或无法读取。请修复 Microsoft Visual C++ v14 可再发行组件（x64）。",
+    runtimeSilent: "Omera 需要 Microsoft Visual C++ v14 可再发行组件（x64）。请从 {downloadUrl} 安装最新的运行库，然后重新运行安装程序。",
   },
   review: {
     indexFailures: "{count} 张图像处理失败。再次运行索引以重试。",
