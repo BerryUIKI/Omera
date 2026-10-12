@@ -23,7 +23,7 @@ export function githubRequest(path, execute = spawnSync) {
   try {
     if (!separator) throw new Error('Missing response body');
     const body = JSON.parse(output.slice(separator.index + separator[0].length));
-    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid response');
+    if (!body || typeof body !== 'object') throw new Error('Invalid response');
     return body;
   } catch { throw new Error('Invalid release API response; publication is blocked'); }
 }
@@ -33,8 +33,20 @@ function repository(env) {
   return `repos/${env.GITHUB_REPOSITORY}`;
 }
 
+function findReleaseByTag(tag, repo, request) {
+  const perPage = 100;
+  for (let page = 1; page <= 1000; page += 1) {
+    const releases = request(`${repo}/releases?per_page=${perPage}&page=${page}`);
+    if (!Array.isArray(releases)) throw new Error('Release listing unavailable; publication is blocked');
+    const release = releases.find(item => item?.tag_name === tag);
+    if (release) return release;
+    if (releases.length < perPage) return null;
+  }
+  throw new Error('Release listing exceeded the pagination safety limit; publication is blocked');
+}
+
 function checkRelease(tag, repo, request, allowMissing) {
-  const release = request(`${repo}/releases/tags/${encodeURIComponent(tag)}`);
+  const release = findReleaseByTag(tag, repo, request);
   if (release === null && allowMissing) return;
   if (!release || release.tag_name !== tag || release.draft !== true)
     throw new Error('Release must be a draft; published assets cannot be overwritten');

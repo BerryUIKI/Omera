@@ -7,9 +7,10 @@ const versions = { packageJson: '0.4.3', cargoToml: '0.4.3', tauriConf: '0.4.3' 
 const head = 'a'.repeat(40);
 const tagSha = 'b'.repeat(40);
 const repo = 'repos/BerryUIKI/Omera';
+const releaseListPath = `${repo}/releases?per_page=100&page=1`;
 function responses(overrides = {}) {
   const data = {
-    [`${repo}/releases/tags/v0.4.3`]: null,
+    [releaseListPath]: [],
     [`${repo}/git/ref/tags/v0.4.3`]: { object: { type: 'tag', sha: tagSha } },
     [`${repo}/git/tags/${tagSha}`]: { object: { type: 'commit', sha: head } },
     [`${repo}/compare/${head}...main`]: { status: 'ahead' },
@@ -37,21 +38,26 @@ test('only explicit HTTP 404 means absent; API failures remain blocking', () => 
   });
   assert.equal(githubRequest('fixture', response(404, '{}')), null);
   assert.deepEqual(githubRequest('fixture', response(200, '{"draft":true}')), { draft: true });
+  assert.deepEqual(githubRequest('fixture', response(200, '[{"draft":true}]')), [{ draft: true }]);
   for (const status of [401, 403, 429, 500]) assert.throws(() => githubRequest('fixture', response(status, '{}')), /failed/);
   assert.throws(() => githubRequest('fixture', () => ({ status: 1, stdout: '', stderr: 'network unavailable' })), /failed/);
   assert.throws(() => githubRequest('fixture', () => ({ error: new Error('spawn failed'), stdout: 'HTTP/2.0 404' })), /failed/);
-  for (const body of ['not json', 'null', '[]']) assert.throws(() => githubRequest('fixture', response(200, body)), /Invalid/);
+  for (const body of ['not json', 'null', '7', '"text"'])
+    assert.throws(() => githubRequest('fixture', response(200, body)), /Invalid/);
 });
 
 test('release preflight accepts an existing main-integrated tag and resumable draft', () => {
   assert.equal(preflight(), head);
-  assert.equal(preflight({ [`${repo}/releases/tags/v0.4.3`]: { tag_name: 'v0.4.3', draft: true } }), head);
+  assert.equal(preflight({ [releaseListPath]: [{ tag_name: 'v0.4.3', draft: true }] }), head);
+  const firstPage = Array.from({ length: 100 }, (_, index) => ({ tag_name: `other-${index}`, draft: true }));
+  assert.equal(preflight({ [releaseListPath]: firstPage,
+    [`${repo}/releases?per_page=100&page=2`]: [{ tag_name: 'v0.4.3', draft: true }] }), head);
   assert.equal(preflight({ [`${repo}/git/ref/tags/v0.4.3`]: { object: { type: 'commit', sha: head } },
     [`${repo}/compare/${head}...main`]: { status: 'identical' } }), head);
 });
 
 test('preflight blocks published releases, missing or different tags, and development-only commits', () => {
-  assert.throws(() => preflight({ [`${repo}/releases/tags/v0.4.3`]: { tag_name: 'v0.4.3', draft: false } }), /published assets/);
+  assert.throws(() => preflight({ [releaseListPath]: [{ tag_name: 'v0.4.3', draft: false }] }), /published assets/);
   assert.throws(() => preflight({ [`${repo}/git/ref/tags/v0.4.3`]: null }), /checked-out/);
   assert.throws(() => preflight({}, { head: 'c'.repeat(40) }), /checked-out/);
   for (const status of ['behind', 'diverged', undefined])
@@ -62,8 +68,9 @@ test('preflight blocks published releases, missing or different tags, and develo
 
 test('upload and promotion gates require an existing draft, never an absent or published release', () => {
   const draft = { tag_name: env.RELEASE_TAG, draft: true };
-  assert.doesNotThrow(() => requireDraftRelease(env, responses({ [`${repo}/releases/tags/v0.4.3`]: draft }), versions));
+  assert.doesNotThrow(() => requireDraftRelease(env, responses({ [releaseListPath]: [draft] }), versions));
   assert.throws(() => requireDraftRelease(env, responses(), versions), /must be a draft/);
   for (const release of [{ ...draft, draft: false }, { ...draft, tag_name: 'v0.4.2' }, {}])
-    assert.throws(() => requireDraftRelease(env, responses({ [`${repo}/releases/tags/v0.4.3`]: release }), versions), /must be a draft/);
+    assert.throws(() => requireDraftRelease(env, responses({ [releaseListPath]: [release] }), versions), /must be a draft/);
+  assert.throws(() => requireDraftRelease(env, responses({ [releaseListPath]: null }), versions), /listing unavailable/);
 });
