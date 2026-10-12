@@ -68,7 +68,7 @@ export function renderNsis(minimum) {
 
 export function prepare() {
   if (process.platform !== 'win32') return;
-  const minimum = execFileSync('powershell.exe', ['-NoProfile', '-File',
+  const minimum = execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
     path.join(root, 'src-tauri/windows/runtime-version.ps1')], { encoding: 'utf8' }).trim();
   const destination = path.join(root, 'src-tauri/windows/generated');
   fs.mkdirSync(destination, { recursive: true });

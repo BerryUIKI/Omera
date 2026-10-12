@@ -12,13 +12,32 @@ test('installer strings preserve literal NSIS metacharacters', () => {
 
 const nsis = process.platform === 'win32'
   ? path.join(process.env.LOCALAPPDATA, 'tauri/NSIS/makensis.exe') : '';
+
+function nativeRuntimeVersion() {
+  return execFileSync('powershell.exe', ['-NoProfile', '-Command',
+    "(Get-Item -LiteralPath (Join-Path $env:windir 'System32\\msvcp140.dll')).VersionInfo.FileVersionRaw.ToString()"],
+  { encoding: 'utf8' }).trim();
+}
+
+function newerVersion(version) {
+  const parts = version.split('.').map(Number);
+  parts[3] += 1;
+  return parts.join('.');
+}
+
 test('compiled NSIS prerequisite gate stops unmet requirements before later sections',
   { skip: !nsis || !fs.existsSync(nsis) }, () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'omera-prerequisite-test-'));
     try {
       fs.mkdirSync(path.join(root, 'generated'));
       fs.copyFileSync('src-tauri/windows/prerequisites.nsh', path.join(root, 'prerequisites.nsh'));
-      for (const [name, version, expected] of [['compatible', '0.0.0.0', 0], ['unmet', '99.0.0.0', 1603]]) {
+      const installed = nativeRuntimeVersion();
+      for (const [name, version, expected] of [
+        ['compatible', '0.0.0.0', 0],
+        ['installed', installed, 0],
+        ['outdated', newerVersion(installed), 1603],
+        ['unmet', '99.0.0.0', 1603],
+      ]) {
         fs.writeFileSync(path.join(root, 'generated/prerequisites.nsh'), renderNsis(version));
         const marker = path.join(root, `${name}.txt`);
         const exe = path.join(root, `${name}.exe`);
@@ -96,14 +115,20 @@ test('compiled MSI searches reject old runtimes before transactions while allowi
     </Feature>
   </Product>
 </Wix>`);
-      for (const [name, version, missing] of [['compatible', '0.0.0.0', '0'], ['unmet', '99.0.0.0', '1']]) {
+      const installed = nativeRuntimeVersion();
+      for (const [name, version, missing] of [
+        ['compatible', '0.0.0.0', '0'],
+        ['installed', installed, '0'],
+        ['outdated', newerVersion(installed), '1'],
+        ['unmet', '99.0.0.0', '1'],
+      ]) {
         fs.writeFileSync(path.join(root, 'runtime.wxs'), renderWix(version));
         const msi = path.join(root, `${name}.msi`);
         execFileSync(path.join(wix, 'candle.exe'), ['-nologo', '-arch', 'x64',
           '-out', root + path.sep, path.join(root, 'main.wxs'), path.join(root, 'runtime.wxs')], { stdio: 'pipe' });
         execFileSync(path.join(wix, 'light.exe'), ['-nologo', '-sval', '-out', msi,
           path.join(root, 'main.wixobj'), path.join(root, 'runtime.wixobj')], { stdio: 'pipe' });
-        execFileSync('powershell.exe', ['-NoProfile', '-File',
+        execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
           path.resolve('tests/helpers/check-msi-prerequisites.ps1'), '-Package', msi,
           '-ExpectedMissing', missing], { stdio: 'pipe' });
       }
