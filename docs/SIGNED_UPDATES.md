@@ -287,3 +287,29 @@ updates were already tested with no issues. Record this as owner-reported succes
 the precise platform, old/new versions and exercised stages have not yet been
 provided. Do not repeat the deferred Sandbox test or infer full platform coverage.
 Continue the approved 0.4.4 release and its automated/package-signing gates.
+
+### Installed x64 runtime warning diagnosis — 2026-10-12
+
+The owner reported that setup still requested Visual C++ despite an installed
+x64 runtime. Both host registry views report `14.50.35719.0`, and all seven
+native System32 runtime files have that version. The owner's downloaded
+`Omera_0.4.4_x64-setup.exe` embeds a minimum of `14.51.36247.0`. The runtime is
+present but older than this package's requirement; this observation does not
+justify lowering the minimum or requiring end users to install developer tools.
+
+NSIS now distinguishes absent registration, an outdated file (with filename and
+detected version), and a missing/unreadable file. The required minimum remains
+visible on the page and in retry errors. NSIS and MSI both discover x64 runtime
+registration in either registry view while still validating native x64 files.
+All seven locales identify Microsoft Visual C++ v14 Redistributable (x64).
+The explicit download link opens Microsoft's official x64 runtime permalink;
+setup never launches the downloaded installer. Build Tools and the Windows SDK
+remain source-build requirements rather than packaged-app prerequisites.
+
+Compiled NSIS fixtures now test the host's actual runtime version, equality at
+the minimum, a newer required version, and an impossible minimum. They verify
+the detected version in diagnostics, continuation for compatible files, and
+silent/passive rejection before the marker section. MSI fixtures cover the same
+version boundaries using AppSearch-only safe sessions, transaction ordering and
+the uninstall exemption. No host application was installed or replaced during
+these checks.

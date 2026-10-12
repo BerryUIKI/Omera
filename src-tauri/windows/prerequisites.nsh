@@ -121,7 +121,7 @@ FunctionEnd
 
 Function OmeraRuntimeDownload
   Pop $0
-  ExecShell "open" "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist"
+  ExecShell "open" "${OMERA_CRT_DOWNLOAD_URL}"
 FunctionEnd
 
 Function OmeraRuntimeLeave

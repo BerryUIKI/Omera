@@ -4,13 +4,13 @@ export const es: typeof en = {
   installer: {
     runtimeTitle: "Se requiere el runtime de Visual C++",
     runtimeHelp: "Omera requiere Microsoft Visual C++ v14 Redistributable (x64). Instale o repare este runtime y vuelva aquí para elegir Siguiente. Windows puede solicitar autorización de administrador.",
-    runtimeDownload: "Abrir la página de descargas de Microsoft",
+    runtimeDownload: "Descargar Microsoft Visual C++ v14 Redistributable (x64)",
     runtimeMinimum: "Versión requerida del runtime x64: {version} o posterior",
     runtimeMissing: "Instale o repare Microsoft Visual C++ v14 Redistributable (x64) y vuelva a intentarlo.",
     runtimeNotInstalled: "No se encontró un runtime Microsoft Visual C++ v14 x64 registrado.",
     runtimeOutdated: "Detectado: {file}, versión {detectedVersion}. Esta versión del runtime x64 es demasiado antigua.",
     runtimeFileMissing: "El runtime x64 está registrado, pero {file} falta o no se puede leer. Repare Microsoft Visual C++ v14 Redistributable (x64).",
-    runtimeSilent: "Omera requiere Microsoft Visual C++ x64. Instale el redistribuible x64 más reciente desde https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist y vuelva a ejecutar el instalador.",
+    runtimeSilent: "Omera requiere Microsoft Visual C++ v14 Redistributable (x64). Instale el runtime más reciente desde {downloadUrl} y vuelva a ejecutar el instalador.",
   },
   review: {
     indexFailures: "Fallaron {count} imágenes. Ejecute la indexación de nuevo para reintentar.",

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { escapeNsis, installerLocales, renderNsis, renderWix } from '../scripts/prepare-installer-prerequisites.mjs';
+import { escapeNsis, installerLocales, renderNsis, renderWix, runtimeDownloadUrl } from '../scripts/prepare-installer-prerequisites.mjs';
 
 test('installer strings preserve literal NSIS metacharacters', () => {
   assert.equal(escapeNsis('A $value "quoted"\nnext'), 'A $$value $\\"quoted$\\"$\\r$\\nnext');
@@ -101,7 +101,7 @@ test('prerequisite messages cover all installer languages and the exact build mi
   assert.equal(installerLocales.length, 7);
   for (const [id, locale] of installerLocales) {
     assert.ok(locale.installer.runtimeHelp.length > 30);
-    assert.match(locale.installer.runtimeSilent, /https:\/\/learn.microsoft.com\/cpp\/windows\/latest-supported-vc-redist/);
+    assert.ok(locale.installer.runtimeSilent.includes('{downloadUrl}'));
     for (const key of Object.keys(locale.installer)) {
       assert.ok(rendered.includes(`LangString Omera_${key} ${id} `));
     }
@@ -109,6 +109,9 @@ test('prerequisite messages cover all installer languages and the exact build mi
   assert.equal(rendered.includes('{version}'), false);
   assert.equal(rendered.includes('{detectedVersion}'), false);
   assert.equal(rendered.includes('{file}'), false);
+  assert.equal(rendered.includes('{downloadUrl}'), false);
+  assert.ok(rendered.includes(runtimeDownloadUrl));
+  assert.ok(renderWix('14.51.36260.0').includes(runtimeDownloadUrl));
   assert.ok(rendered.includes('$OmeraRuntimeVersion'));
   assert.ok(rendered.includes('$OmeraRuntimeFile'));
   assert.ok(rendered.includes('14.51.36260.0'));
