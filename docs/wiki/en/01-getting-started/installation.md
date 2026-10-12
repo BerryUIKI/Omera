@@ -28,15 +28,32 @@ Omera uses an ultra-efficient native architecture powered by **Tauri v2**, **Rus
 Download official production packages from the [GitHub Releases Page](https://github.com/BerryUIKI/Omera/releases) or the [Official Website](https://berryuiki.github.io/Omera/).
 
 ### Windows
-Setup requires a compatible Microsoft Visual C++ x64 system runtime. If prompted,
-open the [official Microsoft download page](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist),
-install or repair the latest **x64** redistributable (administrator approval may
+Setup requires Microsoft Visual C++ v14 Redistributable (x64), with a version
+of **14.29.30157.0 or newer** for new builds. This Visual C++ 2019 baseline comes
+from the application dependencies rather than the build machine's installed
+runtime. Previously downloaded 0.4.4 installers retain their embedded requirement
+until a new installer is released. An installed x64
+runtime can still be too old. Setup distinguishes a missing registration, an
+outdated DLL (showing its detected version), and a missing or unreadable DLL.
+It checks x64 registration in both registry views and verifies native System32
+files, so an x86 runtime cannot satisfy this requirement.
+
+If prompted, use the installer's download link or the
+[official x64 runtime download](https://aka.ms/vc14/vc_redist.x64.exe),
+install or repair the runtime (administrator approval may
 be required), then return to the EXE installer and click Next. For MSI, rerun
 setup after installing the runtime. Silent/passive setup stops when it is missing;
 Omera does not bundle runtime DLLs or install the redistributable automatically.
+Visual Studio Build Tools and the Windows SDK are source-build dependencies;
+running the packaged application requires the redistributable runtime. See
+[Microsoft's runtime deployment guidance](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
 1. **Standard Installer (`Omera_Windows_x64.exe`)**:
    - Double-click the installer executable.
+   - The language selector defaults to the Windows UI language. Choose English,
+     Simplified Chinese, Traditional Chinese, Japanese, German, French, or Spanish.
+     Unsupported system languages fall back to English. The selected language
+     applies to the runtime prerequisite page and the rest of setup.
    - Follow the setup wizard to choose the installation location and create desktop/start menu shortcuts.
    - The installer automatically manages desktop shortcuts and register protocol handlers.
 2. **Portable ZIP (`Omera_Windows_x64.zip`)**:

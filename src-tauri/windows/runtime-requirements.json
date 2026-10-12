@@ -1,0 +1,8 @@
+{
+  "minimumVersion": "14.29.30157.0",
+  "dlls": ["msvcp140", "msvcp140_1", "vcruntime140", "vcruntime140_1"],
+  "references": [
+    "https://onnxruntime.ai/docs/install/",
+    "https://learn.microsoft.com/en-us/lifecycle/faq/visual-c-faq"
+  ]
+}

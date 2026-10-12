@@ -287,3 +287,95 @@ updates were already tested with no issues. Record this as owner-reported succes
 the precise platform, old/new versions and exercised stages have not yet been
 provided. Do not repeat the deferred Sandbox test or infer full platform coverage.
 Continue the approved 0.4.4 release and its automated/package-signing gates.
+
+### Installed x64 runtime warning diagnosis — 2026-10-12
+
+The owner reported that setup still requested Visual C++ despite an installed
+x64 runtime. Both host registry views report `14.50.35719.0`, and all seven
+native System32 runtime files have that version. The owner's downloaded
+`Omera_0.4.4_x64-setup.exe` embeds a minimum of `14.51.36247.0`. The runtime is
+present but older than this package's requirement; this observation does not
+justify lowering the minimum or requiring end users to install developer tools.
+
+NSIS now distinguishes absent registration, an outdated file (with filename and
+detected version), and a missing/unreadable file. The required minimum remains
+visible on the page and in retry errors. NSIS and MSI both discover x64 runtime
+registration in either registry view while still validating native x64 files.
+All seven locales identify Microsoft Visual C++ v14 Redistributable (x64).
+The explicit download link opens Microsoft's official x64 runtime permalink;
+setup never launches the downloaded installer. Build Tools and the Windows SDK
+remain source-build requirements rather than packaged-app prerequisites.
+
+Compiled NSIS fixtures now test the host's actual runtime version, equality at
+the minimum, a newer required version, and an impossible minimum. They verify
+the detected version in diagnostics, continuation for compatible files, and
+silent/passive rejection before the marker section. MSI fixtures cover the same
+version boundaries using AppSearch-only safe sessions, transaction ordering and
+the uninstall exemption. No host application was installed or replaced during
+these checks.
+
+The owner also requested system-language defaults with an explicit language
+choice. The NSIS EXE now enables Tauri's language selector for English,
+Simplified Chinese, Traditional Chinese, Japanese, German, French and Spanish.
+Windows UI language is the initial default, with English as the fallback;
+the user's choice applies before the runtime prerequisite page is displayed.
+The selector title and prompt are localized too. Silent/passive updates skip
+the dialog and reuse the saved installer language when present. The NSIS
+language macro is adapted narrowly to suppress Tauri's passive-mode dialog;
+keep this adaptation compatible when upgrading the bundled NSIS/Tauri tooling.
+
+Validation of this follow-up on Windows: frontend build, all 266 frontend
+regressions, `cargo fmt --check`, Clippy with denied warnings, and all 385 Rust
+tests passed. The NSIS fixture checks all seven localized diagnostics and
+silent/passive rejection without a language-dialog timeout. Actual Tauri debug
+EXE/MSI packages compiled; the generated NSIS script enables the selector and
+all seven languages, and the actual MSI passed AppSearch-only safe-session
+checks. These are local packaging/fixture checks, not a new published release
+or installed-update qualification.
+
+### Dependency-based Windows runtime floor — 2026-10-12
+
+The owner requested a lower requirement based on what can run the application.
+This supersedes the earlier build-machine redistributable metadata rule.
+[ONNX Runtime documents Visual C++ 2019](https://onnxruntime.ai/docs/install/)
+as its Windows requirement; Microsoft's version table lists the serviced VS 2019
+runtime as `14.29.30157`. New packages now use the fixed x64 floor
+`14.29.30157.0` from `windows/runtime-requirements.json`, shared by NSIS and MSI.
+Only `msvcp140`, `msvcp140_1`, `vcruntime140`, and `vcruntime140_1` are required;
+the three unrelated optional CRT DLL checks are removed. Runtime discovery,
+multilingual guidance and silent/passive install safeguards remain in place.
+
+The signed Microsoft 2019 redistributable was downloaded and extracted into an
+ignored fixture directory without installing it or changing system files.
+The published 0.4.4 executable and local debug executable each import 206 CRT
+functions; every import exists in the baseline exports. The new `runtime-smoke`
+example uses the same ONNX dependency as Omera and passed synthetic Identity
+inference with four intra-op threads. Its module-path output confirms that all
+four loaded runtime DLLs came from the isolated `14.29.30157.0` fixture rather
+than the host's `14.50` runtime. This is the documented and locally verified
+minimum; older, unqualified runtime versions are not claimed compatible.
+
+Previously downloaded installers retain their embedded `14.51` requirement;
+this source change requires a new package. See [RELEASING.md](RELEASING.md) for
+the native dependency/toolchain requalification rule. CRT fixture DLLs are not
+bundled with the application and no host application was installed or replaced.
+
+Follow-up checks passed: frontend build, all 266 frontend regressions,
+formatting, Clippy across all workspace targets with denied warnings, and all
+385 Rust tests. Actual debug EXE/MSI installers were repackaged; the EXE header
+contains `14.29.30157.0`, and the MSI passed its AppSearch-only safe-session
+checks. This follow-up has not published or replaced release assets.
+
+### Owner-approved 0.4.5 patch release — 2026-10-12
+
+The owner authorized a patch-version bump and publication of the runtime
+detection and multilingual installer fixes. Prepare 0.4.5 through `dev` into
+release-only `main`, preserving the existing commits and signing trust. This
+extends the owner's release authorization to this successor while retaining
+the deferred Windows Sandbox decision and pending installed-update matrix.
+It does not close #256 or establish additional installed-platform acceptance.
+
+Require automated regressions, actual Windows installer compilation, baseline
+CRT import/inference qualification and the existing production signing,
+notarization and downloaded-asset verification gates. Release notes disclose
+the pending native acceptance. Do not overwrite the published 0.4.4 packages.

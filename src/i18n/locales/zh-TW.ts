@@ -2,12 +2,17 @@ import type { en } from "./en";
 
 export const zhTW: typeof en = {
   installer: {
-    runtimeTitle: "需要 Windows 執行環境",
-    runtimeHelp: "Omera 需要 Microsoft Visual C++ x64。請開啟微軟下載頁面，安裝最新的 x64 可轉散發套件，再返回此處並選擇「下一步」。Windows 可能會要求管理員核准。",
-    runtimeDownload: "開啟微軟下載頁面",
-    runtimeMinimum: "最低執行環境版本：{version}",
-    runtimeMissing: "所需的 x64 執行環境仍遺失或版本過舊。請安裝或修復微軟的 x64 可轉散發套件後再繼續。",
-    runtimeSilent: "Omera 需要 Microsoft Visual C++ x64。請從 https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist 安裝最新的 x64 可轉散發套件，再重新執行安裝程式。",
+    languageTitle: "安裝程式語言",
+    languagePrompt: "請選擇安裝程式使用的語言。",
+    runtimeTitle: "需要 Visual C++ 執行階段",
+    runtimeHelp: "Omera 需要 Microsoft Visual C++ v14 可轉散發套件（x64）。請安裝或修復此執行階段，再返回此處並選擇「下一步」。Windows 可能會要求管理員核准。",
+    runtimeDownload: "下載 Microsoft Visual C++ v14 可轉散發套件（x64）",
+    runtimeMinimum: "所需 x64 執行階段版本：{version} 或更新版本",
+    runtimeMissing: "請安裝或修復 Microsoft Visual C++ v14 可轉散發套件（x64），然後重試。",
+    runtimeNotInstalled: "找不到已註冊的 Microsoft Visual C++ v14 x64 執行階段。",
+    runtimeOutdated: "已偵測到 {file}：{detectedVersion}。此 x64 執行階段版本低於要求。",
+    runtimeFileMissing: "x64 執行階段已註冊，但 {file} 遺失或無法讀取。請修復 Microsoft Visual C++ v14 可轉散發套件（x64）。",
+    runtimeSilent: "Omera 需要 Microsoft Visual C++ v14 可轉散發套件（x64）。請從 {downloadUrl} 安裝最新的執行階段，再重新執行安裝程式。",
   },
   review: {
     indexFailures: "{count} 張影像處理失敗。再次執行索引以重試。",
