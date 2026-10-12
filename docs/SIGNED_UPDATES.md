@@ -332,3 +332,36 @@ EXE/MSI packages compiled; the generated NSIS script enables the selector and
 all seven languages, and the actual MSI passed AppSearch-only safe-session
 checks. These are local packaging/fixture checks, not a new published release
 or installed-update qualification.
+
+### Dependency-based Windows runtime floor — 2026-10-12
+
+The owner requested a lower requirement based on what can run the application.
+This supersedes the earlier build-machine redistributable metadata rule.
+[ONNX Runtime documents Visual C++ 2019](https://onnxruntime.ai/docs/install/)
+as its Windows requirement; Microsoft's version table lists the serviced VS 2019
+runtime as `14.29.30157`. New packages now use the fixed x64 floor
+`14.29.30157.0` from `windows/runtime-requirements.json`, shared by NSIS and MSI.
+Only `msvcp140`, `msvcp140_1`, `vcruntime140`, and `vcruntime140_1` are required;
+the three unrelated optional CRT DLL checks are removed. Runtime discovery,
+multilingual guidance and silent/passive install safeguards remain in place.
+
+The signed Microsoft 2019 redistributable was downloaded and extracted into an
+ignored fixture directory without installing it or changing system files.
+The published 0.4.4 executable and local debug executable each import 206 CRT
+functions; every import exists in the baseline exports. The new `runtime-smoke`
+example uses the same ONNX dependency as Omera and passed synthetic Identity
+inference with four intra-op threads. Its module-path output confirms that all
+four loaded runtime DLLs came from the isolated `14.29.30157.0` fixture rather
+than the host's `14.50` runtime. This is the documented and locally verified
+minimum; older, unqualified runtime versions are not claimed compatible.
+
+Previously downloaded installers retain their embedded `14.51` requirement;
+this source change requires a new package. See [RELEASING.md](RELEASING.md) for
+the native dependency/toolchain requalification rule. CRT fixture DLLs are not
+bundled with the application and no host application was installed or replaced.
+
+Follow-up checks passed: frontend build, all 266 frontend regressions,
+formatting, Clippy across all workspace targets with denied warnings, and all
+385 Rust tests. Actual debug EXE/MSI installers were repackaged; the EXE header
+contains `14.29.30157.0`, and the MSI passed its AppSearch-only safe-session
+checks. This follow-up has not published or replaced release assets.

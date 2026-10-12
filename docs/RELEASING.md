@@ -51,6 +51,24 @@ $$\text{<AppName>}\_\text{<OS>}\_\text{<Architecture>}.\text{<extension>}$$
 
 ## 🤖 Automated CI/CD Release Workflow
 
+### Windows runtime baseline
+
+New Windows packages declare Visual C++ 2019 x64 `14.29.30157.0` in
+`src-tauri/windows/runtime-requirements.json`. NSIS and MSI use this shared
+minimum and the four required CRT files. Never derive the floor from the build
+machine's newest installed redistributable. This follows
+[ONNX Runtime's Windows requirement](https://onnxruntime.ai/docs/install/) and
+[Microsoft's serviced Visual C++ 2019 version](https://learn.microsoft.com/en-us/lifecycle/faq/visual-c-faq).
+
+Requalify the baseline when native dependencies or toolchains change. Verify
+the final executable's CRT imports against the baseline DLL exports and run
+`cargo build -p omera-tagger --example runtime-smoke`. Run that synthetic CPU
+inference fixture in an isolated directory containing the four signed baseline
+DLLs; its output must confirm those module paths. Keep all baseline DLLs in
+ignored test directories and out of application packages. Do not replace a
+developer's system runtime for this check. Imported symbols alone do not verify
+C++ runtime behavior, which is why the inference fixture is also required.
+
 Releases are automatically built and published across all platforms via GitHub Actions (`.github/workflows/release.yml`) whenever a version tag is pushed:
 
 ```bash
