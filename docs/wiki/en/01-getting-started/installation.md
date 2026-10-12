@@ -47,6 +47,10 @@ running the packaged application requires the redistributable runtime. See
 
 1. **Standard Installer (`Omera_Windows_x64.exe`)**:
    - Double-click the installer executable.
+   - The language selector defaults to the Windows UI language. Choose English,
+     Simplified Chinese, Traditional Chinese, Japanese, German, French, or Spanish.
+     Unsupported system languages fall back to English. The selected language
+     applies to the runtime prerequisite page and the rest of setup.
    - Follow the setup wizard to choose the installation location and create desktop/start menu shortcuts.
    - The installer automatically manages desktop shortcuts and register protocol handlers.
 2. **Portable ZIP (`Omera_Windows_x64.zip`)**:

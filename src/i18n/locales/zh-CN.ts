@@ -2,6 +2,8 @@ import type { en } from "./en";
 
 export const zhCN: typeof en = {
   installer: {
+    languageTitle: "安装器语言",
+    languagePrompt: "请选择安装程序使用的语言。",
     runtimeTitle: "需要 Visual C++ 运行库",
     runtimeHelp: "Omera 需要 Microsoft Visual C++ v14 可再发行组件（x64）。请安装或修复此运行库，然后返回此处并选择“下一步”。Windows 可能会请求管理员批准。",
     runtimeDownload: "下载 Microsoft Visual C++ v14 可再发行组件（x64）",

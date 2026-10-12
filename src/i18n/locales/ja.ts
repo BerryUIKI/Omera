@@ -2,6 +2,8 @@ import type { en } from "./en";
 
 export const ja: typeof en = {
   installer: {
+    languageTitle: "インストーラーの言語",
+    languagePrompt: "セットアップで使用する言語を選択してください。",
     runtimeTitle: "Visual C++ ランタイムが必要です",
     runtimeHelp: "Omera には Microsoft Visual C++ v14 再頒布可能パッケージ (x64) が必要です。このランタイムをインストールまたは修復してから、ここに戻って「次へ」を選択してください。Windows が管理者の承認を求める場合があります。",
     runtimeDownload: "Microsoft Visual C++ v14 再頒布可能パッケージ (x64) をダウンロード",

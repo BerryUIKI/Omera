@@ -2,6 +2,8 @@ import type { en } from "./en";
 
 export const fr: typeof en = {
   installer: {
+    languageTitle: "Langue de l’installation",
+    languagePrompt: "Choisissez la langue de l’installation.",
     runtimeTitle: "Runtime Visual C++ requis",
     runtimeHelp: "Omera nécessite Microsoft Visual C++ v14 Redistributable (x64). Installez ou réparez ce runtime, puis revenez ici et choisissez Suivant. Windows peut demander une autorisation administrateur.",
     runtimeDownload: "Télécharger Microsoft Visual C++ v14 Redistributable (x64)",

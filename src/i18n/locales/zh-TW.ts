@@ -2,6 +2,8 @@ import type { en } from "./en";
 
 export const zhTW: typeof en = {
   installer: {
+    languageTitle: "安裝程式語言",
+    languagePrompt: "請選擇安裝程式使用的語言。",
     runtimeTitle: "需要 Visual C++ 執行階段",
     runtimeHelp: "Omera 需要 Microsoft Visual C++ v14 可轉散發套件（x64）。請安裝或修復此執行階段，再返回此處並選擇「下一步」。Windows 可能會要求管理員核准。",
     runtimeDownload: "下載 Microsoft Visual C++ v14 可轉散發套件（x64）",

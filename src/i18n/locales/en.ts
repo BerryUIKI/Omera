@@ -1,5 +1,7 @@
 export const en = {
   installer: {
+    languageTitle: "Installer language",
+    languagePrompt: "Choose the language for setup.",
     runtimeTitle: "Visual C++ runtime required",
     runtimeHelp: "Omera requires Microsoft Visual C++ v14 Redistributable (x64). Install or repair this runtime, then return here and choose Next. Windows may ask for administrator approval.",
     runtimeDownload: "Download Microsoft Visual C++ v14 Redistributable (x64)",

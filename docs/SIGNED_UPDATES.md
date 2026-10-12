@@ -313,3 +313,22 @@ silent/passive rejection before the marker section. MSI fixtures cover the same
 version boundaries using AppSearch-only safe sessions, transaction ordering and
 the uninstall exemption. No host application was installed or replaced during
 these checks.
+
+The owner also requested system-language defaults with an explicit language
+choice. The NSIS EXE now enables Tauri's language selector for English,
+Simplified Chinese, Traditional Chinese, Japanese, German, French and Spanish.
+Windows UI language is the initial default, with English as the fallback;
+the user's choice applies before the runtime prerequisite page is displayed.
+The selector title and prompt are localized too. Silent/passive updates skip
+the dialog and reuse the saved installer language when present. The NSIS
+language macro is adapted narrowly to suppress Tauri's passive-mode dialog;
+keep this adaptation compatible when upgrading the bundled NSIS/Tauri tooling.
+
+Validation of this follow-up on Windows: frontend build, all 266 frontend
+regressions, `cargo fmt --check`, Clippy with denied warnings, and all 385 Rust
+tests passed. The NSIS fixture checks all seven localized diagnostics and
+silent/passive rejection without a language-dialog timeout. Actual Tauri debug
+EXE/MSI packages compiled; the generated NSIS script enables the selector and
+all seven languages, and the actual MSI passed AppSearch-only safe-session
+checks. These are local packaging/fixture checks, not a new published release
+or installed-update qualification.

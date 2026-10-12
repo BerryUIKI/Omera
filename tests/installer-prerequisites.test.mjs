@@ -31,12 +31,14 @@ test('compiled NSIS prerequisite gate stops unmet requirements before later sect
     try {
       fs.mkdirSync(path.join(root, 'generated'));
       fs.copyFileSync('src-tauri/windows/prerequisites.nsh', path.join(root, 'prerequisites.nsh'));
+      fs.copyFileSync('src-tauri/windows/language-selector.nsh', path.join(root, 'language-selector.nsh'));
       const installed = nativeRuntimeVersion();
-      for (const [name, version, expected] of [
+      for (const [name, version, expected, language = 1033] of [
         ['compatible', '0.0.0.0', 0],
         ['installed', installed, 0],
         ['outdated', newerVersion(installed), 1603],
         ['unmet', '99.0.0.0', 1603],
+        ...installerLocales.slice(1).map(([id]) => [`outdated-${id}`, newerVersion(installed), 1603, id]),
       ]) {
         fs.writeFileSync(path.join(root, 'generated/prerequisites.nsh'), renderNsis(version));
         const marker = path.join(root, `${name}.txt`);
@@ -45,7 +47,12 @@ test('compiled NSIS prerequisite gate stops unmet requirements before later sect
         const script = path.join(root, `${name}.nsi`);
         fs.writeFileSync(script, `Unicode true
 !include "MUI2.nsh"
+Page custom OmeraRecordDiagnosticsPage
+Section "-Record diagnostics"
+Call OmeraRecordDiagnostics
+SectionEnd
 !include "${path.join(root, 'prerequisites.nsh')}"
+!include "${path.join(root, 'language-selector.nsh')}"
 Name "Omera prerequisite test"
 OutFile "${exe}"
 RequestExecutionLevel user
@@ -58,11 +65,18 @@ RequestExecutionLevel user
 !insertmacro MUI_LANGUAGE "French"
 !insertmacro MUI_LANGUAGE "Spanish"
 Function .onInit
-StrCpy $LANGUAGE 1033
+StrCpy $LANGUAGE ${language}
+!insertmacro MUI_LANGDLL_DISPLAY
+FunctionEnd
+Function OmeraRecordDiagnostics
 Call OmeraCheckRuntime
 FileOpen $0 "${diagnostic}" w
-FileWrite $0 "$OmeraRuntimeDetails"
+FileWriteUTF16LE $0 "$OmeraRuntimeDetails"
 FileClose $0
+FunctionEnd
+Function OmeraRecordDiagnosticsPage
+Call OmeraRecordDiagnostics
+Abort
 FunctionEnd
 Section "Marker only"
 FileOpen $0 "${marker}" w
@@ -71,19 +85,20 @@ FileClose $0
 SectionEnd
 `);
         execFileSync(nsis, ['/V2', '/INPUTCHARSET', 'UTF8', script], { stdio: 'pipe' });
-        const result = spawnSync(exe, ['/S'], { windowsHide: true });
+        const result = spawnSync(exe, ['/S'], { windowsHide: true, timeout: 15000 });
         assert.equal(result.error, undefined);
         assert.equal(result.status, expected);
         assert.equal(fs.existsSync(marker), expected === 0);
-        const details = fs.readFileSync(diagnostic, 'utf8');
+        const details = fs.readFileSync(diagnostic, 'utf16le');
         if (expected === 0) {
           assert.equal(details, '');
         } else {
-          assert.equal(details, installerLocales[0][1].installer.runtimeOutdated
+          const locale = installerLocales.find(([id]) => id === language)[1];
+          assert.equal(details, locale.installer.runtimeOutdated
             .replace('{file}', 'msvcp140.dll').replace('{detectedVersion}', installed));
         }
         if (expected === 1603) {
-          const passive = spawnSync(exe, ['/P'], { windowsHide: true });
+          const passive = spawnSync(exe, ['/P'], { windowsHide: true, timeout: 15000 });
           assert.equal(passive.error, undefined);
           assert.equal(passive.status, 1603);
           assert.equal(fs.existsSync(marker), false);

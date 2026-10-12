@@ -54,7 +54,7 @@
           "French",
           "Spanish"
         ],
-        "displayLanguageSelector": false,
+        "displayLanguageSelector": true,
         "installerIcon": "icons/icon.ico",
         "installerHooks": "windows/hooks.nsh"
       }
