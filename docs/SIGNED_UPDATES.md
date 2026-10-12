@@ -365,3 +365,17 @@ formatting, Clippy across all workspace targets with denied warnings, and all
 385 Rust tests. Actual debug EXE/MSI installers were repackaged; the EXE header
 contains `14.29.30157.0`, and the MSI passed its AppSearch-only safe-session
 checks. This follow-up has not published or replaced release assets.
+
+### Owner-approved 0.4.5 patch release — 2026-10-12
+
+The owner authorized a patch-version bump and publication of the runtime
+detection and multilingual installer fixes. Prepare 0.4.5 through `dev` into
+release-only `main`, preserving the existing commits and signing trust. This
+extends the owner's release authorization to this successor while retaining
+the deferred Windows Sandbox decision and pending installed-update matrix.
+It does not close #256 or establish additional installed-platform acceptance.
+
+Require automated regressions, actual Windows installer compilation, baseline
+CRT import/inference qualification and the existing production signing,
+notarization and downloaded-asset verification gates. Release notes disclose
+the pending native acceptance. Do not overwrite the published 0.4.4 packages.
