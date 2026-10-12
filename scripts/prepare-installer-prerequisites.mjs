@@ -20,7 +20,8 @@ export function renderWix(minimum) {
   if (!/^\d+\.\d+\.\d+\.\d+$/.test(minimum)) throw new Error('Invalid CRT version metadata');
   const escapeXml = text => text.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
     .replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-  const ready = ['OMERA_CRT_INSTALLED = "#1"', ...runtimeDlls.map((_, i) => `OMERA_CRT_${i}`)].join(' AND ');
+  const ready = ['(OMERA_CRT_INSTALLED = "#1" OR OMERA_CRT_INSTALLED_32 = "#1")',
+    ...runtimeDlls.map((_, i) => `OMERA_CRT_${i}`)].join(' AND ');
   const condition = escapeXml(`NOT (REMOVE = "ALL") AND NOT (${ready})`);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
@@ -28,6 +29,9 @@ export function renderWix(minimum) {
     <ComponentGroup Id="OmeraRuntimePrerequisites" />
     <Property Id="OMERA_CRT_INSTALLED" Secure="yes">
       <RegistrySearch Id="OmeraCrtInstalled" Root="HKLM" Key="SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64" Name="Installed" Type="raw" Win64="yes" />
+    </Property>
+    <Property Id="OMERA_CRT_INSTALLED_32" Secure="yes">
+      <RegistrySearch Id="OmeraCrtInstalled32" Root="HKLM" Key="SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64" Name="Installed" Type="raw" Win64="no" />
     </Property>
 ${runtimeDlls.map((dll, i) => `    <Property Id="OMERA_CRT_${i}" Secure="yes">
       <DirectorySearch Id="OmeraCrtDirectory${i}" Path="[System64Folder]" Depth="0">
@@ -60,7 +64,9 @@ export function renderNsis(minimum) {
   for (const [id, locale] of installerLocales) {
     for (const [key, value] of Object.entries(locale.installer)) {
       lines.push(`LangString Omera_${key} ${id} "${escapeNsis(value)
-        .replaceAll('{version}', minimum)}"`);
+        .replaceAll('{version}', minimum)
+        .replaceAll('{detectedVersion}', '$OmeraRuntimeVersion')
+        .replaceAll('{file}', '$OmeraRuntimeFile')}"`);
     }
   }
   return '\uFEFF' + lines.join('\n') + '\n';

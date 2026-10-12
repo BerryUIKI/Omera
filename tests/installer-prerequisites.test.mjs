@@ -40,6 +40,7 @@ test('compiled NSIS prerequisite gate stops unmet requirements before later sect
       ]) {
         fs.writeFileSync(path.join(root, 'generated/prerequisites.nsh'), renderNsis(version));
         const marker = path.join(root, `${name}.txt`);
+        const diagnostic = path.join(root, `${name}-diagnostic.txt`);
         const exe = path.join(root, `${name}.exe`);
         const script = path.join(root, `${name}.nsi`);
         fs.writeFileSync(script, `Unicode true
@@ -56,6 +57,13 @@ RequestExecutionLevel user
 !insertmacro MUI_LANGUAGE "German"
 !insertmacro MUI_LANGUAGE "French"
 !insertmacro MUI_LANGUAGE "Spanish"
+Function .onInit
+StrCpy $LANGUAGE 1033
+Call OmeraCheckRuntime
+FileOpen $0 "${diagnostic}" w
+FileWrite $0 "$OmeraRuntimeDetails"
+FileClose $0
+FunctionEnd
 Section "Marker only"
 FileOpen $0 "${marker}" w
 FileWrite $0 "passed"
@@ -67,6 +75,13 @@ SectionEnd
         assert.equal(result.error, undefined);
         assert.equal(result.status, expected);
         assert.equal(fs.existsSync(marker), expected === 0);
+        const details = fs.readFileSync(diagnostic, 'utf8');
+        if (expected === 0) {
+          assert.equal(details, '');
+        } else {
+          assert.equal(details, installerLocales[0][1].installer.runtimeOutdated
+            .replace('{file}', 'msvcp140.dll').replace('{detectedVersion}', installed));
+        }
         if (expected === 1603) {
           const passive = spawnSync(exe, ['/P'], { windowsHide: true });
           assert.equal(passive.error, undefined);
@@ -92,6 +107,10 @@ test('prerequisite messages cover all installer languages and the exact build mi
     }
   }
   assert.equal(rendered.includes('{version}'), false);
+  assert.equal(rendered.includes('{detectedVersion}'), false);
+  assert.equal(rendered.includes('{file}'), false);
+  assert.ok(rendered.includes('$OmeraRuntimeVersion'));
+  assert.ok(rendered.includes('$OmeraRuntimeFile'));
   assert.ok(rendered.includes('14.51.36260.0'));
   assert.throws(() => renderNsis('v14.51'), /Invalid CRT version/);
   assert.throws(() => renderNsis('14.51.0.0"\nFile evil.exe'), /Invalid CRT version/);

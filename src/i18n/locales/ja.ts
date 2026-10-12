@@ -2,11 +2,14 @@ import type { en } from "./en";
 
 export const ja: typeof en = {
   installer: {
-    runtimeTitle: "Windows ランタイムが必要です",
-    runtimeHelp: "Omera には Microsoft Visual C++ x64 が必要です。Microsoft のダウンロードページを開き、最新の x64 再頒布可能パッケージをインストールしてから、ここに戻って「次へ」を選択してください。Windows が管理者の承認を求める場合があります。",
+    runtimeTitle: "Visual C++ ランタイムが必要です",
+    runtimeHelp: "Omera には Microsoft Visual C++ v14 再頒布可能パッケージ (x64) が必要です。このランタイムをインストールまたは修復してから、ここに戻って「次へ」を選択してください。Windows が管理者の承認を求める場合があります。",
     runtimeDownload: "Microsoft のダウンロードページを開く",
-    runtimeMinimum: "必要なランタイムの最低バージョン: {version}",
-    runtimeMissing: "必要な x64 ランタイムがないか、バージョンが古いままです。Microsoft の x64 再頒布可能パッケージをインストールまたは修復してから続行してください。",
+    runtimeMinimum: "必要な x64 ランタイムのバージョン: {version} 以降",
+    runtimeMissing: "Microsoft Visual C++ v14 再頒布可能パッケージ (x64) をインストールまたは修復して、再試行してください。",
+    runtimeNotInstalled: "登録済みの Microsoft Visual C++ v14 x64 ランタイムが見つかりません。",
+    runtimeOutdated: "検出した {file}: {detectedVersion}。この x64 ランタイムは必要なバージョンより古いです。",
+    runtimeFileMissing: "x64 ランタイムは登録されていますが、{file} がないか読み取れません。Microsoft Visual C++ v14 再頒布可能パッケージ (x64) を修復してください。",
     runtimeSilent: "Omera には Microsoft Visual C++ x64 が必要です。https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist から最新の x64 再頒布可能パッケージをインストールし、セットアップを再実行してください。",
   },
   review: {

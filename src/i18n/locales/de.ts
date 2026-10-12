@@ -2,11 +2,14 @@ import type { en } from "./en";
 
 export const de: typeof en = {
   installer: {
-    runtimeTitle: "Windows-Laufzeit erforderlich",
-    runtimeHelp: "Omera benötigt Microsoft Visual C++ x64. Öffnen Sie die Microsoft-Downloadseite, installieren Sie das aktuelle x64 Redistributable und wählen Sie hier anschließend Weiter. Windows fragt möglicherweise nach einer Administratorgenehmigung.",
+    runtimeTitle: "Visual C++-Laufzeit erforderlich",
+    runtimeHelp: "Omera benötigt Microsoft Visual C++ v14 Redistributable (x64). Installieren oder reparieren Sie diese Laufzeit und wählen Sie hier anschließend Weiter. Windows fragt möglicherweise nach einer Administratorgenehmigung.",
     runtimeDownload: "Microsoft-Downloadseite öffnen",
-    runtimeMinimum: "Erforderliche Mindestversion: {version}",
-    runtimeMissing: "Die erforderliche x64-Laufzeit fehlt noch oder ist veraltet. Installieren oder reparieren Sie das x64 Redistributable von Microsoft, bevor Sie fortfahren.",
+    runtimeMinimum: "Erforderliche x64-Laufzeitversion: {version} oder neuer",
+    runtimeMissing: "Installieren oder reparieren Sie Microsoft Visual C++ v14 Redistributable (x64) und versuchen Sie es erneut.",
+    runtimeNotInstalled: "Keine registrierte Microsoft Visual C++ v14 x64-Laufzeit gefunden.",
+    runtimeOutdated: "Erkannt: {file}, Version {detectedVersion}. Diese x64-Laufzeitversion ist zu alt.",
+    runtimeFileMissing: "Die x64-Laufzeit ist registriert, aber {file} fehlt oder ist nicht lesbar. Reparieren Sie Microsoft Visual C++ v14 Redistributable (x64).",
     runtimeSilent: "Omera benötigt Microsoft Visual C++ x64. Installieren Sie das aktuelle x64 Redistributable von https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist und starten Sie das Setup erneut.",
   },
   review: {
