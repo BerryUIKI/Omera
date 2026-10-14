@@ -63,6 +63,7 @@ import ToastContainer from "./components/ToastContainer.vue";
 import { useNotification } from "./utils/notification";
 import { normalizeTableColumns, type TableColumnPreference } from "./utils/table-columns";
 import { actionHistory } from "./utils/history";
+import { applyCurationChange, type CurationChange } from "./utils/file-curation";
 import { applyBooleanFlagMutation } from "./utils/batch-flags";
 import { collaborationSync } from "./utils/collaborationSync";
 import { hasActiveDialog, isEditableTarget } from "./utils/dialog";
@@ -1754,6 +1755,17 @@ async function onFileOpCompleted() {
   await loadFiles();
 }
 
+function onFileCurated(change: CurationChange) {
+  fileDetailsManager.update(change.fileId, change.patch);
+  files.value = files.value.map(file => applyCurationChange(file, change));
+  for (const target of [selectedFile, lightboxFile]) {
+    if (target.value) target.value = applyCurationChange(target.value, change);
+  }
+  const scoped = searchQuery.value.trim() || activeFilterCount.value > 0 ||
+    activeTarget.value.type === "favorites" || activeTarget.value.type === "nsfw" || sortField.value === "rating";
+  void (scoped ? refreshBatchFlagMutation() : refreshCounts()).catch(cause => { error.value = String(cause); });
+}
+
 function onUpdateFile(file: ImageFile) {
   if (file.id != null) {
     fileDetailsManager.update(file.id, file);
@@ -2682,6 +2694,7 @@ function onResetZoom() {
         @open-album-modal="onOpenAlbumModal([$event])"
         @open-auto-tag-modal="handleOpenAutoTag"
         @update-file="onUpdateFile"
+        @curated="onFileCurated"
         @filter-by-model="onFilterByModel"
         @filter-by-hash="onFilterByHash"
         @find-similar="handleFindSimilar"
@@ -2709,6 +2722,7 @@ function onResetZoom() {
       @close="lightboxFile = null"
       @navigate="onLightboxNavigate"
       @update-file="onUpdateFile"
+        @curated="onFileCurated"
       @find-similar="handleFindSimilar"
     />
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import type { ImageFile } from "../types";
 import { assetUrl, formatBytes, formatDuration, formatPlatformName, getFileName, isVideoContainer } from "../utils/image";
+import { useFileCuration, type CurationChange } from "../utils/file-curation";
 import { t } from "../i18n";
 
 const props = defineProps<{
@@ -14,6 +14,7 @@ const emit = defineEmits<{
   close: [];
   navigate: [file: ImageFile];
   updateFile: [file: ImageFile];
+  curated: [change: CurationChange];
   findSimilar: [file: ImageFile];
 }>();
 
@@ -127,16 +128,9 @@ async function copyPrompt() {
   }
 }
 
-async function setRating(r: number) {
-  if (!props.file.id) return;
-  const newRating = props.file.rating === r ? null : r;
-  try {
-    await invoke("set_file_rating", { fileId: props.file.id, rating: newRating });
-    props.file.rating = newRating ?? undefined;
-    emit("updateFile", props.file);
-  } catch (err) {
-    console.error("Set rating error:", err);
-  }
+const { busy: curationBusy, error: curationError, run: curate } = useFileCuration(() => props.file, change => emit("curated", change));
+function setRating(rating: number) {
+  return curate({ kind: "rating", value: rating === 0 || props.file.rating === rating ? null : rating });
 }
 
 // Video Player Controls & State
@@ -236,17 +230,7 @@ async function copyWorkflow() {
   }
 }
 
-async function toggleFavorite() {
-  if (!props.file.id) return;
-  const nextVal = !props.file.is_favorite;
-  try {
-    await invoke("set_file_favorite", { fileId: props.file.id, isFavorite: nextVal });
-    props.file.is_favorite = nextVal;
-    emit("updateFile", props.file);
-  } catch (err) {
-    console.error("Toggle favorite error:", err);
-  }
-}
+function toggleFavorite() { return curate({ kind: "favorite", value: !props.file.is_favorite }); }
 
 function handleKeyDown(e: KeyboardEvent) {
   if (e.key === "Escape") {
@@ -528,6 +512,8 @@ onUnmounted(() => {
       </button>
     </div>
 
+    <p v-if="curationError" role="alert">{{ curationError }}</p>
+
     <!-- Bottom HUD Floating Bar -->
     <footer class="lightbox-footer">
       <div class="footer-center-hud">
@@ -539,7 +525,7 @@ onUnmounted(() => {
             type="button"
             class="star-hud-btn"
             :class="{ active: (file.rating ?? 0) >= star }"
-            @click="setRating(star)"
+            :disabled="curationBusy || file.id == null" @click="setRating(star)"
           >
             ★
           </button>
@@ -553,7 +539,7 @@ onUnmounted(() => {
           class="hud-action-btn"
           :class="{ active: file.is_favorite }"
           :title="file.is_favorite ? t.preview.removeFavorite : t.preview.addFavorite"
-          @click="toggleFavorite"
+          :disabled="curationBusy || file.id == null" @click="toggleFavorite"
         >
           {{ file.is_favorite ? '❤️' : '🤍' }}
         </button>
