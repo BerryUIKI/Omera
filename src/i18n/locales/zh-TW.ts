@@ -1071,6 +1071,7 @@ export const zhTW: typeof en = {
     destinationTarget: "目標 Omera 圖庫",
     requiredSpace: "所需磁碟空間",
     availableSpace: "可用剩餘空間",
+    spaceUnknown: "無法取得",
     insufficientSpace: "警告：磁碟可用空間不足以暫存資料庫複本。",
     conflictsTitle: "潛在衝突",
     exclusionsTitle: "排除項目說明",

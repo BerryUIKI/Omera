@@ -29,9 +29,15 @@ export function getFileName(path: string): string {
  * Format byte count to human-readable size.
  */
 export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
+  let size = bytes;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit++;
+  }
+  return `${unit === 0 ? Math.floor(size) : size.toFixed(1)} ${units[unit]}`;
 }
 
 /**

@@ -44,7 +44,8 @@ const selectedSource = computed<DiscoveredSource | undefined>(() => {
 
 const isInsufficientSpace = computed<boolean>(() => {
   if (!activePreview.value) return false;
-  return activePreview.value.available_space_bytes < activePreview.value.required_space_bytes;
+  return activePreview.value.available_space_bytes !== null &&
+    activePreview.value.available_space_bytes < activePreview.value.required_space_bytes;
 });
 
 watch(
@@ -300,7 +301,7 @@ function handleClose() {
             <div class="summary-card" :class="{ 'warning-bg': isInsufficientSpace }">
               <span class="summary-label">{{ t.legacyMigration.availableSpace }}</span>
               <strong class="summary-val" :style="{ color: isInsufficientSpace ? '#f87171' : 'inherit' }">
-                {{ formatBytes(activePreview.available_space_bytes) }}
+                {{ activePreview.available_space_bytes === null ? t.legacyMigration.spaceUnknown : formatBytes(activePreview.available_space_bytes) }}
               </strong>
             </div>
           </div>

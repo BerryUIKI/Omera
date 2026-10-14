@@ -171,13 +171,16 @@ impl MigrationCoordinator {
             "Snapshot backup archives (*.zip) are preserved in their original location.".into(),
         ];
 
-        let required_space_bytes = source.database_size_bytes * 2 + 1024 * 1024; // DB copy + staging buffer
-        let available_space_bytes = get_available_disk_space(omera_root).unwrap_or(u64::MAX);
+        let required_space_bytes = source
+            .database_size_bytes
+            .saturating_mul(3)
+            .saturating_add(1024 * 1024);
+        let available_space_bytes = get_available_disk_space(omera_root);
 
-        if available_space_bytes < required_space_bytes {
+        if available_space_bytes.is_some_and(|space| space < required_space_bytes) {
             conflicts.push(format!(
                 "Insufficient disk space on destination volume: required {} bytes, available {} bytes",
-                required_space_bytes, available_space_bytes
+                required_space_bytes, available_space_bytes.unwrap_or_default()
             ));
         }
 
@@ -841,14 +844,44 @@ fn get_available_disk_space(path: &Path) -> Option<u64> {
 }
 
 #[cfg(windows)]
-fn get_available_disk_space(_path: &Path) -> Option<u64> {
-    None
+fn get_available_disk_space(path: &Path) -> Option<u64> {
+    use std::os::windows::ffi::OsStrExt;
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetDiskFreeSpaceExW(
+            path: *const u16,
+            available: *mut u64,
+            total: *mut u64,
+            free: *mut u64,
+        ) -> i32;
+    }
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut available = 0;
+    // SAFETY: the UTF-16 path is terminated and the output pointer remains valid
+    // for the call. Optional outputs are null, as documented by Win32.
+    let succeeded = unsafe {
+        GetDiskFreeSpaceExW(
+            path.as_ptr(),
+            &mut available,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    (succeeded != 0).then_some(available)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use omera_domain::DiscoveredSource;
+
+    #[test]
+    fn available_space_is_a_real_volume_measurement() {
+        let dir = tempfile::tempdir().unwrap();
+        let available = get_available_disk_space(dir.path()).unwrap();
+        assert!(available > 0 && available < u64::MAX);
+        assert!(get_available_disk_space(&dir.path().join("missing")).is_none());
+    }
 
     #[test]
     fn test_coordinator_defaults() {
@@ -921,7 +954,7 @@ mod tests {
             destination_root: dest_dir.path().to_string_lossy().to_string(),
             destination_db: dest_db.to_string_lossy().to_string(),
             required_space_bytes: 1024,
-            available_space_bytes: 10_000_000,
+            available_space_bytes: Some(10_000_000),
             conflicts: vec![],
             exclusions: vec![],
         };
@@ -995,7 +1028,7 @@ mod tests {
             destination_root: dest_dir.path().to_string_lossy().to_string(),
             destination_db: dest_db.to_string_lossy().to_string(),
             required_space_bytes: 1024,
-            available_space_bytes: 10_000_000,
+            available_space_bytes: Some(10_000_000),
             conflicts: vec![],
             exclusions: vec![],
         };
@@ -1047,7 +1080,7 @@ mod tests {
             destination_root: dest_dir.path().to_string_lossy().to_string(),
             destination_db: dest_db.to_string_lossy().to_string(),
             required_space_bytes: 1024,
-            available_space_bytes: 10_000_000,
+            available_space_bytes: Some(10_000_000),
             conflicts: vec![],
             exclusions: vec![],
         };
@@ -1119,7 +1152,7 @@ mod tests {
             destination_root: dest_dir.path().to_string_lossy().to_string(),
             destination_db: dest_db.to_string_lossy().to_string(),
             required_space_bytes: 1024,
-            available_space_bytes: 10_000_000,
+            available_space_bytes: Some(10_000_000),
             conflicts: vec![],
             exclusions: vec![],
         };
@@ -1194,7 +1227,7 @@ mod tests {
             destination_root: dest_dir.path().to_string_lossy().to_string(),
             destination_db: dest_db.to_string_lossy().to_string(),
             required_space_bytes: 1024,
-            available_space_bytes: 10_000_000,
+            available_space_bytes: Some(10_000_000),
             conflicts: vec![],
             exclusions: vec![],
         };
@@ -1260,7 +1293,7 @@ mod tests {
             destination_root: dest_dir.path().to_string_lossy().to_string(),
             destination_db: dest_db.to_string_lossy().to_string(),
             required_space_bytes: 1024,
-            available_space_bytes: 10_000_000,
+            available_space_bytes: Some(10_000_000),
             conflicts: vec![],
             exclusions: vec![],
         };

@@ -1071,6 +1071,7 @@ export const ja: typeof en = {
     destinationTarget: "移行先 Omera ライブラリ",
     requiredSpace: "必要ディスク容量",
     availableSpace: "利用可能な空き容量",
+    spaceUnknown: "取得できません",
     insufficientSpace: "警告: データベース複製に必要な空き容量が不足しています。",
     conflictsTitle: "競合の可能性",
     exclusionsTitle: "除外される項目",

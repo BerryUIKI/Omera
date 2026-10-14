@@ -721,7 +721,7 @@ export interface LegacyMigrationPreview {
   destination_root: string;
   destination_db: string;
   required_space_bytes: number;
-  available_space_bytes: number;
+  available_space_bytes: number | null;
   conflicts: string[];
   exclusions: string[];
 }

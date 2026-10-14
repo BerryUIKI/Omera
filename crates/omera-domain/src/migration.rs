@@ -99,7 +99,7 @@ pub struct LegacyMigrationPreview {
     pub destination_root: String,
     pub destination_db: String,
     pub required_space_bytes: u64,
-    pub available_space_bytes: u64,
+    pub available_space_bytes: Option<u64>,
     pub conflicts: Vec<String>,
     pub exclusions: Vec<String>,
 }
@@ -146,4 +146,34 @@ pub struct LegacyCleanupResult {
     pub cleaned_bytes: u64,
     pub errors: Vec<String>,
     pub status: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unknown_available_space_round_trips_as_null_and_old_numbers_still_read() {
+        let mut value = serde_json::json!({
+            "plan_id": "test", "source": {
+                "source_id": "legacy", "identifier": "legacy", "root_path": "/legacy",
+                "database_path": "/legacy/berry.db", "config_path": null,
+                "file_count": 0, "database_size_bytes": 1024, "total_size_bytes": 2048,
+                "schema_version": 1, "is_locked": false
+            },
+            "destination_root": "/omera", "destination_db": "/omera/omera.db",
+            "required_space_bytes": 4096, "available_space_bytes": null,
+            "conflicts": [], "exclusions": []
+        });
+        let preview: LegacyMigrationPreview = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(preview.available_space_bytes, None);
+        assert!(serde_json::to_value(&preview).unwrap()["available_space_bytes"].is_null());
+        value["available_space_bytes"] = 8192.into();
+        assert_eq!(
+            serde_json::from_value::<LegacyMigrationPreview>(value)
+                .unwrap()
+                .available_space_bytes,
+            Some(8192)
+        );
+    }
 }

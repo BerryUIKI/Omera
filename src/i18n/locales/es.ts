@@ -1071,6 +1071,7 @@ export const es: typeof en = {
     destinationTarget: "Biblioteca de destino Omera",
     requiredSpace: "Espacio requerido en disco",
     availableSpace: "Espacio libre disponible",
+    spaceUnknown: "No disponible",
     insufficientSpace: "Advertencia: Espacio en disco insuficiente para la copia de migración.",
     conflictsTitle: "Conflictos potenciales",
     exclusionsTitle: "Elementos excluidos",

@@ -1071,6 +1071,7 @@ export const de: typeof en = {
     destinationTarget: "Ziel-Omera-Bibliothek",
     requiredSpace: "Erforderlicher Speicherplatz",
     availableSpace: "Verfügbarer freier Speicherplatz",
+    spaceUnknown: "Nicht verfügbar",
     insufficientSpace: "Warnung: Nicht genügend freier Speicherplatz für die Bereitstellungskopie vorhanden.",
     conflictsTitle: "Potenzielle Konflikte",
     exclusionsTitle: "Ausgeschlossene Elemente",

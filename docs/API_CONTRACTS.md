@@ -237,6 +237,11 @@ Owner: lead. These 7 commands are registered in `src-tauri` and coordinate WAL-s
 
 The 7 migration coordination commands above are implemented and registered in `src-tauri` with domain DTOs defined in `crates/omera-domain/src/migration.rs`. The runtime implementation returns `Result<T, String>` where T corresponds to the respective domain struct (`LegacyMigrationStatus`, `LegacyMigrationPreview`, `LegacyMigrationJob`, `LegacyCleanupPreview`, `LegacyCleanupResult`, or `()`).
 
+`LegacyMigrationPreview.available_space_bytes` is a byte count or `null` when
+measurement fails. Unknown space must not be represented by `u64::MAX` or shown
+as an enormous capacity. Windows measures caller-available bytes with
+`GetDiskFreeSpaceExW`; UI sizes scale through GB/TB and larger units.
+
 The following migration lifecycle states and structured error envelope represent proposed extensions for future UI/backend coordination:
 
 - Migration states: `discovered -> awaiting_source_choice -> planned -> copying -> validating -> activating -> migrated -> cleanup_available`. Failure records the failed stage and preserves retry/recovery evidence. Cleanup states: `retained`, `cleaning`, `partially_cleaned`, `cleaned`. Restarting must not promote a partially activated migration to success.

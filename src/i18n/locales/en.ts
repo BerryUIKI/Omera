@@ -1069,6 +1069,7 @@ export const en = {
     destinationTarget: "Target Omera Library",
     requiredSpace: "Required Disk Space",
     availableSpace: "Available Free Space",
+    spaceUnknown: "Unavailable",
     insufficientSpace: "Warning: Insufficient disk space for staging migration copy.",
     conflictsTitle: "Potential Conflicts",
     exclusionsTitle: "Excluded Artifacts",

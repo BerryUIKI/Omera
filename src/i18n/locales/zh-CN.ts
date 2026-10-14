@@ -1071,6 +1071,7 @@ export const zhCN: typeof en = {
     destinationTarget: "目标 Omera 图库",
     requiredSpace: "所需磁盘空间",
     availableSpace: "可用剩余空间",
+    spaceUnknown: "无法获取",
     insufficientSpace: "警告：磁盘可用空间不足以暂存数据库副本。",
     conflictsTitle: "潜在冲突",
     exclusionsTitle: "排除项说明",
