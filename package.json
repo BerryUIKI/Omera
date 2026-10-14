@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:desktop": "tauri dev",
     "build": "vue-tsc --noEmit && vite build",
     "test:stack": "node scripts/run-tests.mjs",
     "test:memory": "tsx --test tests/memory-audit.test.mjs",

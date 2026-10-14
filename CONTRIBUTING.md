@@ -49,8 +49,13 @@ git checkout dev
 pnpm install
 
 # 4. Start the Tauri development app (hot-reloading enabled)
-pnpm run tauri dev
+pnpm run dev:desktop
 ```
+
+This command starts Vite, compiles Rust, and opens the desktop window. Stop any
+separately running `pnpm run dev` process first to free port 1420. `pnpm run dev`
+starts only the frontend server; `pnpm run tauri dev` remains an equivalent desktop
+command. The first Rust compilation can take longer than later incremental runs.
 
 ---
 
