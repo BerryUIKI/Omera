@@ -97,7 +97,9 @@ async function openSearchResult(entry: SettingsSearchEntry) {
   await nextTick();
   const element = settingsContent.value?.querySelector<HTMLElement>(`[data-setting-id="${entry.target}"]`);
   element?.scrollIntoView({ block: "nearest", behavior: "auto" });
-  (element?.querySelector<HTMLElement>("input:not(:disabled),select:not(:disabled),button:not(:disabled),textarea:not(:disabled)") ?? element)?.focus();
+  (element?.querySelector<HTMLElement>('input[type="radio"]:checked:not(:disabled)')
+    ?? element?.querySelector<HTMLElement>("input:not(:disabled),select:not(:disabled),button:not(:disabled),textarea:not(:disabled)")
+    ?? element)?.focus();
 }
 function closeSettings() {
   if (searchQuery.value) searchQuery.value = "";
