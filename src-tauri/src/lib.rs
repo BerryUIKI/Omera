@@ -64,6 +64,8 @@ pub fn run() {
             let _ = std::fs::create_dir_all(data_dir.join("updates"));
             let _ = std::fs::create_dir_all(data_dir.join("thumbnails"));
             let _ = std::fs::create_dir_all(data_dir.join("models"));
+            omera_storage::legacy_activation::prepare_startup(&data_dir)
+                .map_err(std::io::Error::other)?;
             let database_path =
                 commands::active_database_path(&data_dir).map_err(std::io::Error::other)?;
             let migration_coordinator =
@@ -73,6 +75,8 @@ pub fn run() {
                 .map_err(std::io::Error::other)?;
             let db = Database::connect(&database_path)?;
             let folders = db.list_folders()?;
+            omera_storage::legacy_activation::finalize_startup(&data_dir, &database_path)
+                .map_err(std::io::Error::other)?;
             for folder in &folders {
                 app.asset_protocol_scope()
                     .allow_directory(&folder.path, true)?;
