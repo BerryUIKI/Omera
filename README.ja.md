@@ -20,7 +20,7 @@
 
 [![Release](https://img.shields.io/github/v/release/BerryUIKI/Omera?display_name=tag&style=flat-square&color=blue)](https://github.com/BerryUIKI/Omera/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/BerryUIKI/Omera/total?style=flat-square&color=green)](https://github.com/BerryUIKI/Omera/releases)
-[![License](https://img.shields.io/badge/ライセンス-AGPL--3.0-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/ライセンス-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Website](https://img.shields.io/badge/公式HP-GitHub%20Pages-12b5cb?style=flat-square)](https://berryuiki.github.io/Omera/)
 
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
@@ -273,7 +273,7 @@ cargo test --workspace  # Rust バックエンドテスト
 
 ## 📄 ライセンス
 
-本プロジェクトは **[AGPL-3.0 ライセンス](LICENSE)** のもとで公開されています。
+本プロジェクトは **[Apache-2.0 ライセンス](LICENSE)** のもとで公開されています。
 
 Copyright © 2026 [BerryUIKI](https://github.com/BerryUIKI).
 

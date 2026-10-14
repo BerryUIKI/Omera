@@ -43,7 +43,7 @@ This guide covers common questions, edge cases, and troubleshooting steps for Om
 ## 2. Frequently Asked Questions (FAQ)
 
 ### Is Omera completely free to use?
-Yes. Omera is free, open-source software licensed under **AGPL-3.0**. There are no subscriptions, paywalls, or locked features.
+Yes. Omera is free, open-source software licensed under **Apache-2.0**. There are no subscriptions, paywalls, or locked features.
 
 ### Can Omera handle libraries with 100,000+ or 500,000+ files?
 Yes. Omera was engineered from the ground up to support massive collections. It uses:

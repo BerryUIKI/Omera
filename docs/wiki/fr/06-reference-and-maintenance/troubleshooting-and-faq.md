@@ -43,7 +43,7 @@ Ce guide répertorie les questions fréquentes, les situations particulières et
 ## 2. Foire Aux Questions (FAQ)
 
 ### Omera est-il entièrement gratuit ?
-Oui. Omera est un logiciel libre et open-source sous licence **AGPL-3.0**. Il ne comporte aucun abonnement, aucune fonctionnalité payante bloquée ni mur payant.
+Oui. Omera est un logiciel libre et open-source sous licence **Apache-2.0**. Il ne comporte aucun abonnement, aucune fonctionnalité payante bloquée ni mur payant.
 
 ### Omera peut-il gérer des bibliothèques de 100 000 ou 500 000+ fichiers ?
 Oui. Omera a été conçu dès le départ pour manipuler d'immenses collections. Il met en œuvre :
