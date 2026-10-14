@@ -1,4 +1,4 @@
-import { getCurrentInstance, onUnmounted, watch, type Ref } from "vue";
+import { getCurrentInstance, onBeforeUnmount, watch, type Ref } from "vue";
 import type { ImageFile } from "../types";
 
 export interface GalleryAnchor {
@@ -178,7 +178,7 @@ export function useGalleryNavigation(options: GalleryNavigationOptions) {
   }
 
   if (getCurrentInstance()) {
-    onUnmounted(dispose);
+    onBeforeUnmount(dispose);
   }
 
   return { save, dispose };
