@@ -5,6 +5,45 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2026-10-14
+
+### Added
+
+- First Omera setup now lets users choose the application language and database
+  directory, including users who completed onboarding in Berry. Media, settings,
+  models and caches keep their existing locations.
+- Reviewed legacy import plans show source/destination paths, storage estimates
+  and warnings. Verified snapshots activate after restarting; source libraries
+  remain intact. Optional cleanup requires a separate explicit decision and
+  revalidates the reviewed artifacts before removing eligible application data.
+- Clicking the application version opens the update check; the titlebar includes
+  a link to the Omera GitHub repository.
+
+### Fixed
+
+- Legacy imports reject changed or redirected sources, detect open legacy
+  databases on Windows, and stage snapshots without replacing an active library.
+- Setup and migration feedback is localized in all seven supported languages;
+  Windows capacity checks and byte-size formatting report storage consistently.
+
+### Changed
+
+- The project license is now Apache License 2.0. Package metadata, contribution
+  guidance, translated READMEs, user guides and the website reflect the change.
+- Installation guides document database selection, restart activation and
+  separately approved cleanup. Website download fallbacks open the official
+  release page when current package information is unavailable.
+
+### Release testing
+
+This release is requested by the owner. Automated regressions and signed package
+checks remain separate from native installed-update acceptance. The complete
+Windows x64, macOS Apple Silicon and Linux x64 installed-update matrix remains
+pending ([#256](https://github.com/BerryUIKI/Omera/issues/256)). Legacy discovery
+and supported import remain available throughout the pre-1.0 series.
+
+---
+
 ## [0.4.5] - 2026-10-12
 
 ### Fixed

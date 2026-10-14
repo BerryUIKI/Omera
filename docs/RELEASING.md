@@ -6,7 +6,7 @@ The target product is Omera, identifier `com.berryuiki.omera`, canonical reposit
 
 Before publishing, follow [OMERA_MIGRATION.md](OMERA_MIGRATION.md). Verify migration to `omera.db`, `omera_*` settings and the Omera credential service; platform installer replacement; signed OS/architecture-specific updates; and the subsequent Omera update. Test upgrades that skip intermediate releases. Keep legacy data until validated migration and explicit cleanup confirmation. Never reset application/schema versions or publish an unverified rename build.
 
-Implementation branches start from and target `dev`; approved release integration reaches `main`. Signing key provisioning and actual installer upgrade tests are release blockers. A changed macOS Bundle ID requires checking provisioning and App Store distribution as a new identity.
+Implementation branches start from and target `dev`; approved release integration reaches `main`. Signing key provisioning and actual installer upgrade tests are release gates. The owner has explicitly requested the 0.4.6 release while the installed-update matrix remains pending under [#256](https://github.com/BerryUIKI/Omera/issues/256); that decision does not establish native acceptance. A changed macOS Bundle ID requires checking provisioning and App Store distribution as a new identity.
 
 This guide describes the release process, versioning conventions, and build artifact management for **Omera**.
 
@@ -28,6 +28,16 @@ When preparing a release, update the version number consistently in:
 3. `package.json` (`"version": "X.Y.Z"`)
 4. `CHANGELOG.md` (Add release date and feature summary under `## [X.Y.Z]`)
 
+Use `node scripts/bump-version.mjs patch` from a clean working tree, refresh
+`Cargo.lock` with a workspace Cargo check, and run
+`node scripts/bump-version.mjs --check`. Workspace crates inherit the version and
+the `Apache-2.0` license; `package.json` declares the same license.
+
+Run the required frontend and Rust checks on the candidate. Merge the preparation
+PR into `dev` using a merge commit, then open the release PR from `dev` to `main`.
+Preserve the small commits and satisfy branch protection, including the approving
+review required on `main`. Tag the merged `main` commit only after integration.
+
 ---
 
 ## 📦 Release Asset Naming Convention
@@ -40,12 +50,17 @@ $$\text{<AppName>}\_\text{<OS>}\_\text{<Architecture>}.\text{<extension>}$$
 
 | Platform (OS) | Architecture | Target Triple | Asset File Name |
 | :--- | :--- | :--- | :--- |
-| **Windows** | x86_64 (64-bit) | `x86_64-pc-windows-msvc` | `Omera_Windows_x64.exe` *(NSIS Setup)* |
-| **Windows** | x86_64 (64-bit) | `x86_64-pc-windows-msvc` | `Omera_Windows_x64.zip` *(Portable)* |
+| **Windows** | x86_64 (64-bit) | `x86_64-pc-windows-msvc` | `Omera_<version>_x64-setup.exe` *(NSIS Setup)* |
+| **Windows** | x86_64 (64-bit) | `x86_64-pc-windows-msvc` | `Omera_<version>_x64_en-US.msi` |
 | **macOS** | Apple Silicon (ARM64) | `aarch64-apple-darwin` | `Omera_macOS_aarch64.dmg` |
-| **macOS** | Intel (x86_64) | `x86_64-apple-darwin` | `Omera_macOS_x64.dmg` |
-| **Linux** | x86_64 (64-bit) | `x86_64-unknown-linux-gnu` | `Omera_Linux_x64.AppImage` |
-| **Linux** | x86_64 (64-bit) | `x86_64-unknown-linux-gnu` | `Omera_Linux_x64.deb` |
+| **Linux** | x86_64 (64-bit) | `x86_64-unknown-linux-gnu` | `Omera_<version>_amd64.AppImage` |
+| **Linux** | x86_64 (64-bit) | `x86_64-unknown-linux-gnu` | `Omera_<version>_amd64.deb` |
+| **Linux** | x86_64 (64-bit) | `x86_64-unknown-linux-gnu` | `Omera-<version>-1.x86_64.rpm` |
+
+Each installer has an adjacent `.minisig` signature. macOS also publishes the
+versioned DMG and an application archive. The current release matrix builds
+Windows x64, macOS Apple Silicon and Linux x64; Intel macOS and a Windows portable
+ZIP are not current release outputs. Use the actual assets listed on the release.
 
 ---
 
@@ -77,10 +92,17 @@ git checkout main
 git pull origin main
 
 # 2. Tag the release commit
-git tag v0.1.1
+git tag v0.4.6
 
 # 3. Push the tag to GitHub
-git push origin v0.1.1
+git push origin v0.4.6
 ```
 
-The GitHub Actions runner will build the Tauri application on Windows, macOS, and Linux runners, bundle the installers, and publish the draft release on GitHub Releases.
+The workflow checks synchronized versions and requires the tag to be integrated
+into `main`. It builds Windows, macOS and Linux packages into a draft, signs the
+final installer bytes, and verifies every installer before publication. macOS
+must pass Developer ID signing, notarization and Gatekeeper checks. Only after
+every build and signature check passes does the workflow publish the draft with
+the matching changelog section. Do not manually publish an incomplete draft or
+overwrite assets from an existing published release. Confirm the published assets
+and GitHub Pages deployment before handing off.
