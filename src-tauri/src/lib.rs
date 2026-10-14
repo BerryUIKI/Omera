@@ -64,15 +64,10 @@ pub fn run() {
             let _ = std::fs::create_dir_all(data_dir.join("updates"));
             let _ = std::fs::create_dir_all(data_dir.join("thumbnails"));
             let _ = std::fs::create_dir_all(data_dir.join("models"));
-            let database_path = commands::active_database_path(&data_dir);
+            let database_path =
+                commands::active_database_path(&data_dir).map_err(std::io::Error::other)?;
             let migration_coordinator =
                 Arc::new(Mutex::new(legacy_migration::MigrationCoordinator::new()));
-
-            if !database_path.exists() {
-                if let Ok(mut coord) = migration_coordinator.lock() {
-                    let _ = coord.auto_migrate_if_unambiguous(app.handle());
-                }
-            }
 
             omera_storage::recovery::apply_pending_restore(&database_path)
                 .map_err(std::io::Error::other)?;
@@ -269,6 +264,7 @@ pub fn run() {
             commands::get_app_config,
             commands::save_app_config,
             commands::get_storage_paths,
+            commands::set_library_directory,
             commands::open_storage_dir,
             commands::download_update,
             commands::install_update,

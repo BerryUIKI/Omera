@@ -20,6 +20,7 @@ export interface AppConfig {
   auto_check_update: boolean;
   silent_install: boolean;
   has_completed_onboarding: boolean;
+  has_completed_omera_setup: boolean;
   auto_stack: boolean;
   stack_similarity_threshold: number;
   stack_time_window_minutes: number;
@@ -63,6 +64,7 @@ const DEFAULT_CONFIG: AppConfig = {
   auto_check_update: true,
   silent_install: false,
   has_completed_onboarding: false,
+  has_completed_omera_setup: false,
   auto_stack: false,
   stack_similarity_threshold: 0.85,
   stack_time_window_minutes: 180,

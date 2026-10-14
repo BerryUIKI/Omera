@@ -26,7 +26,7 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 | Update DTOs | Rust `UpdateDownloadProgress` | `src/utils/updater.ts` |
 | Watcher events | `src-tauri/src/watcher.rs` | App refresh scheduling |
 
-[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 160 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 161 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
 
 Current commands are local Tauri IPC, not HTTP endpoints. Do not invent REST routes or expose these commands through a network server. Commands are restricted to the configured application WebView; IPC arguments still require backend validation.
 
@@ -110,6 +110,16 @@ Settings retains its loaded revision and form edits after rejection, displays an
 `legacy_migration_complete` currently refers to the old config/localStorage migration. It is **not** an Omera migration receipt, proof of database validation, or authorization to delete a directory. New Omera values take precedence over imported legacy values; false/zero/empty values are not evidence of absence.
 
 `get_storage_paths()` returns `data_dir`, `config_file`, `database_file`, `thumbnails_dir`, `models_dir`, and `updates_dir`. UI code must use returned paths rather than reconstructing them from product names. `open_storage_dir({ target })` accepts the named categories in the reference. The active runtime uses the target Omera application identity and locations (`com.berryuiki.omera`).
+
+`set_library_directory({ directory })` accepts an existing absolute directory,
+creates a validated WAL-inclusive library copy without overwriting a destination,
+atomically records the selected database and restarts on change. The source
+database and media remain intact. Copying runs on a blocking worker under the
+migration coordinator gate and a SQLite writer transaction, without holding the
+shared application database mutex. Startup has no automatic legacy import:
+discovery and source/location decisions belong to the welcome flow.
+`has_completed_omera_setup` defaults to false in old configuration; the older
+`has_completed_onboarding` flag does not bypass first-Omera setup.
 
 ## File operations, backup and restore
 
