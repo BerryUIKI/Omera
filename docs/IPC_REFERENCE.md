@@ -130,7 +130,7 @@ The generator validates command coverage, not Serde field compatibility, safety,
 | `get_app_config` | (none) | `Result<AppConfig, String>` |
 | `save_app_config` | `config: AppConfig` | `Result<AppConfig, String>` |
 | `get_storage_paths` | (none) | `Result<StoragePaths, String>` |
-| `set_library_directory` | `directory: String` | `Result<(), String>` |
+| `set_library_directory` | `directory: String`<br>`completeSetup: Option<bool>` | `Result<(), String>` |
 | `open_storage_dir` | `target: String` | `Result<(), String>` |
 | `download_update` | `url: String`<br>`filename: String` | `Result<String, String>` |
 | `install_update` | `installerPath: String`<br>`silent: Option<bool>` | `Result<(), String>` |
@@ -163,7 +163,7 @@ The generator validates command coverage, not Serde field compatibility, safety,
 | `cloud_sync_get_progress` | (none) | `Result<omera_domain::CloudSyncProgress, String>` |
 | `cloud_sync_get_summary` | (none) | `Result<Option<omera_domain::CloudSyncResult>, String>` |
 | `get_legacy_migration_status` | (none) | `Result<omera_domain::LegacyMigrationStatus, String>` |
-| `preview_legacy_migration` | `sourceId: String` | `Result<omera_domain::LegacyMigrationPreview, String>` |
+| `preview_legacy_migration` | `sourceId: String`<br>`destinationDirectory: Option<String>` | `Result<omera_domain::LegacyMigrationPreview, String>` |
 | `start_legacy_migration` | `planId: String` | `Result<omera_domain::LegacyMigrationJob, String>` |
 | `get_legacy_migration_job` | `jobId: String` | `Result<omera_domain::LegacyMigrationJob, String>` |
 | `preview_legacy_cleanup` | `receiptId: String` | `Result<omera_domain::LegacyCleanupPreview, String>` |

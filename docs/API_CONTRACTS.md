@@ -111,7 +111,7 @@ Settings retains its loaded revision and form edits after rejection, displays an
 
 `get_storage_paths()` returns `data_dir`, `config_file`, `database_file`, `thumbnails_dir`, `models_dir`, and `updates_dir`. UI code must use returned paths rather than reconstructing them from product names. `open_storage_dir({ target })` accepts the named categories in the reference. The active runtime uses the target Omera application identity and locations (`com.berryuiki.omera`).
 
-`set_library_directory({ directory })` accepts an existing absolute directory,
+`set_library_directory({ directory, completeSetup? })` accepts an existing absolute directory,
 creates a validated WAL-inclusive library copy without overwriting a destination,
 atomically records the selected database and restarts on change. The source
 database and media remain intact. Copying runs on a blocking worker under the
@@ -238,9 +238,9 @@ Owner: lead. These 7 commands are registered in `src-tauri` and coordinate WAL-s
 | Command | Request | Response and side effects |
 | --- | --- | --- |
 | `get_legacy_migration_status` | none | Versioned status, discovered source summaries, current receipt and available actions; no deletion |
-| `preview_legacy_migration` | `{ sourceId }` | Backend-issued plan ID, source/destination summaries, conflicts, space estimate, exclusions and required user action; sourceId is an opaque discovered token, not a caller-selected arbitrary directory |
+| `preview_legacy_migration` | `{ sourceId, destinationDirectory? }` | Backend-issued plan ID, source/destination summaries, conflicts, space estimate, exclusions and required user action; sourceId is an opaque discovered token, not a caller-selected arbitrary directory |
 | `start_legacy_migration` | `{ planId }` | Job ID after revalidating plan and acquiring migration lock; preserve source |
-| `get_legacy_migration_job` | `{ jobId }` | Durable state/progress/error plus retryability; usable after reconnect/restart |
+| `get_legacy_migration_job` | `{ jobId }` | Process-local job progress/error; activation is resumed after restart using the durable receipt |
 | `preview_legacy_cleanup` | `{ receiptId }` | Expiring preview ID, exact eligible paths/categories/sizes, exclusions, source revision and destination verification state |
 | `confirm_legacy_cleanup` | `{ previewId, confirmed: true }` | Per-artifact outcomes after revalidation; reject stale preview, concurrent writer, missing destination, changed source or absent confirmation |
 | `defer_legacy_cleanup` | `{ receiptId }` | Persisted decision to retain old data; prevent repetitive startup prompts |
@@ -390,3 +390,28 @@ previous tab lifetimes. The UI shows running/disabled/waiting-to-retry states,
 last success/attempt, next due date, archive filename and errors in all seven
 locales. Status failures remain visible; they never enable backups or hide a
 failed settings save. No schedule mutation command is added.
+
+### First Omera setup and optional cleanup
+
+`has_completed_omera_setup` defaults to false independently of inherited Berry
+onboarding flags. `completeSetup: true` saves both completion flags after the
+selected library copy has been verified; failure to save settings restores the
+previous selection. Choosing the existing directory does not restart the app.
+
+A successful import returns `awaiting_restart`, never immediate `completed`.
+Startup finalizes `activated_at` only after opening and reading the selected
+library. The UI resumes the cleanup question from the receipt. Heavy migration,
+capacity, fingerprint and cleanup work runs on blocking workers; the application
+SQLite mutex is not held during that work. Job polling is optional and process
+local; the receipt is the restart authority.
+
+Cleanup requires verified activation, unchanged source and destination catalog
+fingerprints, a known legacy root, no open legacy database on Windows, and an
+unchanged expiring artifact review. The eligible whitelist is the verified
+legacy database and thumbnail directories whose entire contents are recorded
+in the old cache manifest. Media and indexed directories always take priority
+and remain protected. Unknown caches, settings/credentials, models, backup
+archives, WAL/SHM sidecars and other files are retained. A refusal is persisted;
+manual Settings entry can review it later. Only the exact reviewed eligible
+paths go to system Trash, with partial failures reported and no permanent-delete
+fallback. Older unverified receipts remain readable but never authorize cleanup.

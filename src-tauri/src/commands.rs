@@ -1329,6 +1329,7 @@ pub fn active_database_path(data_dir: &Path) -> Result<PathBuf, String> {
 #[tauri::command]
 pub async fn set_library_directory(
     directory: String,
+    complete_setup: Option<bool>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -1340,11 +1341,26 @@ pub async fn set_library_directory(
     let coordinator = state.migration_coordinator.clone();
     let changed = tauri::async_runtime::spawn_blocking(move || {
         let _operation = coordinator.lock().map_err(|e| e.to_string())?;
+        let config_path = data_dir.join("config.json");
+        let completion = if complete_setup == Some(true) {
+            let mut config = crate::config_store::load(&config_path)?;
+            config.has_completed_omera_setup = true;
+            config.has_completed_onboarding = true;
+            Some(config)
+        } else {
+            None
+        };
         let selected = omera_storage::library_location::copy_and_select(
             &data_dir,
             Path::new(&directory),
             &active,
         )?;
+        if let Some(config) = completion {
+            if let Err(error) = crate::config_store::save(&config_path, config) {
+                omera_storage::library_location::select_database(&data_dir, &active)?;
+                return Err(error);
+            }
+        }
         Ok::<_, String>(selected != active)
     })
     .await
@@ -4568,93 +4584,131 @@ pub fn cloud_sync_get_summary(
 }
 
 #[tauri::command]
-pub fn get_legacy_migration_status(
+pub async fn get_legacy_migration_status(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<omera_domain::LegacyMigrationStatus, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.get_status(&app)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .get_status(&app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn preview_legacy_migration(
+pub async fn preview_legacy_migration(
     app: AppHandle,
     state: State<'_, AppState>,
     source_id: String,
+    destination_directory: Option<String>,
 ) -> Result<omera_domain::LegacyMigrationPreview, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.preview_migration(&app, &source_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .preview_migration(
+                &app,
+                &source_id,
+                destination_directory.as_deref().map(Path::new),
+            )
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn start_legacy_migration(
+pub async fn start_legacy_migration(
     app: AppHandle,
     state: State<'_, AppState>,
     plan_id: String,
 ) -> Result<omera_domain::LegacyMigrationJob, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.start_migration(&app, &plan_id)
+    let coordinator = state.migration_coordinator.clone();
+    let worker_app = app.clone();
+    let job = tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .start_migration(&worker_app, &plan_id)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    if job.status == "awaiting_restart" {
+        app.restart();
+    }
+    Ok(job)
 }
 
 #[tauri::command]
-pub fn get_legacy_migration_job(
+pub async fn get_legacy_migration_job(
     state: State<'_, AppState>,
     job_id: String,
 ) -> Result<omera_domain::LegacyMigrationJob, String> {
-    let coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.get_job(&job_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .get_job(&job_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn preview_legacy_cleanup(
+pub async fn preview_legacy_cleanup(
     app: AppHandle,
     state: State<'_, AppState>,
     receipt_id: String,
 ) -> Result<omera_domain::LegacyCleanupPreview, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.preview_cleanup(&app, &receipt_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .preview_cleanup(&app, &receipt_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn confirm_legacy_cleanup(
+pub async fn confirm_legacy_cleanup(
     app: AppHandle,
     state: State<'_, AppState>,
     preview_id: String,
     confirmed: bool,
 ) -> Result<omera_domain::LegacyCleanupResult, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.confirm_cleanup(&app, &preview_id, confirmed)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .confirm_cleanup(&app, &preview_id, confirmed)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn defer_legacy_cleanup(
+pub async fn defer_legacy_cleanup(
     app: AppHandle,
     state: State<'_, AppState>,
     receipt_id: String,
 ) -> Result<(), String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.defer_cleanup(&app, &receipt_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .defer_cleanup(&app, &receipt_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
