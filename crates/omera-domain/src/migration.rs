@@ -40,6 +40,12 @@ pub struct MigrationReceipt {
     pub artifacts: Vec<MigratedArtifact>,
     pub integrity_hash: String,
     pub cleanup_status: String,
+    #[serde(default)]
+    pub source_revision: String,
+    #[serde(default)]
+    pub activated_at: Option<u64>,
+    #[serde(default)]
+    pub activation_requires_empty: bool,
 }
 
 /// Structured migration error as defined in API contracts.
@@ -151,6 +157,20 @@ pub struct LegacyCleanupResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_receipts_default_to_unverified_activation() {
+        let receipt: MigrationReceipt = serde_json::from_value(serde_json::json!({
+            "receipt_id":"old", "source_id":"legacy", "source_identifier":"legacy",
+            "source_root":"/legacy", "source_schema_version":1, "destination_root":"/omera",
+            "destination_db":"/omera/omera.db", "created_at":0, "artifacts":[],
+            "integrity_hash":"legacy-file-hash", "cleanup_status":"pending"
+        }))
+        .unwrap();
+        assert!(receipt.source_revision.is_empty());
+        assert!(receipt.activated_at.is_none());
+        assert!(!receipt.activation_requires_empty);
+    }
 
     #[test]
     fn unknown_available_space_round_trips_as_null_and_old_numbers_still_read() {

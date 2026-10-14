@@ -415,6 +415,9 @@ impl MigrationCoordinator {
             artifacts,
             integrity_hash,
             cleanup_status: "pending".to_string(),
+            source_revision: String::new(),
+            activated_at: None,
+            activation_requires_empty: false,
         };
 
         if let Err(e) = storage_migration::save_receipt(&destination_root, &receipt) {
@@ -1561,6 +1564,9 @@ mod tests {
             ],
             integrity_hash: "hash_clean".into(),
             cleanup_status: "pending".into(),
+            source_revision: String::new(),
+            activated_at: None,
+            activation_requires_empty: false,
         };
         storage_migration::save_receipt(omera_dir.path(), &receipt).unwrap();
 
@@ -1704,6 +1710,9 @@ mod tests {
             }],
             integrity_hash: "hash_clean".into(),
             cleanup_status: "pending".into(),
+            source_revision: String::new(),
+            activated_at: None,
+            activation_requires_empty: false,
         };
         storage_migration::save_receipt(omera_dir.path(), &receipt).unwrap();
 

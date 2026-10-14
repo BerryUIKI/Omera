@@ -698,6 +698,9 @@ export interface MigrationReceipt {
   artifacts: MigratedArtifact[];
   integrity_hash: string;
   cleanup_status: string;
+  source_revision?: string;
+  activated_at?: number | null;
+  activation_requires_empty?: boolean;
 }
 
 export interface MigrationError {

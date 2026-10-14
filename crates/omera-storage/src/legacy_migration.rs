@@ -629,6 +629,9 @@ mod tests {
             artifacts: vec![],
             integrity_hash: "hash123".into(),
             cleanup_status: "pending".into(),
+            source_revision: String::new(),
+            activated_at: None,
+            activation_requires_empty: false,
         };
 
         save_receipt(dest_dir.path(), &receipt).unwrap();
