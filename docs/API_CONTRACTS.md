@@ -258,6 +258,16 @@ It is not the import payload. Migration copies database/configuration only,
 clears the copied `thumbnail_cache_entries`, and preserves source thumbnails,
 models, external media, vaults and backups in place.
 
+Receipts add compatible defaults for `source_revision`, `activated_at` and
+`activation_requires_empty`. Old receipts remain readable but do not prove
+activation. The storage activation journal records `preparing` before publishing
+a validated snapshot, then `activation_pending`; an empty active database stays
+open and unchanged until startup applies the snapshot with a recovery point.
+Catalog fingerprints include committed WAL data and omit disposable cache
+manifests/journals. Only a matching, reopened catalog advances to cleanup-ready
+`pending`. If data was added before restart, both libraries are retained and the
+receipt becomes `activation_blocked`.
+
 The following migration lifecycle states and structured error envelope represent proposed extensions for future UI/backend coordination:
 
 - Migration states: `discovered -> awaiting_source_choice -> planned -> copying -> validating -> activating -> migrated -> cleanup_available`. Failure records the failed stage and preserves retry/recovery evidence. Cleanup states: `retained`, `cleaning`, `partially_cleaned`, `cleaned`. Restarting must not promote a partially activated migration to success.
