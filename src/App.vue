@@ -616,7 +616,7 @@ function handleWindowKeyDown(e: KeyboardEvent) {
       return;
     }
     if (onboardingModalOpen.value) {
-      void onOnboardingComplete();
+      // The dialog owns completion and persistence.
       return;
     }
     if (addFolderModalOpen.value) {
@@ -757,26 +757,27 @@ onMounted(async () => {
     ]);
     await initialFilesPromise;
 
-    if (!cfg.has_completed_onboarding && !onboardingDismissedThisSession) {
-      onboardingModalOpen.value = true;
+    const firstOmeraSetup = !cfg.has_completed_omera_setup;
+    if (firstOmeraSetup && !onboardingDismissedThisSession) onboardingModalOpen.value = true;
+    let pendingCleanup = false;
+    if (!firstOmeraSetup) {
+      try {
+        const migration = await invoke<{ stage: string }>("get_legacy_migration_status");
+        pendingCleanup = migration.stage === "cleanup_available";
+        if (pendingCleanup) legacyMigrationModalOpen.value = true;
+      } catch (e) { console.warn("Legacy discovery unavailable:", e); pendingCleanup = true; }
+    }
+    if (!firstOmeraSetup && !pendingCleanup) {
+      void invoke("process_pipeline_cleanups").catch(() => {});
+      if (cfg.auto_scan && folders.value.length > 0) void runBackgroundStartupScan(cfg.startup_scan_interval_minutes ?? 360);
+      if (cfg.auto_check_update && info.value?.app_version) {
+        void checkForUpdates(info.value.app_version).then((res) => {
+          if (res.status === "update_available") updateModalOpen.value = true;
+        });
+      }
     }
 
-    // Safely process any due pipeline trash cleanups
-    void invoke("process_pipeline_cleanups").catch(() => {});
-
-    if (cfg.auto_scan && folders.value.length > 0) {
-      void runBackgroundStartupScan(cfg.startup_scan_interval_minutes ?? 360);
-    }
-
-    if (cfg.auto_check_update && info.value?.app_version) {
-      void checkForUpdates(info.value.app_version).then((res) => {
-        if (res.status === "update_available") {
-          updateModalOpen.value = true;
-        }
-      });
-    }
-
-    if (cfg.storage_backend && cfg.storage_backend !== "sqlite") {
+    if (!firstOmeraSetup && !pendingCleanup && cfg.storage_backend && cfg.storage_backend !== "sqlite") {
       collaborationSync.init(cfg.client_identifier || "local_client");
       collaborationSync.onBatch(() => {
         scheduleLibraryRefresh();
@@ -1574,15 +1575,6 @@ async function onOnboardingComplete() {
   // Immediately prevent any re-opening — this is the critical guard
   onboardingDismissedThisSession = true;
   onboardingModalOpen.value = false;
-  try {
-    const cfg = await loadAppConfig();
-    await saveAppConfig({
-      ...cfg,
-      has_completed_onboarding: true,
-    });
-  } catch (err) {
-    console.warn("Failed to mark onboarding complete:", err);
-  }
   // Reload data in the background (errors here should NOT affect the modal state)
   try {
     await reloadFolders();
