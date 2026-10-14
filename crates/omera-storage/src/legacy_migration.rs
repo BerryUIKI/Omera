@@ -102,6 +102,8 @@ pub fn discover_database_source(
     if !db_path.exists() {
         return Ok(None);
     }
+    crate::migration_paths::plain_metadata(root_path)?;
+    crate::migration_paths::plain_metadata(&db_path)?;
 
     let mut db_size = std::fs::metadata(&db_path)
         .map(|m| m.len())
@@ -149,6 +151,7 @@ pub fn discover_database_source(
             is_locked = true;
         }
     }
+    is_locked |= crate::migration_paths::database_in_use(&db_path);
 
     let source_id = format!("{}_{}", identifier, sanitize_path_id(root_path));
 
@@ -454,7 +457,7 @@ fn count_dir_entries(dir: &Path) -> usize {
     let mut count = 0;
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
-            if let Ok(meta) = entry.metadata() {
+            if let Ok(meta) = crate::migration_paths::plain_metadata(&entry.path()) {
                 if meta.is_file() {
                     count += 1;
                 } else if meta.is_dir() && !meta.is_symlink() {
@@ -470,7 +473,7 @@ fn calculate_dir_size(dir: &Path) -> u64 {
     let mut total = 0u64;
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
-            if let Ok(meta) = entry.metadata() {
+            if let Ok(meta) = crate::migration_paths::plain_metadata(&entry.path()) {
                 if meta.is_file() {
                     total += meta.len();
                 } else if meta.is_dir() {
