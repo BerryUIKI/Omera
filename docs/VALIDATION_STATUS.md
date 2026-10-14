@@ -84,7 +84,7 @@ Combined local evidence on Windows in `codex/version-update-check`, before
 splitting the changes into the user-approved small PR stack:
 
 - `pnpm run build`: passed; the existing bundle-size advisory remains.
-- `pnpm run test:stack`: 289 tests passed. New coverage executes production
+- `pnpm run test:stack`: 290 tests passed. New coverage executes production
   Inspector/viewer/organization actions, verifies registered curation commands,
   late-reply fences, selected-tab preservation, bounded next-page navigation,
   conditional modal focus, pixel geometry, translated settings discovery,
@@ -108,3 +108,22 @@ WebView behavior, real media/video codecs, and installed application smoke
 checks remain separate release validation. No real library, legacy data,
 credentials, or settings were changed by these fixtures. Each isolated PR also
 receives its relevant TypeScript and production regression checks.
+
+The follow-up is published as six draft PRs with individual commits preserved:
+
+| PR | Scope | Current base |
+| --- | --- | --- |
+| [#393](https://github.com/BerryUIKI/Omera/pull/393) | Confirmed curation field patches and registered IPC | `dev` |
+| [#394](https://github.com/BerryUIKI/Omera/pull/394) | Inspector tabs and shared UI-label foundations | #393 branch |
+| [#395](https://github.com/BerryUIKI/Omera/pull/395) | Current-offset anchor capture before unmount | #394 branch |
+| [#396](https://github.com/BerryUIKI/Omera/pull/396) | Central preview, shared Inspector, physical-pixel zoom | #395 branch |
+| [#397](https://github.com/BerryUIKI/Omera/pull/397) | Settings search and draft theme cards | #394 branch |
+| [#398](https://github.com/BerryUIKI/Omera/pull/398) | Organization dialog dismissal/refresh contracts | #396 branch |
+
+The user explicitly approved stacked bases for this change. Merge #393, #394,
+#395, #396, then #398; #397 can follow #394 independently. Retarget each child
+to `dev` after its prerequisite merges and merge the updated `dev` into the
+child to trigger required CI without rewriting commits. The current CI branch
+filter schedules PR checks against `dev`; #393 passed Linux/macOS/Windows CI,
+while the feature-based draft PRs still require those checks after retargeting.
+Preserve individual commits instead of squash-merging.
