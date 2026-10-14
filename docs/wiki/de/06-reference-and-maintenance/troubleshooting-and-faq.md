@@ -43,7 +43,7 @@ Dieser Leitfaden behandelt typische Fragen, Problemstellungen und Schritte zur F
 ## 2. Häufig gestellte Fragen (FAQ)
 
 ### Ist Omera vollkommen kostenlos nutzbar?
-Ja. Omera ist freie Open-Source-Software unter der **AGPL-3.0**. Es gibt weder Abonnements noch Bezahlschranken oder gesperrte Premium-Funktionen.
+Ja. Omera ist freie Open-Source-Software unter der **Apache-2.0**. Es gibt weder Abonnements noch Bezahlschranken oder gesperrte Premium-Funktionen.
 
 ### Eignet sich Omera für Bibliotheken mit 100.000+ oder 500.000+ Bildern?
 Ja. Omera wurde von Grund auf für gewaltige Bildbestände konzipiert:

@@ -39,7 +39,7 @@ Omera est un gestionnaire d'actifs multimédias et un studio de prompts open-sou
 - **[Référence complète des paramètres](06-reference-and-maintenance/settings-reference.md)** : Guide exhaustif des paramètres à travers les 8 onglets de préférences.
 - **[Maintenance de la base de données & du cache](06-reference-and-maintenance/database-maintenance.md)** : Compactage SQLite WAL (`VACUUM`), sauvegarde/restauration de la base de données, budget de cache des miniatures (éviction LRU) et diagnostics de la file d'attente.
 - **[Mises à jour & Cycle de vie](06-reference-and-maintenance/updating.md)** : Système de mise à jour automatique intégré, garanties de préservation des données entre les versions et mises à niveau manuelles.
-- **[Architecture de confidentialité & Sécurité](06-reference-and-maintenance/privacy-and-security.md)** : Modèle 100 % local-first hors ligne, zéro télémétrie, isolation de l'inférence IA locale et licence AGPL-3.0.
+- **[Architecture de confidentialité & Sécurité](06-reference-and-maintenance/privacy-and-security.md)** : Modèle 100 % local-first hors ligne, zéro télémétrie, isolation de l'inférence IA locale et licence Apache-2.0.
 - **[Dépannage & FAQ](06-reference-and-maintenance/troubleshooting-and-faq.md)** : Solutions aux problèmes courants, conseils d'optimisation des performances et questions fréquemment posées.
 - **[Glossaire du produit](06-reference-and-maintenance/glossary.md)** : Définitions de référence des termes métier (Image de couverture/Hero, Pipeline d'ingestion, Similarité de Jaccard, Curseur Keyset, OCC, Carte en paquet de jeu, etc.).
 

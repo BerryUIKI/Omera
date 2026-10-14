@@ -1321,8 +1321,54 @@ pub fn get_database_stats(state: State<'_, AppState>) -> Result<DatabaseStats, S
 }
 
 /// Resolve the canonical active SQLite library database path for Omera.
-pub fn active_database_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("omera.db")
+pub fn active_database_path(data_dir: &Path) -> Result<PathBuf, String> {
+    omera_storage::library_location::database_path(data_dir)
+}
+
+/// Select a verified copy of the current library and reopen it on restart.
+#[tauri::command]
+pub async fn set_library_directory(
+    directory: String,
+    complete_setup: Option<bool>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let active = db(&state)?
+        .path()
+        .ok_or("Active library path is unavailable")?
+        .to_path_buf();
+    let coordinator = state.migration_coordinator.clone();
+    let changed = tauri::async_runtime::spawn_blocking(move || {
+        let _operation = coordinator.lock().map_err(|e| e.to_string())?;
+        let config_path = data_dir.join("config.json");
+        let completion = if complete_setup == Some(true) {
+            let mut config = crate::config_store::load(&config_path)?;
+            config.has_completed_omera_setup = true;
+            config.has_completed_onboarding = true;
+            Some(config)
+        } else {
+            None
+        };
+        let selected = omera_storage::library_location::copy_and_select(
+            &data_dir,
+            Path::new(&directory),
+            &active,
+        )?;
+        if let Some(config) = completion {
+            if let Err(error) = crate::config_store::save(&config_path, config) {
+                omera_storage::library_location::select_database(&data_dir, &active)?;
+                return Err(error);
+            }
+        }
+        Ok::<_, String>(selected != active)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    if changed {
+        app.restart();
+    }
+    Ok(())
 }
 
 /// Restore database from a backup file, verifying integrity and reloading connection.
@@ -1332,7 +1378,7 @@ pub async fn restore_database(source_path: String, app_handle: AppHandle) -> Res
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?;
-    let active = active_database_path(&data_dir);
+    let active = active_database_path(&data_dir)?;
     tauri::async_runtime::spawn_blocking(move || {
         omera_storage::recovery::stage_restore(Path::new(&source_path), &active)
     })
@@ -1678,7 +1724,7 @@ pub async fn get_or_create_thumbnail(
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {e}"))?;
     let max_edge = request.max_edge.unwrap_or(384);
-    let db_path = active_database_path(&data_dir);
+    let db_path = active_database_path(&data_dir)?;
     let budget_bytes = thumbnail_budget_bytes(request.cache_budget_mb);
     let generation = request.generation;
     let file_id = request.file_id;
@@ -1725,7 +1771,7 @@ pub async fn save_video_thumbnail(
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {e}"))?;
-    let db_path = active_database_path(&data_dir);
+    let db_path = active_database_path(&data_dir)?;
     tauri::async_runtime::spawn_blocking(move || {
         let thumb_dir = data_dir.join("thumbnails");
         let _ = std::fs::create_dir_all(&thumb_dir);
@@ -1791,7 +1837,7 @@ pub async fn batch_generate_thumbnails(
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {e}"))?;
     let max_edge = max_edge.unwrap_or(384);
-    let db_path = active_database_path(&data_dir);
+    let db_path = active_database_path(&data_dir)?;
     let budget_bytes = thumbnail_budget_bytes(cache_budget_mb);
     let generation_tracker = state.thumbnail_generation.clone();
     let generation = generation.unwrap_or_else(|| generation_tracker.load(Ordering::Acquire));
@@ -1890,7 +1936,7 @@ pub async fn get_thumbnail_cache_stats(
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {e}"))?;
-    let db_path = active_database_path(&data_dir);
+    let db_path = active_database_path(&data_dir)?;
     let budget_bytes = thumbnail_budget_bytes(cache_budget_mb);
     tauri::async_runtime::spawn_blocking(move || {
         omera_scan::get_thumbnail_cache_stats(&data_dir, &db_path, budget_bytes)
@@ -1906,7 +1952,7 @@ pub async fn clear_thumbnail_cache(app_handle: AppHandle) -> Result<usize, Strin
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {e}"))?;
-    let db_path = active_database_path(&data_dir);
+    let db_path = active_database_path(&data_dir)?;
     tauri::async_runtime::spawn_blocking(move || {
         omera_scan::clear_thumbnail_cache(&data_dir, &db_path)
     })
@@ -3321,6 +3367,8 @@ pub struct AppConfig {
     pub silent_install: bool,
     #[serde(default)]
     pub has_completed_onboarding: bool,
+    #[serde(default)]
+    pub has_completed_omera_setup: bool,
     #[serde(default = "default_auto_stack")]
     pub auto_stack: bool,
     #[serde(default = "default_stack_similarity")]
@@ -3412,6 +3460,7 @@ impl Default for AppConfig {
             auto_check_update: true,
             silent_install: false,
             has_completed_onboarding: false,
+            has_completed_omera_setup: false,
             auto_stack: false,
             stack_similarity_threshold: 0.85,
             stack_time_window_minutes: 180,
@@ -3453,6 +3502,10 @@ mod app_config_tests {
     #[test]
     fn legacy_config_receives_defaults_for_new_preferences() {
         let mut value = serde_json::to_value(AppConfig::default()).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("has_completed_omera_setup");
         value.as_object_mut().unwrap().remove("suppressed_warnings");
         value
             .as_object_mut()
@@ -3475,6 +3528,7 @@ mod app_config_tests {
         value.as_object_mut().unwrap().remove("root_mappings");
 
         let config: AppConfig = serde_json::from_value(value).unwrap();
+        assert!(!config.has_completed_omera_setup);
         assert!(config.suppressed_warnings.is_empty());
         assert_eq!(config.startup_scan_interval_minutes, 360);
         assert_eq!(config.theme, "system");
@@ -3534,7 +3588,7 @@ pub fn get_storage_paths(app: AppHandle) -> Result<StoragePaths, String> {
     Ok(StoragePaths {
         data_dir: data_dir.to_string_lossy().to_string(),
         config_file: data_dir.join("config.json").to_string_lossy().to_string(),
-        database_file: active_database_path(&data_dir)
+        database_file: active_database_path(&data_dir)?
             .to_string_lossy()
             .to_string(),
         thumbnails_dir: data_dir.join("thumbnails").to_string_lossy().to_string(),
@@ -3550,7 +3604,7 @@ pub fn open_storage_dir(app: AppHandle, target: String) -> Result<(), String> {
 
     let path_to_open = match target.as_str() {
         "config" => data_dir.join("config.json"),
-        "database" => active_database_path(&data_dir),
+        "database" => active_database_path(&data_dir)?,
         "thumbnails" => data_dir.join("thumbnails"),
         "models" => data_dir.join("models"),
         "updates" => data_dir.join("updates"),
@@ -4438,7 +4492,7 @@ pub async fn cloud_backup_restore_snapshot(
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?;
-    let active = active_database_path(&data_dir);
+    let active = active_database_path(&data_dir)?;
     tauri::async_runtime::spawn_blocking(move || {
         crate::cloud_backup::restore_cloud_snapshot(&active, &config, &snapshot_filename)
     })
@@ -4530,93 +4584,131 @@ pub fn cloud_sync_get_summary(
 }
 
 #[tauri::command]
-pub fn get_legacy_migration_status(
+pub async fn get_legacy_migration_status(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<omera_domain::LegacyMigrationStatus, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.get_status(&app)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .get_status(&app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn preview_legacy_migration(
+pub async fn preview_legacy_migration(
     app: AppHandle,
     state: State<'_, AppState>,
     source_id: String,
+    destination_directory: Option<String>,
 ) -> Result<omera_domain::LegacyMigrationPreview, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.preview_migration(&app, &source_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .preview_migration(
+                &app,
+                &source_id,
+                destination_directory.as_deref().map(Path::new),
+            )
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn start_legacy_migration(
+pub async fn start_legacy_migration(
     app: AppHandle,
     state: State<'_, AppState>,
     plan_id: String,
 ) -> Result<omera_domain::LegacyMigrationJob, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.start_migration(&app, &plan_id)
+    let coordinator = state.migration_coordinator.clone();
+    let worker_app = app.clone();
+    let job = tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .start_migration(&worker_app, &plan_id)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    if job.status == "awaiting_restart" {
+        app.restart();
+    }
+    Ok(job)
 }
 
 #[tauri::command]
-pub fn get_legacy_migration_job(
+pub async fn get_legacy_migration_job(
     state: State<'_, AppState>,
     job_id: String,
 ) -> Result<omera_domain::LegacyMigrationJob, String> {
-    let coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.get_job(&job_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .get_job(&job_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn preview_legacy_cleanup(
+pub async fn preview_legacy_cleanup(
     app: AppHandle,
     state: State<'_, AppState>,
     receipt_id: String,
 ) -> Result<omera_domain::LegacyCleanupPreview, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.preview_cleanup(&app, &receipt_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .preview_cleanup(&app, &receipt_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn confirm_legacy_cleanup(
+pub async fn confirm_legacy_cleanup(
     app: AppHandle,
     state: State<'_, AppState>,
     preview_id: String,
     confirmed: bool,
 ) -> Result<omera_domain::LegacyCleanupResult, String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.confirm_cleanup(&app, &preview_id, confirmed)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .confirm_cleanup(&app, &preview_id, confirmed)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn defer_legacy_cleanup(
+pub async fn defer_legacy_cleanup(
     app: AppHandle,
     state: State<'_, AppState>,
     receipt_id: String,
 ) -> Result<(), String> {
-    let mut coordinator = state
-        .migration_coordinator
-        .lock()
-        .map_err(|e| e.to_string())?;
-    coordinator.defer_cleanup(&app, &receipt_id)
+    let coordinator = state.migration_coordinator.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        coordinator
+            .lock()
+            .map_err(|e| e.to_string())?
+            .defer_cleanup(&app, &receipt_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]

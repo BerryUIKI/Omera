@@ -698,6 +698,9 @@ export interface MigrationReceipt {
   artifacts: MigratedArtifact[];
   integrity_hash: string;
   cleanup_status: string;
+  source_revision?: string;
+  activated_at?: number | null;
+  activation_requires_empty?: boolean;
 }
 
 export interface MigrationError {
@@ -721,7 +724,7 @@ export interface LegacyMigrationPreview {
   destination_root: string;
   destination_db: string;
   required_space_bytes: number;
-  available_space_bytes: number;
+  available_space_bytes: number | null;
   conflicts: string[];
   exclusions: string[];
 }

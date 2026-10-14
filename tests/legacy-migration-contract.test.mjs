@@ -30,7 +30,7 @@ test("Legacy Migration: Tauri backend registers all 7 coordination commands", as
     );
     assert.match(
       commandsContent,
-      new RegExp(`pub fn ${cmd}`),
+      new RegExp(`pub (?:async )?fn ${cmd}`),
       `src-tauri/src/commands.rs must implement ${cmd}`,
     );
   }
@@ -103,37 +103,37 @@ test("Legacy Migration: Command parameters and return DTO shapes are compatible"
   // Verify return types in commands.rs match domain types
   assert.match(
     commandsContent,
-    /pub fn get_legacy_migration_status\([^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationStatus,\s*String>/,
+    /pub (?:async )?fn get_legacy_migration_status\([^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationStatus,\s*String>/,
     "get_legacy_migration_status must return LegacyMigrationStatus",
   );
   assert.match(
     commandsContent,
-    /pub fn preview_legacy_migration\([^)]*source_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationPreview,\s*String>/,
+    /pub (?:async )?fn preview_legacy_migration\([^)]*source_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationPreview,\s*String>/,
     "preview_legacy_migration must accept source_id and return LegacyMigrationPreview",
   );
   assert.match(
     commandsContent,
-    /pub fn start_legacy_migration\([^)]*plan_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationJob,\s*String>/,
+    /pub (?:async )?fn start_legacy_migration\([^)]*plan_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationJob,\s*String>/,
     "start_legacy_migration must accept plan_id and return LegacyMigrationJob",
   );
   assert.match(
     commandsContent,
-    /pub fn get_legacy_migration_job\([^)]*job_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationJob,\s*String>/,
+    /pub (?:async )?fn get_legacy_migration_job\([^)]*job_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyMigrationJob,\s*String>/,
     "get_legacy_migration_job must accept job_id and return LegacyMigrationJob",
   );
   assert.match(
     commandsContent,
-    /pub fn preview_legacy_cleanup\([^)]*receipt_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyCleanupPreview,\s*String>/,
+    /pub (?:async )?fn preview_legacy_cleanup\([^)]*receipt_id:\s*String[^)]*\)\s*->\s*Result<omera_domain::LegacyCleanupPreview,\s*String>/,
     "preview_legacy_cleanup must accept receipt_id and return LegacyCleanupPreview",
   );
   assert.match(
     commandsContent,
-    /pub fn confirm_legacy_cleanup\([^)]*preview_id:\s*String,\s*confirmed:\s*bool[^)]*\)\s*->\s*Result<omera_domain::LegacyCleanupResult,\s*String>/,
+    /pub (?:async )?fn confirm_legacy_cleanup\([^)]*preview_id:\s*String,\s*confirmed:\s*bool[^)]*\)\s*->\s*Result<omera_domain::LegacyCleanupResult,\s*String>/,
     "confirm_legacy_cleanup must accept preview_id and confirmed, returning LegacyCleanupResult",
   );
   assert.match(
     commandsContent,
-    /pub fn defer_legacy_cleanup\([^)]*receipt_id:\s*String[^)]*\)\s*->\s*Result<\(\),\s*String>/,
+    /pub (?:async )?fn defer_legacy_cleanup\([^)]*receipt_id:\s*String[^)]*\)\s*->\s*Result<\(\),\s*String>/,
     "defer_legacy_cleanup must accept receipt_id and return ()",
   );
 

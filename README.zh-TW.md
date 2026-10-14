@@ -20,7 +20,7 @@
 
 [![Release](https://img.shields.io/github/v/release/BerryUIKI/Omera?display_name=tag&style=flat-square&color=blue)](https://github.com/BerryUIKI/Omera/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/BerryUIKI/Omera/total?style=flat-square&color=green)](https://github.com/BerryUIKI/Omera/releases)
-[![License](https://img.shields.io/badge/授權-AGPL--3.0-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/授權-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Website](https://img.shields.io/badge/官方網站-GitHub%20Pages-12b5cb?style=flat-square)](https://berryuiki.github.io/Omera/)
 
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
@@ -43,8 +43,9 @@
 ## 🚀 快速上手
 
 1. **下載安裝** — 前往 **[GitHub Releases 官方發佈頁面](https://github.com/BerryUIKI/Omera/releases/latest)** 下載相應作業系統的安裝檔。
-2. **加入目錄** — 將 Omera 指向您的 WebUI、ComfyUI 或 NovelAI 輸出目錄。選擇 *外鏈模式*（零拷貝就地引用）或 *AIGC 管線模式*（背景防抖自動收割）。
-3. **瀏覽與創作** — 您的海量圖庫已即時完成索引。打星評分、打標管理、多圖對比、分詞提取與無損匯出皆在指尖。
+2. **首次設定** — 選擇應用程式語言和資料庫目錄。檢查找到的 Berry 媒體庫後再匯入，重新啟動後啟用已驗證的快照。清理為選用，並需另行確認。
+3. **加入目錄** — 將 Omera 指向您的 WebUI、ComfyUI 或 NovelAI 輸出目錄。選擇 *外鏈模式*（零拷貝就地引用）或 *AIGC 管線模式*（背景防抖自動收割）。
+4. **瀏覽與創作** — 您的海量圖庫已即時完成索引。打星評分、打標管理、多圖對比、分詞提取與無損匯出皆在指尖。
 
 ---
 
@@ -271,7 +272,7 @@ cargo test --workspace  # Rust 後端單元測試
 
 ## 📄 開源授權
 
-本專案基於 **[AGPL-3.0 開源協議](LICENSE)** 發布。
+本專案基於 **[Apache-2.0 開源協議](LICENSE)** 發布。
 
 Copyright © 2026 [BerryUIKI](https://github.com/BerryUIKI).
 

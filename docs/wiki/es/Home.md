@@ -39,7 +39,7 @@ Omera es un gestor de activos y banco de trabajo de prompts local-first de códi
 - **[Referencia completa de configuración](06-reference-and-maintenance/settings-reference.md)**: Guía exhaustiva de parámetros en las 8 pestañas de preferencias.
 - **[Mantenimiento de bases de datos y caché](06-reference-and-maintenance/database-maintenance.md)**: Compactación SQLite WAL (`VACUUM`), copia de seguridad y restauración de base de datos, presupuesto de caché de miniaturas (expulsión LRU) y diagnóstico de colas.
 - **[Actualizaciones y ciclo de vida](06-reference-and-maintenance/updating.md)**: Actualizador automático integrado en la aplicación, garantías de preservación de datos entre versiones y actualizaciones manuales de lanzamientos.
-- **[Arquitectura de privacidad y seguridad](06-reference-and-maintenance/privacy-and-security.md)**: Modelo 100% centrado en local (offline-first), telemetría cero, aislamiento de inferencia de IA local y licencia AGPL-3.0.
+- **[Arquitectura de privacidad y seguridad](06-reference-and-maintenance/privacy-and-security.md)**: Modelo 100% centrado en local (offline-first), telemetría cero, aislamiento de inferencia de IA local y licencia Apache-2.0.
 - **[Resolución de problemas y preguntas frecuentes (FAQ)](06-reference-and-maintenance/troubleshooting-and-faq.md)**: Soluciones a problemas comunes, consejos de optimización del rendimiento y preguntas frecuentes.
 - **[Glosario del producto](06-reference-and-maintenance/glossary.md)**: Definiciones autorizadas para términos específicos del dominio del producto (Hero, Flujo de ingesta, Similitud de Jaccard, Cursor Keyset, OCC, Tarjeta de baraja de póquer, etc.).
 

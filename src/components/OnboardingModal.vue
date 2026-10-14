@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { t } from "../i18n";
+import { t, SUPPORTED_LOCALES, currentLocaleSetting, setLocale, type LocaleSetting } from "../i18n";
+import { saveAppConfig, type AppConfig, type StoragePaths } from "../utils/config";
+import { databaseDirectory, migrationMessage } from "../utils/legacy-migration";
 import type { Folder, PipelineDetectedPath, LegacyMigrationStatus } from "../types";
 import LegacyMigrationModal from "./LegacyMigrationModal.vue";
 
@@ -20,18 +22,42 @@ const error = ref("");
 const legacyDiscoveredSourcesCount = ref(0);
 const showLegacyMigrationModal = ref(false);
 
-onMounted(() => {
-  void scanLocalAi();
-  void checkLegacyMigration();
-});
-
+const locale = ref<LocaleSetting>(currentLocaleSetting.value);
+const directory = ref("");
+const checkingLegacy = ref(true);
+const legacyCheckFailed = ref(false);
+let pipelineCreated = false;
+let scanned = false;
+onMounted(() => { void initialize(); });
+watch(step, (value) => { if (value === 2 && !scanned) { scanned = true; void scanLocalAi(); } });
+async function initialize() {
+  try {
+    const paths = await invoke<StoragePaths>("get_storage_paths");
+    directory.value = databaseDirectory(paths.database_file);
+  } catch (e) { error.value = String(e); }
+  await checkLegacyMigration();
+}
 async function checkLegacyMigration() {
+  checkingLegacy.value = true; legacyCheckFailed.value = false;
   try {
     const status = await invoke<LegacyMigrationStatus>("get_legacy_migration_status");
     legacyDiscoveredSourcesCount.value = status.discovered_sources.length;
-  } catch (e) {
-    console.warn("Failed to check legacy migration status:", e);
-  }
+    if (status.stage === "cleanup_available") showLegacyMigrationModal.value = true;
+  } catch { legacyCheckFailed.value = true; }
+  finally { checkingLegacy.value = false; }
+}
+async function changeLanguage() {
+  submitting.value = true; error.value = "";
+  try {
+    const config = await invoke<AppConfig>("get_app_config");
+    await saveAppConfig({ ...config, locale: locale.value });
+    setLocale(locale.value);
+  } catch (e) { locale.value = currentLocaleSetting.value; error.value = String(e); }
+  finally { submitting.value = false; }
+}
+async function pickDatabaseDirectory() {
+  try { const selected = await open({ directory: true, multiple: false }); if (typeof selected === "string") directory.value = selected; }
+  catch (e) { error.value = String(e); }
 }
 
 async function scanLocalAi() {
@@ -59,12 +85,13 @@ async function pickVaultPath() {
   }
 }
 
-async function finishSetup() {
+async function finishSetup(withPipeline = true) {
+  if (submitting.value || !directory.value || showLegacyMigrationModal.value) return;
   error.value = "";
   submitting.value = true;
   try {
     // If user configured a pipeline
-    if (selectedDetected.value && vaultPath.value) {
+    if (withPipeline && !pipelineCreated && selectedDetected.value && vaultPath.value) {
       await invoke<Folder>("add_folder_with_options", {
         path: vaultPath.value,
         folderType: "pipeline",
@@ -73,25 +100,22 @@ async function finishSetup() {
         gracePeriodHours: 24,
         autoHarvest: true,
       });
+      pipelineCreated = true;
     }
-  } catch (e) {
-    console.warn("Error during onboarding pipeline creation:", e);
-  } finally {
-    submitting.value = false;
+    await invoke("set_library_directory", { directory: directory.value, completeSetup: true });
     emit("close");
-  }
+  } catch (e) {
+    error.value = String(e);
+  } finally { submitting.value = false; }
 }
-
-function skip() {
-  emit("close");
-}
+function skip() { if (!submitting.value && !showLegacyMigrationModal.value) void finishSetup(false); }
 </script>
 
 <template>
   <div class="modal-backdrop" @click.self="skip" v-dialog="skip">
     <div class="modal-dialog">
       <!-- Close button -->
-      <button type="button" class="btn-modal-close" aria-label="Close" @click="skip">✕</button>
+      <button type="button" class="btn-modal-close" :aria-label="t.legacyMigration.close" :disabled="submitting" @click="skip">✕</button>
 
       <!-- Header -->
       <div class="modal-header">
@@ -101,36 +125,23 @@ function skip() {
       </div>
 
       <div v-if="error" class="modal-error">
-        ⚠️ {{ error }}
+        ⚠️ {{ migrationMessage(error) }}
+        <details><summary>{{ t.legacyMigration.errorDetails }}</summary>{{ error }}</details>
       </div>
 
       <div class="modal-body">
         <!-- Step 1: Welcome & Value Prop -->
         <div v-if="step === 1" class="step-pane">
-          <div class="feature-highlights">
-            <div class="feature-item">
-              <div class="feature-icon">⚡</div>
-              <div class="feature-info">
-                <strong>{{ t.onboarding.feat1Title }}</strong>
-                <p>{{ t.onboarding.feat1Desc }}</p>
-              </div>
-            </div>
-            <div class="feature-item">
-              <div class="feature-icon">📚</div>
-              <div class="feature-info">
-                <strong>{{ t.onboarding.feat2Title }}</strong>
-                <p>{{ t.onboarding.feat2Desc }}</p>
-              </div>
-            </div>
-            <div class="feature-item">
-              <div class="feature-icon">🔍</div>
-              <div class="feature-info">
-                <strong>{{ t.onboarding.feat3Title }}</strong>
-                <p>{{ t.onboarding.feat3Desc }}</p>
-              </div>
-            </div>
-          </div>
-
+          <label class="setup-field">{{ t.setup.language }}
+            <select v-model="locale" :disabled="submitting" @change="changeLanguage"><option v-for="option in SUPPORTED_LOCALES" :key="option.key" :value="option.key">{{ option.label }}</option></select>
+          </label>
+          <label class="setup-field">{{ t.setup.databaseDirectory }}
+            <div class="path-group"><input v-model="directory" :disabled="submitting" /><button class="btn-browse" :disabled="submitting" @click="pickDatabaseDirectory">{{ t.setup.chooseDirectory }}</button></div>
+          </label>
+          <p class="hint">{{ t.setup.locationHint }}</p>
+          <p v-if="checkingLegacy" role="status">{{ t.setup.checkingLegacy }}</p>
+          <div v-else-if="legacyCheckFailed" role="alert"><p>{{ t.setup.detectionFailed }}</p><button class="btn-browse" @click="checkLegacyMigration">{{ t.review.retry }}</button></div>
+          <p v-else-if="!legacyDiscoveredSourcesCount">{{ t.setup.noSources }}</p>
           <!-- Discovered legacy library banner -->
           <div
             v-if="legacyDiscoveredSourcesCount > 0"
@@ -149,7 +160,7 @@ function skip() {
               type="button"
               class="btn-primary"
               style="white-space: nowrap; padding: 6px 14px; font-size: 0.82rem;"
-              @click="showLegacyMigrationModal = true"
+              :disabled="submitting || checkingLegacy" @click="showLegacyMigrationModal = true"
             >
               🚀 {{ t.legacyMigration.title }}
             </button>
@@ -234,7 +245,7 @@ function skip() {
 
       <!-- Footer Buttons -->
       <div class="modal-footer">
-        <button type="button" class="btn-skip" @click="skip">
+        <button type="button" class="btn-skip" :disabled="submitting || !directory" @click="skip">
           {{ t.onboarding.skip }}
         </button>
 
@@ -243,7 +254,7 @@ function skip() {
             v-if="step > 1"
             type="button"
             class="btn-back"
-            @click="step--"
+            :disabled="submitting" @click="step--"
           >
             {{ t.onboarding.back }}
           </button>
@@ -251,7 +262,7 @@ function skip() {
             v-if="step < 3"
             type="button"
             class="btn-primary"
-            @click="step++"
+            :disabled="submitting || !directory" @click="step++"
           >
             {{ t.onboarding.next }}
           </button>
@@ -259,8 +270,8 @@ function skip() {
             v-else
             type="button"
             class="btn-primary"
-            :disabled="submitting"
-            @click="finishSetup"
+            :disabled="submitting || !directory"
+            @click="finishSetup()"
           >
             {{ submitting ? t.nav.scanning : t.onboarding.startUsing }}
           </button>
@@ -270,7 +281,7 @@ function skip() {
     <LegacyMigrationModal
       :show="showLegacyMigrationModal"
       @close="showLegacyMigrationModal = false"
-      @migrated="showLegacyMigrationModal = false; emit('close');"
+      :destination-directory="directory"
     />
   </div>
 </template>
@@ -291,7 +302,8 @@ function skip() {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   width: 90%;
-  max-width: 580px;
+  max-width: 640px;
+  max-height: 90vh;
   border-radius: 14px;
   border: 1px solid var(--border-color);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
@@ -378,7 +390,8 @@ function skip() {
 
 .modal-body {
   padding: 1.5rem 1.8rem;
-  min-height: 260px;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -515,6 +528,7 @@ function skip() {
 
 .path-group input {
   flex: 1;
+  min-width: 0;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   border: 1px solid rgba(128, 128, 128, 0.3);
@@ -660,4 +674,9 @@ function skip() {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.setup-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.setup-field select { padding: 8px; color: var(--color-text-primary); background: var(--color-bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; }
+@media (max-width: 600px) { .legacy-banner, .path-group { flex-wrap: wrap; } .modal-header, .modal-body, .modal-footer { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+.setup-field .path-group input { background: var(--color-bg-secondary); color: var(--color-text-primary); }
 </style>

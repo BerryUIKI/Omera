@@ -20,7 +20,7 @@
 
 [![Release](https://img.shields.io/github/v/release/BerryUIKI/Omera?display_name=tag&style=flat-square&color=blue)](https://github.com/BerryUIKI/Omera/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/BerryUIKI/Omera/total?style=flat-square&color=green)](https://github.com/BerryUIKI/Omera/releases)
-[![License](https://img.shields.io/badge/ライセンス-AGPL--3.0-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/ライセンス-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Website](https://img.shields.io/badge/公式HP-GitHub%20Pages-12b5cb?style=flat-square)](https://berryuiki.github.io/Omera/)
 
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
@@ -43,8 +43,9 @@
 ## 🚀 クイックスタート
 
 1. **ダウンロード** — **[GitHub Releases 公式リリース](https://github.com/BerryUIKI/Omera/releases/latest)** からお使いのOS向けインストーラーを入手します。
-2. **フォルダ追加** — WebUI、ComfyUI、または NovelAI の出力先フォルダを指定します。*外部リンクモード*（コピー不要のインプレース参照）または *AIGCパイプラインモード*（バックグラウンド自動収集）を選択できます。
-3. **ブラウズ＆制作** — ライブラリは一瞬で検索可能になります。評価、タグ付け、並列比較、メタデータを保持したエクスポートをストレスフリーに行えます。
+2. **初回設定** — アプリの言語とデータベースの保存先を選択します。検出された Berry ライブラリを確認してからインポートし、再起動して検証済みスナップショットを有効にします。任意のクリーンアップには別途確認が必要です。
+3. **フォルダ追加** — WebUI、ComfyUI、または NovelAI の出力先フォルダを指定します。*外部リンクモード*（コピー不要のインプレース参照）または *AIGCパイプラインモード*（バックグラウンド自動収集）を選択できます。
+4. **ブラウズ＆制作** — ライブラリは一瞬で検索可能になります。評価、タグ付け、並列比較、メタデータを保持したエクスポートをストレスフリーに行えます。
 
 ---
 
@@ -273,7 +274,7 @@ cargo test --workspace  # Rust バックエンドテスト
 
 ## 📄 ライセンス
 
-本プロジェクトは **[AGPL-3.0 ライセンス](LICENSE)** のもとで公開されています。
+本プロジェクトは **[Apache-2.0 ライセンス](LICENSE)** のもとで公開されています。
 
 Copyright © 2026 [BerryUIKI](https://github.com/BerryUIKI).
 

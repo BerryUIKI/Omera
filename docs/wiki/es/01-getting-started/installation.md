@@ -66,39 +66,32 @@ de ejecución. Omera no incluye sus DLL ni instala el redistribuible automática
 
 ---
 
-## 3. Asistente de bienvenida inicial (Onboarding Wizard)
+## 3. Primera configuración de Omera e importación desde Berry
 
-Al iniciar Omera por primera vez, se abre automáticamente el **Asistente de bienvenida interactivo** (`OnboardingModal.vue`) para guiarle durante la configuración.
+Al iniciar por primera vez, elija el idioma y el directorio de la base de datos.
+Esta configuración aparece aunque haya completado la de Berry. La base se guarda
+por defecto en los datos de Omera. Otro directorio solo cambia su ubicación;
+configuración, modelos, caché y medios originales conservan sus ubicaciones.
 
-```mermaid
-flowchart TD
-    A[Iniciar Omera] --> B[Bienvenida e introducción conceptual]
-    B --> C[Detección de herramientas de IA locales]
-    C --> D{¿Se encontraron instalaciones locales?}
-    D -- Sí --> E[Añadir en 1 clic SD WebUI / ComfyUI / Fooocus]
-    D -- No --> F[Selección manual de carpetas]
-    E --> G[Configurar modo de ingesta: Enlace vs Flujo]
-    F --> G
-    G --> H[Indexación rápida inicial]
-    H --> I[Listo para explorar el Studio]
-```
+1. Revise las fuentes de Berry detectadas. El plan muestra origen, destino,
+   espacio necesario, capacidad disponible y advertencias. Cierre la aplicación
+   antigua. Si no se conoce la capacidad, resuelva el problema antes de importar.
+2. Importe una instantánea verificada sin sobrescribir la biblioteca activa.
+   Reinicie Omera para activarla. Se conservan la base original y los medios.
+3. Tras verificar la activación, la limpieza opcional muestra los archivos exactos.
+   Selecciónelos y confirme por separado. Los archivos modificados necesitan otra
+   revisión. Medios, bibliotecas externas y carpetas compartidas quedan excluidos
+   de la limpieza automática. Puede conservar todos los datos antiguos.
+4. Continúe la detección opcional de salidas de IA locales y la configuración del
+   flujo, o sáltela. Al terminar se guarda el directorio. La biblioteca SQLite se
+   carga antes de la comprobación opcional del sistema de archivos.
 
-### Pasos del asistente de bienvenida:
-1. **Pantalla de bienvenida**: Presenta los 3 pilares fundamentales:
-   - Indexación local de alta velocidad con extracción sin pérdidas de metadatos de generación.
-   - Agrupación inteligente de ráfagas en baraja de cartas y comparación lado a lado.
-   - Privacidad 100% en local sin telemetría alguna.
-2. **Detección automática de motores de IA locales**:
-   - Omera busca en directorios locales habituales de todas las unidades (p. ej., `C:\`, `D:\`, `/home/`) las salidas generadas por:
-     - **AUTOMATIC1111 / SD.Next** (`outputs/txt2img-images`, `outputs/img2img-images`)
-     - **ComfyUI** (`ComfyUI/output`)
-     - **Fooocus** (`Fooocus/outputs`)
-     - **InvokeAI** (`invokeai/outputs`)
-   - Si se detectan, puede conectarlas con un solo clic como **Flujos de ingesta AIGC** o **Enlaces externos**.
-3. **Seleccionar el modo de almacenamiento**:
-   - Elija cómo interactúa Omera con sus archivos (lea más en [Modos de carpeta e importación](../02-library-management/folder-modes-and-import.md)).
-4. **Finalización**:
-   - Omera inicializa la base de datos local SQLite (`omera.db`) en modo Write-Ahead Logging (WAL), inicia el escaneo de carpetas en segundo plano y le dirige directamente a la galería principal del estudio.
+Tras un fallo, revise de nuevo el plan antes de reintentar. Las bibliotecas
+existentes no vacías se conservan; elija otro destino si el plan lo requiere.
+
+También puede cambiar el directorio en los ajustes. Omera guarda la selección
+tras verificar la copia; reinicie después. Los directorios siguientes siguen
+alojando configuración y otros archivos aunque la base se encuentre en otro lugar.
 
 ---
 

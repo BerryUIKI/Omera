@@ -1,10 +1,12 @@
 {
   "name": "omera",
   "private": true,
-  "version": "0.4.5",
+  "license": "Apache-2.0",
+  "version": "0.4.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:desktop": "tauri dev",
     "build": "vue-tsc --noEmit && vite build",
     "test:stack": "node scripts/run-tests.mjs",
     "test:memory": "tsx --test tests/memory-audit.test.mjs",

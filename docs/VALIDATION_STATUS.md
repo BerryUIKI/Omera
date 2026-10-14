@@ -45,3 +45,35 @@ The Node benchmark measures helper execution, not WebView painting, image decode
 - Full file-operation fault/partial-result cases, config secret reuse/conflicts, watcher initialization/revocation races and remaining #98–#117 acceptance cases described in the task cards.
 
 Do not close issues or merge draft PR #138 based solely on this table. Treat its changes as inputs to reviewed, issue-sized implementation work. The interface/assignment documents can be distributed independently, but engineers must use the baseline and readiness gate stated for their task.
+
+## First Omera setup and legacy import follow-up (2026-10-14)
+
+Local validation on Windows in `codex/version-update-check`, based on the current
+`dev` integration checkout. This evidence does not replace the historical
+snapshot records above or imply installer/release readiness.
+
+- `pnpm run build`: passed (existing bundle-size advisory remains).
+- `pnpm run test:stack`: 274 tests passed, including production setup/migration
+  controls with controlled IPC, stale replies, failed saves, failed import
+  invalidation, separately approved cleanup IDs and seven-locale diagnostics.
+- `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, and
+  `cargo test --workspace`: passed. The application suite has 82 tests and the
+  storage suite 98; the other workspace unit, integration and doc tests passed.
+- IPC inventory generation/check: 161 registered commands. Compatibility checks
+  separately cover optional destination arguments, nullable measured capacity,
+  new receipt defaults, and inherited configuration defaults.
+- Temporary SQLite fixtures cover live empty-target staging, verified restart
+  activation, changes after preview, custom destinations retaining the active
+  library, source-preserving WAL snapshots, cache exclusion, legacy open-handle
+  detection on Windows, stale cleanup artifacts, protected media, and partial
+  disposal failure retaining the source database for renewed review.
+- Browser fixtures mounted production components and the full application.
+  Inherited Berry onboarding completion still opens first Omera setup; initial
+  SQLite library requests precede discovery and optional startup cleanup does
+  not run. English/Chinese text, GB capacity, unknown-space rejection, failed
+  import invalidation, explicit cleanup approval, keyboard focus wrapping and
+  500 px window layout were checked. Fixture cleanup used mocked IPC only.
+
+No real user legacy directory, media, shared vault, or credentials were imported
+or removed during these checks. Native installed old-to-new upgrade and
+cross-platform installer/crash-fault matrices still require release validation.

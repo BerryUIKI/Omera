@@ -63,6 +63,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
+  (e: "openUpdater"): void;
   (e: "save", settings: {
     locale: LocaleSetting;
     autoScan: boolean;
@@ -1749,7 +1750,13 @@ async function saveSettings() {
               </div>
               <div class="about-details">
                 <h5 class="about-name">Omera</h5>
-                <p class="about-ver">v{{ info?.app_version || '0.4.0' }}</p>
+                <button
+                  type="button"
+                  class="about-ver"
+                  :title="t.menu.checkUpdates"
+                  :aria-label="`${t.updater.title} (v${info?.app_version || '0.4.0'})`"
+                  @click="emit('openUpdater')"
+                >v{{ info?.app_version || '0.4.0' }}</button>
                 <p class="about-desc">{{ t.settings.aboutDesc }}</p>
               </div>
             </div>
@@ -2172,10 +2179,26 @@ async function saveSettings() {
 }
 
 .about-ver {
+  align-self: flex-start;
   margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  font-family: inherit;
   font-size: 0.72rem;
   color: var(--badge-cyan-text, #155e75);
   font-weight: 600;
+  cursor: pointer;
+}
+
+.about-ver:hover {
+  text-decoration: underline;
+}
+
+.about-ver:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .about-desc {

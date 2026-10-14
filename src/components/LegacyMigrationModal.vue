@@ -1,473 +1,180 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { t } from "../i18n";
 import { formatBytes } from "../utils/image";
-import type {
-  LegacyMigrationStatus,
-  LegacyMigrationPreview,
-  LegacyMigrationJob,
-  DiscoveredSource,
-} from "../types";
+import { migrationMessage } from "../utils/legacy-migration";
+import type { LegacyMigrationStatus, LegacyMigrationPreview, LegacyMigrationJob, LegacyCleanupPreview, LegacyCleanupResult } from "../types";
 
-const props = defineProps<{
-  show: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "migrated"): void;
-}>();
-
-const loadingStatus = ref(false);
-const statusError = ref<string | null>(null);
-const migrationStatus = ref<LegacyMigrationStatus | null>(null);
-
-const selectedSourceId = ref<string>("");
-const previewing = ref(false);
-const previewError = ref<string | null>(null);
-const activePreview = ref<LegacyMigrationPreview | null>(null);
-
-const migrating = ref(false);
-const activeJob = ref<LegacyMigrationJob | null>(null);
-const migrationError = ref<string | null>(null);
-
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-const sources = computed<DiscoveredSource[]>(() => {
-  return migrationStatus.value?.discovered_sources || [];
-});
-
-const selectedSource = computed<DiscoveredSource | undefined>(() => {
-  return sources.value.find((s) => s.source_id === selectedSourceId.value);
-});
-
-const isInsufficientSpace = computed<boolean>(() => {
-  if (!activePreview.value) return false;
-  return activePreview.value.available_space_bytes < activePreview.value.required_space_bytes;
-});
-
-watch(
-  () => props.show,
-  (val) => {
-    if (val) {
-      resetState();
-      void loadStatus();
-    } else {
-      stopPolling();
-    }
-  },
-  { immediate: true }
-);
-
-function resetState() {
-  statusError.value = null;
-  previewError.value = null;
-  migrationError.value = null;
-  activePreview.value = null;
-  activeJob.value = null;
-  migrating.value = false;
-  previewing.value = false;
-  stopPolling();
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-}
+const props = defineProps<{ show: boolean; destinationDirectory?: string }>();
+const emit = defineEmits<{ (e: "close"): void; (e: "migrated"): void }>();
+const status = ref<LegacyMigrationStatus | null>(null);
+const preview = ref<LegacyMigrationPreview | null>(null);
+const job = ref<LegacyMigrationJob | null>(null);
+const cleanup = ref<LegacyCleanupPreview | null>(null);
+const result = ref<LegacyCleanupResult | null>(null);
+const sourceId = ref("");
+const directory = ref(props.destinationDirectory || "");
+const loading = ref(false);
+const busy = ref(false);
+const error = ref("");
+const approved = ref(false);
+let generation = 0;
+const receipt = computed(() => status.value?.active_receipt ?? job.value?.receipt);
+const canClean = computed(() => !!receipt.value?.activated_at && ["pending", "deferred", "partially_cleaned"].includes(receipt.value.cleanup_status));
+const restarting = computed(() => job.value?.status === "awaiting_restart" || status.value?.stage === "awaiting_restart");
+const sources = computed(() => status.value?.discovered_sources || []);
+const ready = computed(() => !!preview.value && !preview.value.conflicts.length && preview.value.available_space_bytes != null && preview.value.available_space_bytes >= preview.value.required_space_bytes);
+watch(() => props.show, (show) => {
+  generation++;
+  if (show) { status.value = null; preview.value = null; job.value = null; cleanup.value = null; result.value = null; error.value = ""; approved.value = false; directory.value = props.destinationDirectory || ""; void loadStatus(); }
+}, { immediate: true });
+watch([sourceId, directory], () => { generation++; preview.value = null; error.value = ""; }, { flush: "sync" });
+watch(() => props.destinationDirectory, (value) => { directory.value = value || ""; });
+onBeforeUnmount(() => { generation++; });
 
 async function loadStatus() {
-  loadingStatus.value = true;
-  statusError.value = null;
+  loading.value = true; error.value = "";
+  const request = generation;
   try {
-    const status = await invoke<LegacyMigrationStatus>("get_legacy_migration_status");
-    migrationStatus.value = status;
-    if (status.discovered_sources.length > 0 && !selectedSourceId.value) {
-      selectedSourceId.value = status.discovered_sources[0].source_id;
-    }
-  } catch (err: any) {
-    statusError.value = typeof err === "string" ? err : err?.message || String(err);
-  } finally {
-    loadingStatus.value = false;
-  }
+    const next = await invoke<LegacyMigrationStatus>("get_legacy_migration_status");
+    if (request !== generation || !props.show) return;
+    status.value = next;
+    sourceId.value = next.discovered_sources.find(source => !source.is_locked)?.source_id || "";
+    if (canClean.value) emit("migrated");
+  } catch (e) { if (request === generation) error.value = String(e); }
+  finally { loading.value = false; }
 }
-
-async function handlePreview() {
-  if (!selectedSourceId.value) return;
-  previewing.value = true;
-  previewError.value = null;
-  activePreview.value = null;
+async function pickDirectory() {
+  try { const value = await open({ directory: true, multiple: false }); if (typeof value === "string") directory.value = value; }
+  catch (e) { error.value = String(e); }
+}
+async function analyze() {
+  if (!sourceId.value || loading.value || busy.value) return;
+  loading.value = true; error.value = "";
+  const request = generation;
   try {
-    const preview = await invoke<LegacyMigrationPreview>("preview_legacy_migration", {
-      sourceId: selectedSourceId.value,
-    });
-    activePreview.value = preview;
-  } catch (err: any) {
-    previewError.value = typeof err === "string" ? err : err?.message || String(err);
-  } finally {
-    previewing.value = false;
-  }
+    const next = await invoke<LegacyMigrationPreview>("preview_legacy_migration", { sourceId: sourceId.value, destinationDirectory: directory.value || null });
+    if (request === generation && props.show) preview.value = next;
+  } catch (e) { if (request === generation) error.value = String(e); }
+  finally { loading.value = false; }
 }
-
-async function handleStartMigration() {
-  if (!activePreview.value) return;
-  migrating.value = true;
-  migrationError.value = null;
+async function start() {
+  if (!ready.value || busy.value || !preview.value) return;
+  busy.value = true; error.value = "";
   try {
-    const job = await invoke<LegacyMigrationJob>("start_legacy_migration", {
-      planId: activePreview.value.plan_id,
-    });
-    activeJob.value = job;
-    if (job.status === "completed") {
-      migrating.value = false;
-      emit("migrated");
-    } else if (job.status === "failed") {
-      migrating.value = false;
-      migrationError.value = job.error?.message_key || "Migration failed";
-    } else {
-      startJobPolling(job.job_id);
+    job.value = await invoke<LegacyMigrationJob>("start_legacy_migration", { planId: preview.value.plan_id });
+    if (job.value.status === "failed") {
+      error.value = job.value.error ? `[${job.value.error.code}] ${job.value.error.context || ""}` : "MIGRATION_FAILED";
+      preview.value = null;
     }
-  } catch (err: any) {
-    migrating.value = false;
-    migrationError.value = typeof err === "string" ? err : err?.message || String(err);
+  } catch (e) { error.value = String(e); preview.value = null; }
+  finally { busy.value = false; }
+}
+async function reviewCleanup() {
+  if (!receipt.value || busy.value) return;
+  busy.value = true; error.value = ""; approved.value = false;
+  try { cleanup.value = await invoke<LegacyCleanupPreview>("preview_legacy_cleanup", { receiptId: receipt.value.receipt_id }); }
+  catch (e) { error.value = String(e); }
+  finally { busy.value = false; }
+}
+async function clean() {
+  if (!cleanup.value || !approved.value || busy.value) return;
+  busy.value = true; error.value = "";
+  try {
+    result.value = await invoke<LegacyCleanupResult>("confirm_legacy_cleanup", { previewId: cleanup.value.preview_id, confirmed: true });
+    cleanup.value = null;
+    if (receipt.value) receipt.value.cleanup_status = result.value.status;
+  } catch (e) { error.value = String(e); cleanup.value = null; approved.value = false; }
+  finally { busy.value = false; }
+}
+async function close() {
+  if (busy.value || restarting.value) return;
+  if (canClean.value && receipt.value) {
+    busy.value = true;
+    try { await invoke("defer_legacy_cleanup", { receiptId: receipt.value.receipt_id }); }
+    catch (e) { error.value = String(e); busy.value = false; return; }
+    busy.value = false;
   }
-}
-
-function startJobPolling(jobId: string) {
-  stopPolling();
-  pollTimer = setInterval(async () => {
-    try {
-      const job = await invoke<LegacyMigrationJob>("get_legacy_migration_job", { jobId });
-      activeJob.value = job;
-      if (job.status === "completed") {
-        stopPolling();
-        migrating.value = false;
-        emit("migrated");
-      } else if (job.status === "failed") {
-        stopPolling();
-        migrating.value = false;
-        migrationError.value = job.error?.message_key || "Migration encountered an error";
-      }
-    } catch (err: any) {
-      stopPolling();
-      migrating.value = false;
-      migrationError.value = typeof err === "string" ? err : err?.message || String(err);
-    }
-  }, 500);
-}
-
-function handleBackToSources() {
-  activePreview.value = null;
-  previewError.value = null;
-  migrationError.value = null;
-  activeJob.value = null;
-  migrating.value = false;
-  void loadStatus();
-}
-
-function handleClose() {
-  stopPolling();
-  emit("close");
+  generation++; emit("close");
 }
 </script>
 
 <template>
-  <div v-if="show" class="modal-backdrop" @click.self="handleClose">
-    <div
-      class="modal-dialog legacy-migration-dialog"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="t.legacyMigration.title"
-    >
-      <!-- Header -->
+  <div v-if="show" class="modal-backdrop" v-dialog="close" @click.self="close">
+    <div class="modal-dialog legacy-migration-dialog" role="dialog" aria-modal="true" :aria-label="t.legacyMigration.title">
       <div class="modal-header">
-        <div class="header-titles">
-          <h3>📦 {{ t.legacyMigration.title }}</h3>
-          <p class="subtitle">{{ t.legacyMigration.subtitle }}</p>
-        </div>
-        <button
-          type="button"
-          class="btn-close"
-          :aria-label="t.review.close"
-          @click="handleClose"
-        >
-          ✕
-        </button>
+        <div class="header-titles"><h3>📦 {{ t.legacyMigration.title }}</h3><p class="subtitle">{{ t.setup.cacheNotice }}</p></div>
+        <button type="button" class="btn-close" :aria-label="t.legacyMigration.close" :disabled="busy || restarting" @click="close">✕</button>
       </div>
-
-      <!-- Body -->
       <div class="modal-body">
-        <!-- Error banner -->
-        <div v-if="statusError" class="alert-box error" role="alert">
-          <span>⚠️ {{ statusError }}</span>
-          <button type="button" class="btn-retry-sm" @click="loadStatus">
-            {{ t.review.retry }}
-          </button>
+        <div v-if="error" class="alert-box error" role="alert">
+          <p>{{ migrationMessage(error) }}</p>
+          <details><summary>{{ t.legacyMigration.errorDetails }}</summary><code>{{ error }}</code></details>
         </div>
-
-        <!-- 1. Source Discovery & Selection Stage -->
-        <div v-if="!activePreview && !activeJob && !migrating" class="stage-pane">
-          <div v-if="loadingStatus" class="loading-state">
-            <span class="spinner">⏳</span>
-            <p>{{ t.legacyMigration.previewing }}</p>
-          </div>
-
-          <div v-else-if="sources.length === 0" class="empty-state">
-            <span class="empty-icon">📂</span>
-            <h4>{{ t.legacyMigration.discoveredTitle }}</h4>
-            <p>{{ t.nav.noFolders }}</p>
-          </div>
-
-          <div v-else class="sources-list-container">
-            <h4 class="section-title">{{ t.legacyMigration.discoveredTitle }}</h4>
-            <p class="section-desc">{{ t.legacyMigration.discoveredDesc }}</p>
-
-            <div class="source-cards" role="radiogroup" :aria-label="t.legacyMigration.discoveredTitle">
-              <label
-                v-for="src in sources"
-                :key="src.source_id"
-                class="source-card"
-                :class="{ selected: selectedSourceId === src.source_id, locked: src.is_locked }"
-              >
-                <div class="card-radio">
-                  <input
-                    v-model="selectedSourceId"
-                    type="radio"
-                    name="legacy-source"
-                    :value="src.source_id"
-                    :disabled="src.is_locked"
-                  />
-                </div>
-                <div class="card-info">
-                  <div class="card-header-row">
-                    <span class="card-title">{{ src.identifier }}</span>
-                    <span
-                      class="card-lock-badge"
-                      :class="src.is_locked ? 'badge-locked' : 'badge-unlocked'"
-                    >
-                      {{ src.is_locked ? t.legacyMigration.isLocked : t.legacyMigration.isUnlocked }}
-                    </span>
-                  </div>
-                  <div class="card-meta-grid">
-                    <div class="meta-item">
-                      <span class="meta-label">{{ t.legacyMigration.fileCount }}:</span>
-                      <strong class="meta-val">{{ src.file_count }}</strong>
-                    </div>
-                    <div class="meta-item">
-                      <span class="meta-label">{{ t.legacyMigration.dbSize }}:</span>
-                      <span class="meta-val">{{ formatBytes(src.database_size_bytes) }}</span>
-                    </div>
-                    <div class="meta-item">
-                      <span class="meta-label">{{ t.legacyMigration.totalSize }}:</span>
-                      <span class="meta-val">{{ formatBytes(src.total_size_bytes) }}</span>
-                    </div>
-                    <div class="meta-item">
-                      <span class="meta-label">{{ t.legacyMigration.schemaVersion }}:</span>
-                      <span class="meta-val">v{{ src.schema_version }}</span>
-                    </div>
-                  </div>
-                  <div class="card-path">
-                    <code>{{ src.root_path }}</code>
-                  </div>
-                </div>
-              </label>
-            </div>
-
-            <div v-if="previewError" class="alert-box error" role="alert">
-              <span>⚠️ {{ previewError }}</span>
-            </div>
-          </div>
+        <div v-if="loading" class="loading-state">{{ t.setup.checkingLegacy }}</div>
+        <div v-else-if="restarting" class="alert-box success" role="status">{{ t.setup.restartNotice }}</div>
+        <div v-else-if="result" class="stage-pane">
+          <h4>{{ result.failed_count ? t.setup.partialCleanup : t.setup.cleaned }}</h4>
+          <p>{{ formatBytes(result.cleaned_bytes) }}</p>
+          <details v-if="result.errors.length"><summary>{{ t.legacyMigration.errorDetails }}</summary><p v-for="detail in result.errors" :key="detail">{{ detail }}</p></details>
+          <button v-if="result.failed_count" class="btn-secondary" @click="result = null; reviewCleanup()">{{ t.review.retry }}</button>
         </div>
-
-        <!-- 2. Migration Plan Preview Stage -->
-        <div v-else-if="activePreview && !activeJob && !migrating" class="stage-pane">
-          <div class="plan-header">
-            <h4>📋 {{ t.legacyMigration.previewTitle }}</h4>
-            <span class="plan-source-badge">{{ activePreview.source.identifier }}</span>
+        <div v-else-if="cleanup" class="stage-pane">
+          <h4>{{ t.setup.cleanupReview }} · {{ formatBytes(cleanup.total_size_bytes) }}</h4>
+          <div v-for="item in cleanup.items" :key="item.path" class="receipt-card cleanup-item">
+            <strong>{{ item.eligible ? t.setup.eligible : t.setup.protected }} · {{ formatBytes(item.size_bytes) }}</strong>
+            <code>{{ item.path }}</code><span v-if="item.reason">{{ migrationMessage(item.reason) }}</span>
           </div>
-
+          <label v-if="cleanup.items.some(item => item.eligible)" class="cleanup-approval"><input v-model="approved" type="checkbox" :disabled="busy" />{{ t.setup.cleanupConfirm }}</label>
+          <p v-else>{{ t.setup.noCleanup }}</p>
+        </div>
+        <div v-else-if="canClean" class="stage-pane complete-pane">
+          <h4>{{ t.legacyMigration.completeTitle }}</h4><p>{{ t.legacyMigration.completeDesc }}</p>
+          <code>{{ receipt?.destination_db }}</code>
+          <h4>{{ t.legacyMigration.cleanupPromptTitle }}</h4><p>{{ t.legacyMigration.cleanupPromptDesc }}</p>
+          <p>{{ t.legacyMigration.sourcePreservedNotice }}</p>
+        </div>
+        <div v-else-if="busy" class="stage-pane progress-pane"><h4>{{ t.legacyMigration.migrating }}</h4><p>{{ t.legacyMigration.sourcePreservedNotice }}</p></div>
+        <div v-else-if="preview" class="stage-pane">
+          <h4>{{ t.legacyMigration.previewTitle }}</h4>
           <div class="plan-summary-grid">
-            <div class="summary-card">
-              <span class="summary-label">{{ t.legacyMigration.destinationTarget }}</span>
-              <code class="summary-val">{{ activePreview.destination_db }}</code>
-            </div>
-            <div class="summary-card">
-              <span class="summary-label">{{ t.legacyMigration.requiredSpace }}</span>
-              <strong class="summary-val">{{ formatBytes(activePreview.required_space_bytes) }}</strong>
-            </div>
-            <div class="summary-card" :class="{ 'warning-bg': isInsufficientSpace }">
-              <span class="summary-label">{{ t.legacyMigration.availableSpace }}</span>
-              <strong class="summary-val" :style="{ color: isInsufficientSpace ? '#f87171' : 'inherit' }">
-                {{ formatBytes(activePreview.available_space_bytes) }}
-              </strong>
-            </div>
+            <div class="summary-card"><span>{{ t.legacyMigration.destinationTarget }}</span><code>{{ preview.destination_db }}</code></div>
+            <div class="summary-card"><span>{{ t.legacyMigration.requiredSpace }}</span><strong>{{ formatBytes(preview.required_space_bytes) }}</strong></div>
+            <div class="summary-card"><span>{{ t.legacyMigration.availableSpace }}</span><strong>{{ preview.available_space_bytes == null ? t.legacyMigration.spaceUnknown : formatBytes(preview.available_space_bytes) }}</strong></div>
           </div>
-
-          <!-- Space Warning -->
-          <div v-if="isInsufficientSpace" class="alert-box warning" role="alert">
-            ⚠️ {{ t.legacyMigration.insufficientSpace }}
-          </div>
-
-          <!-- Conflicts List -->
-          <div v-if="activePreview.conflicts.length > 0" class="conflict-section">
-            <h5 class="conflict-title">⚠️ {{ t.legacyMigration.conflictsTitle }}</h5>
-            <ul class="conflict-list">
-              <li v-for="(conflict, idx) in activePreview.conflicts" :key="idx" class="conflict-item">
-                {{ conflict }}
-              </li>
-            </ul>
-          </div>
-          <div v-else class="alert-box success">
-            ✓ {{ t.legacyMigration.noConflicts }}
-          </div>
-
-          <!-- Exclusions List -->
-          <div v-if="activePreview.exclusions.length > 0" class="exclusion-section">
-            <h5 class="exclusion-title">ℹ️ {{ t.legacyMigration.exclusionsTitle }}</h5>
-            <ul class="exclusion-list">
-              <li v-for="(ex, idx) in activePreview.exclusions" :key="idx" class="exclusion-item">
-                {{ ex }}
-              </li>
-            </ul>
-          </div>
-
-          <div v-if="migrationError" class="alert-box error" role="alert">
-            <span>⚠️ {{ migrationError }}</span>
-          </div>
+          <ul v-if="preview.conflicts.length" class="alert-box warning"><li v-for="conflict in preview.conflicts" :key="conflict">{{ migrationMessage(conflict) }}</li></ul>
+          <div v-else class="alert-box success">{{ t.legacyMigration.noConflicts }}</div>
+          <h5>{{ t.legacyMigration.exclusionsTitle }}</h5><ul><li v-for="item in preview.exclusions" :key="item">{{ migrationMessage(item) }}</li></ul>
         </div>
-
-        <!-- 3. Active Migration Progress Stage -->
-        <div v-else-if="migrating" class="stage-pane progress-pane">
-          <div class="progress-hero">
-            <span class="spinner-large">⚡</span>
-            <h4>{{ t.legacyMigration.migrating }}</h4>
-            <p class="progress-step-text">
-              {{ activeJob?.current_step || t.legacyMigration.stepCopying }}
-            </p>
+        <div v-else class="stage-pane">
+          <h4>{{ t.legacyMigration.discoveredTitle }}</h4><p>{{ t.legacyMigration.discoveredDesc }}</p>
+          <p v-if="!sources.length">{{ t.setup.noSources }}</p>
+          <div class="source-cards" role="radiogroup" :aria-label="t.legacyMigration.sourceLabel">
+            <label v-for="source in sources" :key="source.source_id" class="source-card" :class="{ selected: sourceId === source.source_id, locked: source.is_locked }">
+              <input v-model="sourceId" type="radio" name="legacy-source" :value="source.source_id" :disabled="source.is_locked || loading" />
+              <div class="card-info"><strong>{{ source.identifier }}</strong><p>{{ source.is_locked ? t.legacyMigration.isLocked : t.legacyMigration.isUnlocked }}</p>
+                <div class="card-meta-grid"><span>{{ t.legacyMigration.fileCount }}: {{ source.file_count }}</span><span>{{ t.legacyMigration.dbSize }}: {{ formatBytes(source.database_size_bytes) }}</span><span>{{ t.legacyMigration.totalSize }}: {{ formatBytes(source.total_size_bytes) }}</span></div>
+                <code class="card-path">{{ source.root_path }}</code>
+              </div>
+            </label>
           </div>
-
-          <div class="progress-bar-container">
-            <div
-              class="progress-bar-fill"
-              :style="{ width: `${Math.round((activeJob?.progress || 0.1) * 100)}%` }"
-            ></div>
-          </div>
-          <span class="progress-percentage">
-            {{ Math.round((activeJob?.progress || 0.1) * 100) }}%
-          </span>
-
-          <p class="source-preservation-notice">
-            🛡️ {{ t.legacyMigration.sourcePreservedNotice }}
-          </p>
-        </div>
-
-        <!-- 4. Migration Complete Stage -->
-        <div v-else-if="activeJob && activeJob.status === 'completed'" class="stage-pane complete-pane">
-          <div class="complete-hero">🎉</div>
-          <h4>{{ t.legacyMigration.completeTitle }}</h4>
-          <p class="complete-desc">{{ t.legacyMigration.completeDesc }}</p>
-
-          <div class="receipt-card">
-            <div class="receipt-row">
-              <span>{{ t.legacyMigration.sourceLabel }}:</span>
-              <strong>{{ activeJob.receipt?.source_identifier }}</strong>
-            </div>
-            <div class="receipt-row">
-              <span>{{ t.legacyMigration.migratedCount.replace('{count}', String(activeJob.receipt?.artifacts.length || 0)) }}</span>
-            </div>
-            <div class="receipt-row source-safe">
-              <span>🛡️ {{ t.legacyMigration.sourcePreservedNotice }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. Migration Failed / Error Stage with Retry -->
-        <div v-else-if="activeJob && activeJob.status === 'failed'" class="stage-pane failed-pane">
-          <div class="failed-hero">❌</div>
-          <h4>{{ t.legacyMigration.failedTitle }}</h4>
-          <p class="failed-desc">{{ migrationError || activeJob.error?.message_key }}</p>
-
-          <div v-if="activeJob.error?.context" class="error-context-box">
-            <span class="context-label">{{ t.legacyMigration.errorDetails }}:</span>
-            <code>{{ activeJob.error.context }}</code>
-          </div>
-
-          <p class="source-safe-text">
-            🛡️ {{ t.legacyMigration.sourcePreservedNotice }}
-          </p>
+          <div class="directory-picker"><span>{{ t.setup.databaseDirectory }}</span><code v-if="directory">{{ directory }}</code><button class="btn-secondary" @click="pickDirectory">{{ t.setup.chooseDirectory }}</button></div>
+          <p>{{ t.setup.locationHint }}</p>
+          <button v-if="error" class="btn-secondary" @click="loadStatus">{{ t.review.retry }}</button>
         </div>
       </div>
-
-      <!-- Footer Controls -->
       <div class="modal-footer">
-        <button
-          type="button"
-          class="btn-secondary"
-          :disabled="migrating"
-          @click="handleClose"
-        >
-          {{ activeJob?.status === 'completed' ? t.legacyMigration.close : t.onboarding.skip }}
-        </button>
-
+        <button class="btn-secondary" :disabled="busy || restarting" @click="close">{{ canClean ? t.legacyMigration.skipCleanupButton : t.legacyMigration.close }}</button>
         <div class="footer-actions">
-          <!-- Step 1: Preview action -->
-          <button
-            v-if="!activePreview && !activeJob && !migrating"
-            type="button"
-            class="btn-primary"
-            :disabled="!selectedSourceId || selectedSource?.is_locked || previewing || loadingStatus"
-            @click="handlePreview"
-          >
-            {{ previewing ? t.legacyMigration.previewing : t.legacyMigration.previewButton }}
-          </button>
-
-          <!-- Step 2: Back & Start Migration -->
-          <template v-else-if="activePreview && !activeJob && !migrating">
-            <button
-              type="button"
-              class="btn-secondary"
-              @click="handleBackToSources"
-            >
-              {{ t.legacyMigration.backToSources }}
-            </button>
-            <button
-              type="button"
-              class="btn-primary"
-              :disabled="isInsufficientSpace"
-              @click="handleStartMigration"
-            >
-              🚀 {{ t.legacyMigration.startMigration }}
-            </button>
+          <button v-if="cleanup" class="btn-primary" :disabled="!approved || busy || !cleanup.items.some(item => item.eligible)" @click="clean">{{ t.setup.eligible }}</button>
+          <button v-else-if="canClean && !result" class="btn-primary" :disabled="busy" @click="reviewCleanup">{{ t.legacyMigration.cleanupPreviewButton }}</button>
+          <template v-else-if="preview && !restarting && !result">
+            <button class="btn-secondary" :disabled="busy" @click="preview = null; job = null; error = ''">{{ t.legacyMigration.backToSources }}</button>
+            <button class="btn-primary" :disabled="!ready || busy" @click="start">{{ t.legacyMigration.startMigration }}</button>
           </template>
-
-          <!-- Step 4/5: Retry & Done -->
-          <template v-else-if="activeJob?.status === 'failed'">
-            <button
-              type="button"
-              class="btn-secondary"
-              @click="handleBackToSources"
-            >
-              {{ t.legacyMigration.backToSources }}
-            </button>
-            <button
-              type="button"
-              class="btn-primary"
-              @click="handleStartMigration"
-            >
-              🔄 {{ t.legacyMigration.retryButton }}
-            </button>
-          </template>
-
-          <button
-            v-else-if="activeJob?.status === 'completed'"
-            type="button"
-            class="btn-primary"
-            @click="handleClose"
-          >
-            ✓ {{ t.legacyMigration.close }}
-          </button>
+          <button v-else-if="!result && !restarting" class="btn-primary" :disabled="!sourceId || loading || busy" @click="analyze">{{ t.legacyMigration.previewButton }}</button>
         </div>
       </div>
     </div>
@@ -883,4 +590,16 @@ function handleClose() {
 .btn-secondary:hover:not(:disabled) {
   background: var(--border-color, #313244);
 }
+.cleanup-item { max-width: none; box-sizing: border-box; margin-top: 0; padding: 12px; }
+.cleanup-approval { display: flex; align-items: start; gap: 10px; margin-top: 0; }
+.directory-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+code, .summary-card strong { overflow-wrap: anywhere; min-width: 0; }
+.alert-box { display: block; }
+@media (max-width: 600px) { .plan-summary-grid { grid-template-columns: 1fr; } .modal-footer { gap: 10px; flex-wrap: wrap; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+.stage-pane h4, .stage-pane h5, .stage-pane p, .stage-pane ul { margin: 0; }
+.stage-pane h4 { font-size: 1.05rem; }
+.stage-pane h5 { font-size: 0.9rem; }
+.stage-pane ul { font-size: 0.86rem; line-height: 1.5; padding-left: 20px; color: var(--color-text-secondary); }
+.source-card > input { align-self: flex-start; margin-top: 3px; }
 </style>

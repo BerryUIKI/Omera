@@ -39,7 +39,7 @@ Omera ist ein quelloffener, lokaler („Local-First“) Asset-Manager und Prompt
 - **[Vollständige Einstellungsreferenz](06-reference-and-maintenance/settings-reference.md)**: Vollständiger Parameterleitfaden für alle 8 Einstellungs-Tabs.
 - **[Datenbank- & Speicherwartung](06-reference-and-maintenance/database-maintenance.md)**: SQLite-WAL-Komprimierung (`VACUUM`), Datenbank-Backup/-Wiederherstellung, Thumbnail-Cache-Budget (LRU-Bereinigung) und Warteschlangendiagnose.
 - **[Updates & Lebenszyklus](06-reference-and-maintenance/updating.md)**: In-App-Auto-Updater, Datenerhaltungsgarantien über Versionswechsel hinweg und manuelle Release-Upgrades.
-- **[Datenschutz- & Sicherheitsarchitektur](06-reference-and-maintenance/privacy-and-security.md)**: 100% Offline-First-Modell, keinerlei Telemetrie, isolierte lokale KI-Inferenz und AGPL-3.0-Lizenzierung.
+- **[Datenschutz- & Sicherheitsarchitektur](06-reference-and-maintenance/privacy-and-security.md)**: 100% Offline-First-Modell, keinerlei Telemetrie, isolierte lokale KI-Inferenz und Apache-2.0-Lizenzierung.
 - **[Fehlerbehebung & FAQ](06-reference-and-maintenance/troubleshooting-and-faq.md)**: Lösungen für häufige Probleme, Tipps zur Performance-Optimierung und Antworten auf häufig gestellte Fragen.
 - **[Glossar](06-reference-and-maintenance/glossary.md)**: Verbindliche Definitionen zentraler Fachbegriffe (Titelbild/Hero, Erfassungs-Pipeline, Jaccard-Ähnlichkeit, Keyset-Cursor, OCC, Poker-Deck-Karte usw.).
 
