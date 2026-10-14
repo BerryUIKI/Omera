@@ -474,6 +474,7 @@ export const de: typeof en = {
     helpGuide: "Funktionshandbuch & Dokumentation",
     shortcuts: "Tastaturkürzel",
     checkUpdates: "Nach Updates suchen...",
+    githubRepository: "Omera GitHub-Repository",
     about: "Über Omera",
   },
   updater: {

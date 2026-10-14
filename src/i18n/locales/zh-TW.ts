@@ -474,6 +474,7 @@ export const zhTW: typeof en = {
     helpGuide: "功能指南與離線文檔",
     shortcuts: "快速鍵手冊",
     checkUpdates: "檢查更新...",
+    githubRepository: "Omera GitHub 儲存庫",
     about: "關於 Omera",
   },
   updater: {

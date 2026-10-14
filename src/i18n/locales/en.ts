@@ -472,6 +472,7 @@ export const en = {
     helpGuide: "Feature Guide & Documentation",
     shortcuts: "Keyboard Shortcuts",
     checkUpdates: "Check for Updates...",
+    githubRepository: "Omera GitHub repository",
     about: "About Omera",
   },
   updater: {

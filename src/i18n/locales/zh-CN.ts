@@ -474,6 +474,7 @@ export const zhCN: typeof en = {
     helpGuide: "功能指南与离线文档",
     shortcuts: "快捷键指南",
     checkUpdates: "检查更新...",
+    githubRepository: "Omera GitHub 仓库",
     about: "关于 Omera",
   },
   updater: {

@@ -474,6 +474,7 @@ export const ja: typeof en = {
     helpGuide: "機能ガイドとドキュメント",
     shortcuts: "ショートカット一覧",
     checkUpdates: "アップデートを確認...",
+    githubRepository: "Omera の GitHub リポジトリ",
     about: "Omera について",
   },
   updater: {

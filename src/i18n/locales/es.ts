@@ -474,6 +474,7 @@ export const es: typeof en = {
     helpGuide: "Guía de funciones y documentación",
     shortcuts: "Atajos de teclado",
     checkUpdates: "Buscar actualizaciones...",
+    githubRepository: "Repositorio de Omera en GitHub",
     about: "Acerca de Omera",
   },
   updater: {
