@@ -91,6 +91,37 @@ pub fn prepare_startup(root: &Path) -> Result<(), String> {
     legacy_migration::save_receipt(root, &receipt)
 }
 
+/// Call only after the selected database has reopened and its library can be read.
+pub fn finalize_startup(root: &Path, active: &Path) -> Result<(), String> {
+    let Some(mut receipt) = legacy_migration::load_receipt(root)? else {
+        return Ok(());
+    };
+    if receipt.cleanup_status != "activation_pending" {
+        return Ok(());
+    }
+    let expected = Path::new(&receipt.destination_db);
+    if expected.canonicalize().map_err(|e| e.to_string())?
+        != active.canonicalize().map_err(|e| e.to_string())?
+        || active.with_extension("pending-restore.db").exists()
+        || database_fingerprint(active)? != receipt.integrity_hash
+    {
+        return Err("[INTEGRITY_FAILED] Reopened migration destination does not match the verified snapshot".into());
+    }
+    for artifact in &mut receipt.artifacts {
+        if artifact.category == "database" {
+            artifact.status = "success".into();
+        }
+    }
+    receipt.activated_at = Some(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_secs(),
+    );
+    receipt.cleanup_status = "pending".into();
+    legacy_migration::save_receipt(root, &receipt)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -191,35 +222,4 @@ mod tests {
             "activation_blocked"
         );
     }
-}
-
-/// Call only after the selected database has reopened and its library can be read.
-pub fn finalize_startup(root: &Path, active: &Path) -> Result<(), String> {
-    let Some(mut receipt) = legacy_migration::load_receipt(root)? else {
-        return Ok(());
-    };
-    if receipt.cleanup_status != "activation_pending" {
-        return Ok(());
-    }
-    let expected = Path::new(&receipt.destination_db);
-    if expected.canonicalize().map_err(|e| e.to_string())?
-        != active.canonicalize().map_err(|e| e.to_string())?
-        || active.with_extension("pending-restore.db").exists()
-        || database_fingerprint(active)? != receipt.integrity_hash
-    {
-        return Err("[INTEGRITY_FAILED] Reopened migration destination does not match the verified snapshot".into());
-    }
-    for artifact in &mut receipt.artifacts {
-        if artifact.category == "database" {
-            artifact.status = "success".into();
-        }
-    }
-    receipt.activated_at = Some(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_secs(),
-    );
-    receipt.cleanup_status = "pending".into();
-    legacy_migration::save_receipt(root, &receipt)
 }
