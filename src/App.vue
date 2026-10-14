@@ -2787,24 +2787,18 @@ function onResetZoom() {
 
     <AlbumModal
       v-if="albumModalOpen"
-      :open="albumModalOpen"
+      v-model:open="albumModalOpen"
       :file-ids="albumTargetFileIds"
-      @close="albumModalOpen = false"
-      @created="loadAlbumsAndTags"
-      @updated="loadAlbumsAndTags"
-      @deleted="loadAlbumsAndTags"
+      @albums-changed="loadAlbumsAndTags"
+      @select-album="onSelectNav({ type: 'album', album: $event })"
       @added-to-album="onAddedToAlbum"
     />
 
     <TagModal
       v-if="tagModalOpen"
-      :open="tagModalOpen"
+      v-model:open="tagModalOpen"
       :file-ids="tagTargetFileIds"
-      @close="tagModalOpen = false"
-      @created="loadAlbumsAndTags"
-      @updated="loadAlbumsAndTags"
-      @deleted="loadAlbumsAndTags"
-      @tagged="refreshOrganization"
+      @tags-changed="refreshOrganization"
     />
 
     <!-- WD14 AI Auto-Tagger Modal -->
