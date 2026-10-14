@@ -13,6 +13,7 @@ mod engine;
 pub mod legacy_migration;
 pub mod library_location;
 mod migration_export;
+pub mod migration_fingerprint;
 mod migrations;
 pub mod recovery;
 
