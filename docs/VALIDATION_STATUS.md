@@ -77,3 +77,34 @@ snapshot records above or imply installer/release readiness.
 No real user legacy directory, media, shared vault, or credentials were imported
 or removed during these checks. Native installed old-to-new upgrade and
 cross-platform installer/crash-fault matrices still require release validation.
+
+## Workbench usability follow-up (2026-10-14)
+
+Combined local evidence on Windows in `codex/version-update-check`, before
+splitting the changes into the user-approved small PR stack:
+
+- `pnpm run build`: passed; the existing bundle-size advisory remains.
+- `pnpm run test:stack`: 289 tests passed. New coverage executes production
+  Inspector/viewer/organization actions, verifies registered curation commands,
+  late-reply fences, selected-tab preservation, bounded next-page navigation,
+  conditional modal focus, pixel geometry, translated settings discovery,
+  draft theme radios, and anchor capture before Vue clears element references.
+- `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, and
+  `cargo test --workspace`: passed, including 82 application and 98 storage
+  tests. This phase introduces no Rust changes, IPC commands, or config fields.
+- The production application was mounted in an isolated English browser fixture
+  with mocked IPC and 520 synthetic entries. Grid, Waterfall, and Table were
+  checked at wide and narrow sizes, including preview return, a rapid scrollbar
+  drag, keyboard selection, stack expansion/collapse, ordinary-photo Overview,
+  generated-image tabs, nested organization dialogs, Fit/100%, full-screen
+  Escape, settings result focus, empty results, and save-only theme application.
+  Mounted gallery cards/rows remained bounded to the visible window plus
+  overscan. At display density 1, a 1600-pixel image measured 1600 display pixels
+  at 100%. Reduced-motion safeguards are covered by style/regression checks;
+  a native reduced-motion session was not exercised.
+
+Browser evidence uses synthetic media and mocked persistence. Native installed
+WebView behavior, real media/video codecs, and installed application smoke
+checks remain separate release validation. No real library, legacy data,
+credentials, or settings were changed by these fixtures. Each isolated PR also
+receives its relevant TypeScript and production regression checks.
