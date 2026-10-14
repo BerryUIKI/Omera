@@ -1133,4 +1133,38 @@ export const zhTW: typeof en = {
     "setupFailed": "無法儲存設定，請檢查目錄後重試。",
     "noCleanup": "沒有已驗證且可清理的檔案。"
 },
+  workbench: {
+    "overview": "概覽",
+    "generation": "生成資訊",
+    "rawData": "原始資料",
+    "details": "圖片詳情",
+    "organization": "整理",
+    "noTags": "尚無標籤",
+    "addAlbum": "加入相簿",
+    "fileType": "檔案類型",
+    "dimensions": "尺寸",
+    "fileSize": "檔案大小",
+    "modified": "修改時間",
+    "path": "位置",
+    "generator": "生成工具",
+    "rate": "評為 {rating} 星",
+    "clearRating": "清除評分",
+    "showDetails": "顯示詳情",
+    "hideDetails": "隱藏詳情",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "離開全螢幕",
+    "fit": "符合視窗",
+    "actualSize": "實際尺寸",
+    "zoom": "縮放",
+    "zoomIn": "放大",
+    "zoomOut": "縮小"
+},
+  settingsSearch: {
+    "label": "搜尋設定",
+    "placeholder": "搜尋設定…",
+    "clear": "清除搜尋",
+    "results": "找到 {count} 項設定",
+    "noResults": "沒有符合的設定",
+    "themePreview": "佈景主題預覽"
+},
 };

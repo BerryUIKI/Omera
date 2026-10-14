@@ -1133,4 +1133,38 @@ export const fr: typeof en = {
     "setupFailed": "Impossible d’enregistrer la configuration. Vérifiez le dossier puis réessayez.",
     "noCleanup": "Aucun fichier vérifié ne peut être nettoyé."
 },
+  workbench: {
+    "overview": "Aperçu",
+    "generation": "Génération",
+    "rawData": "Données brutes",
+    "details": "Détails de l’image",
+    "organization": "Organisation",
+    "noTags": "Aucune étiquette",
+    "addAlbum": "Ajouter à un album",
+    "fileType": "Type de fichier",
+    "dimensions": "Dimensions",
+    "fileSize": "Taille du fichier",
+    "modified": "Modification",
+    "path": "Emplacement",
+    "generator": "Générateur",
+    "rate": "Noter {rating} étoiles",
+    "clearRating": "Effacer la note",
+    "showDetails": "Afficher les détails",
+    "hideDetails": "Masquer les détails",
+    "fullscreen": "Plein écran",
+    "exitFullscreen": "Quitter le plein écran",
+    "fit": "Adapter à la fenêtre",
+    "actualSize": "Taille réelle",
+    "zoom": "Zoom",
+    "zoomIn": "Agrandir",
+    "zoomOut": "Réduire"
+},
+  settingsSearch: {
+    "label": "Rechercher un réglage",
+    "placeholder": "Rechercher un réglage…",
+    "clear": "Effacer la recherche",
+    "results": "{count} réglages trouvés",
+    "noResults": "Aucun réglage correspondant",
+    "themePreview": "Aperçu du thème"
+},
 };

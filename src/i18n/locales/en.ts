@@ -1131,4 +1131,38 @@ export const en = {
     "setupFailed": "Setup could not be saved. Check the directory and retry.",
     "noCleanup": "No verified files are eligible for cleanup."
 },
+  workbench: {
+    "overview": "Overview",
+    "generation": "Generation",
+    "rawData": "Raw Data",
+    "details": "Image details",
+    "organization": "Organization",
+    "noTags": "No tags yet",
+    "addAlbum": "Add to album",
+    "fileType": "File type",
+    "dimensions": "Dimensions",
+    "fileSize": "File size",
+    "modified": "Modified",
+    "path": "Location",
+    "generator": "Generator",
+    "rate": "Rate {rating} stars",
+    "clearRating": "Clear rating",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "fit": "Fit to window",
+    "actualSize": "Actual size",
+    "zoom": "Zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
+},
+  settingsSearch: {
+    "label": "Search settings",
+    "placeholder": "Search settings…",
+    "clear": "Clear search",
+    "results": "{count} settings found",
+    "noResults": "No matching settings",
+    "themePreview": "Theme preview"
+},
 };

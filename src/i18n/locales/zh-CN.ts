@@ -1133,4 +1133,38 @@ export const zhCN: typeof en = {
     "setupFailed": "无法保存配置，请检查目录后重试。",
     "noCleanup": "没有已验证且可清理的文件。"
 },
+  workbench: {
+    "overview": "概览",
+    "generation": "生成信息",
+    "rawData": "原始数据",
+    "details": "图片详情",
+    "organization": "整理",
+    "noTags": "尚无标签",
+    "addAlbum": "加入相册",
+    "fileType": "文件类型",
+    "dimensions": "尺寸",
+    "fileSize": "文件大小",
+    "modified": "修改时间",
+    "path": "位置",
+    "generator": "生成工具",
+    "rate": "评为 {rating} 星",
+    "clearRating": "清除评分",
+    "showDetails": "显示详情",
+    "hideDetails": "隐藏详情",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "fit": "适应窗口",
+    "actualSize": "实际尺寸",
+    "zoom": "缩放",
+    "zoomIn": "放大",
+    "zoomOut": "缩小"
+},
+  settingsSearch: {
+    "label": "搜索设置",
+    "placeholder": "搜索设置…",
+    "clear": "清除搜索",
+    "results": "找到 {count} 项设置",
+    "noResults": "没有匹配的设置",
+    "themePreview": "主题预览"
+},
 };
