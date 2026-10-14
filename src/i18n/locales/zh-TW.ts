@@ -625,6 +625,7 @@ export const zhTW: typeof en = {
     generalSubtitle: "選擇啟動行為、語言和應用程式全域預設值。",
     language: "介面顯示語言",
     languageDesc: "選擇軟體介面的顯示語言 (Auto 自動跟隨系統)",
+    languageAuto: "自動（跟隨系統）",
     defaultView: "預設畫廊檢視",
     defaultViewDesc: "選擇啟動軟體時預設使用的圖片展示方式",
     viewGrid: "網格瀑布流 (Grid)",

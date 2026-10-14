@@ -625,6 +625,7 @@ export const fr: typeof en = {
     generalSubtitle: "Choisissez le démarrage, la langue et les valeurs par défaut de l’application.",
     language: "Langue de l'application",
     languageDesc: "Choisir la langue d'affichage (Auto suit la langue du système)",
+    languageAuto: "Automatique (langue du système)",
     defaultView: "Vue par défaut de la galerie",
     defaultViewDesc: "Choisir le mode d'affichage des images au démarrage",
     viewGrid: "Grille en cascade (Grid)",

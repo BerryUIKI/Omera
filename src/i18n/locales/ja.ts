@@ -625,6 +625,7 @@ export const ja: typeof en = {
     generalSubtitle: "起動時の動作、言語、アプリ全体の既定値を選択します。",
     language: "表示言語",
     languageDesc: "インターフェースの表示言語を選択します (Auto システム準拠)",
+    languageAuto: "自動（システム設定に従う）",
     defaultView: "デフォルトのギャラリー表示",
     defaultViewDesc: "アプリ起動時のデフォルト画像表示モードを選択します",
     viewGrid: "グリッド表示 (Grid)",

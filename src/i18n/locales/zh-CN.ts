@@ -625,6 +625,7 @@ export const zhCN: typeof en = {
     generalSubtitle: "选择启动行为、语言和应用全局默认设置。",
     language: "界面显示语言",
     languageDesc: "选择软件界面的展示语言 (Auto 自动跟随系统)",
+    languageAuto: "自动（跟随系统）",
     defaultView: "默认画廊视图",
     defaultViewDesc: "选择启动软件时默认使用的图片展示方式",
     viewGrid: "网格瀑布流 (Grid)",

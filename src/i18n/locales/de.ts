@@ -625,6 +625,7 @@ export const de: typeof en = {
     generalSubtitle: "Startverhalten, Sprache und anwendungsweite Standardwerte festlegen.",
     language: "Anzeigesprache",
     languageDesc: "Wählen Sie die Sprache der Benutzeroberfläche (Auto folgt dem System)",
+    languageAuto: "Automatisch (Systemsprache)",
     defaultView: "Standard-Galerieansicht",
     defaultViewDesc: "Wählen Sie den standardmäßigen Anzeigemodus beim Start",
     viewGrid: "Rasteransicht (Grid)",

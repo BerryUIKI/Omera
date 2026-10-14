@@ -16,7 +16,7 @@ export interface LocaleOption {
 }
 
 export const SUPPORTED_LOCALES: LocaleOption[] = [
-  { key: "auto", label: "Auto (跟随系统 / System)" },
+  { key: "auto", get label() { return t.value.settings.languageAuto; } },
   { key: "zh-CN", label: "简体中文" },
   { key: "zh-TW", label: "繁體中文" },
   { key: "en", label: "English" },

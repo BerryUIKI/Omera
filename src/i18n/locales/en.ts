@@ -623,6 +623,7 @@ export const en = {
     generalSubtitle: "Choose startup behavior, language, and application-wide defaults.",
     language: "Application Language",
     languageDesc: "Choose display language (Auto follows OS language)",
+    languageAuto: "Auto (System)",
     defaultView: "Default Gallery View",
     defaultViewDesc: "Choose default image view mode at startup",
     viewGrid: "Grid Waterfall (Grid)",
