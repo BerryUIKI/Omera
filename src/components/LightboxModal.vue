@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import type { ImageFile } from "../types";
 import { assetUrl, formatBytes, formatDuration, formatPlatformName, getFileName, isVideoContainer } from "../utils/image";
 import { useFileCuration, type CurationChange } from "../utils/file-curation";
+import InspectorPane from "./InspectorPane.vue";
+import { conditionalDialog as vViewerDialog, getTopDialog, isEditableTarget } from "../utils/dialog";
+import { fitImageScale, clampViewerScale, zoomTranslation } from "../utils/viewer-geometry";
 import { t } from "../i18n";
 
 const props = defineProps<{
   file: ImageFile;
   files: ImageFile[];
+  embedded?: boolean;
+  totalCount?: number;
+  hasMore?: boolean;
+  loadMore?: () => Promise<void>;
 }>();
 
 const emit = defineEmits<{
@@ -16,9 +23,55 @@ const emit = defineEmits<{
   updateFile: [file: ImageFile];
   curated: [change: CurationChange];
   findSimilar: [file: ImageFile];
+  openTagModal: [fileId: number];
+  openAlbumModal: [fileId: number];
+  openAutoTagModal: [file: ImageFile];
+  filterByModel: [model: string];
+  filterByHash: [hash: string];
+  openLoraManager: [];
+  tagsChanged: [fileId: number];
 }>();
 
 const scale = ref(1);
+const fitMode = ref(true);
+const fullScreen = ref(!props.embedded);
+const showDetails = ref(!!props.embedded);
+const viewerRoot = ref<HTMLElement | null>(null);
+const canvasElement = ref<HTMLElement | null>(null);
+const detailPanel = ref<InstanceType<typeof InspectorPane> | null>(null);
+const decodedSize = ref({ width: 0, height: 0 });
+const canvasSize = ref({ width: 0, height: 0 });
+const pixelRatio = ref(1);
+const navigationBusy = ref(false);
+let disposed = false;
+let resizeObserver: ResizeObserver | null = null;
+const mediaSize = computed(() => ({ width: decodedSize.value.width || props.file.metadata?.width || 0,
+  height: decodedSize.value.height || props.file.metadata?.height || 0 }));
+const currentScale = computed(() => fitMode.value ? fitImageScale(mediaSize.value, canvasSize.value, pixelRatio.value) : scale.value);
+const renderedScale = computed(() => currentScale.value / pixelRatio.value);
+defineExpose({ reloadOrganization: () => detailPanel.value?.loadTags() });
+function measureCanvas() {
+  const element = canvasElement.value;
+  if (!element) return;
+  canvasSize.value = { width: element.clientWidth, height: element.clientHeight };
+  pixelRatio.value = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+}
+function onImageLoad(event: Event) {
+  const image = event.currentTarget as HTMLImageElement;
+  decodedSize.value = { width: image.naturalWidth, height: image.naturalHeight };
+}
+function setZoom(value: number, point = { x: 0, y: 0 }) {
+  const next = clampViewerScale(value);
+  const position = zoomTranslation({ x: translateX.value, y: translateY.value }, point, currentScale.value, next);
+  translateX.value = position.x; translateY.value = position.y;
+  fitMode.value = false; scale.value = next;
+}
+function actualSize() { fitMode.value = false; scale.value = 1; translateX.value = 0; translateY.value = 0; }
+function closeViewer() {
+  if (fullScreen.value && props.embedded) fullScreen.value = false;
+  else emit("close");
+}
+watch([fullScreen, showDetails], async () => { await nextTick(); measureCanvas(); });
 const translateX = ref(0);
 const translateY = ref(0);
 const isDragging = ref(false);
@@ -33,6 +86,7 @@ watch(
   () => props.file.path,
   (newPath) => {
     resetTransform();
+    decodedSize.value = { width: 0, height: 0 };
     revealedNsfw.value = false;
     if (cachedIndex.value >= 0 && cachedIndex.value < props.files.length) {
       if (props.files[cachedIndex.value]?.path === newPath) return;
@@ -50,57 +104,64 @@ watch(
   { immediate: true },
 );
 
+watch(() => props.file.is_nsfw, sensitive => { if (sensitive) revealedNsfw.value = false; });
+
 const currentIndex = computed(() => cachedIndex.value);
 const hasPrev = computed(() => currentIndex.value > 0);
-const hasNext = computed(() => currentIndex.value >= 0 && currentIndex.value < props.files.length - 1);
+const hasNext = computed(() => currentIndex.value >= 0 && (currentIndex.value < props.files.length - 1 || !!props.hasMore));
+watch(() => props.files, () => { cachedIndex.value = props.files.findIndex(file => file.path === props.file.path); });
 
-// Silent background preload for adjacent images
-watch(
-  currentIndex,
-  (idx) => {
-    if (idx > 0 && props.files[idx - 1]) {
-      const prevImg = new Image();
-      prevImg.src = assetUrl(props.files[idx - 1].path);
-    }
-    if (idx >= 0 && idx < props.files.length - 1 && props.files[idx + 1]) {
-      const nextImg = new Image();
-      nextImg.src = assetUrl(props.files[idx + 1].path);
-    }
-  },
-  { immediate: true },
-);
+// Keep at most two adjacent still-image preloads; release them when navigation changes.
+let adjacentImages: HTMLImageElement[] = [];
+function clearAdjacentImages() { for (const image of adjacentImages) image.src = ""; adjacentImages = []; }
+watch(currentIndex, index => {
+  clearAdjacentImages();
+  if (typeof Image === "undefined") return;
+  for (const neighbor of [props.files[index - 1], props.files[index + 1]]) {
+    if (!neighbor || isVideoContainer(neighbor.container) || neighbor.container.toLowerCase() === "txt") continue;
+    const image = new Image(); image.src = assetUrl(neighbor.path); adjacentImages.push(image);
+  }
+}, { immediate: true });
 
 function resetTransform() {
+  fitMode.value = true; isDragging.value = false;
   scale.value = 1;
   translateX.value = 0;
   translateY.value = 0;
 }
 
 function prev() {
-  if (hasPrev.value) {
+  if (!navigationBusy.value && hasPrev.value) {
     emit("navigate", props.files[currentIndex.value - 1]);
   }
 }
 
-function next() {
-  if (hasNext.value) {
-    emit("navigate", props.files[currentIndex.value + 1]);
+async function next() {
+  if (navigationBusy.value) return;
+  if (currentIndex.value >= 0 && currentIndex.value < props.files.length - 1) {
+    emit("navigate", props.files[currentIndex.value + 1]); return;
   }
+  if (!props.hasMore || !props.loadMore) return;
+  const source = props.file.path;
+  navigationBusy.value = true;
+  try {
+    await props.loadMore();
+    await nextTick();
+    if (disposed || props.file.path !== source) return;
+    const index = props.files.findIndex(file => file.path === source);
+    const following = props.files[index + 1];
+    if (index >= 0 && following) emit("navigate", following);
+  } finally { navigationBusy.value = false; }
 }
-
-function handleWheel(e: WheelEvent) {
-  e.preventDefault();
-  const delta = e.deltaY > 0 ? -0.15 : 0.15;
-  const newScale = Math.min(Math.max(0.2, scale.value + delta), 5);
-  scale.value = newScale;
-  if (newScale <= 1) {
-    translateX.value = 0;
-    translateY.value = 0;
-  }
+function handleWheel(event: WheelEvent) {
+  event.preventDefault();
+  const bounds = canvasElement.value?.getBoundingClientRect();
+  const point = bounds ? { x: event.clientX - bounds.left - bounds.width / 2, y: event.clientY - bounds.top - bounds.height / 2 } : { x: 0, y: 0 };
+  setZoom(currentScale.value * (event.deltaY > 0 ? 0.85 : 1.15), point);
 }
 
 function onMouseDown(e: MouseEvent) {
-  if (e.button !== 0) return;
+  if (e.button !== 0 || (e.target as HTMLElement)?.closest("button,input,select,textarea")) return;
   isDragging.value = true;
   dragStartX.value = e.clientX - translateX.value;
   dragStartY.value = e.clientY - translateY.value;
@@ -141,8 +202,6 @@ const isMuted = ref(false);
 const playbackRate = ref(1.0);
 const videoCurrentTime = ref(0);
 const videoDuration = ref(0);
-const showWorkflowInspector = ref(false);
-const workflowCopied = ref(false);
 
 const playbackRates = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
@@ -201,6 +260,7 @@ function onVideoTimeUpdate() {
 
 function onVideoLoadedMetadata() {
   if (!videoRef.value) return;
+  decodedSize.value = { width: videoRef.value.videoWidth, height: videoRef.value.videoHeight };
   videoDuration.value = videoRef.value.duration;
   videoRef.value.playbackRate = playbackRate.value;
   videoRef.value.loop = isLooping.value;
@@ -218,30 +278,16 @@ function seekVideo(e: MouseEvent) {
   videoCurrentTime.value = videoRef.value.currentTime;
 }
 
-async function copyWorkflow() {
-  const json = props.file.metadata?.parameters || props.file.metadata?.raw;
-  if (!json) return;
-  try {
-    await navigator.clipboard.writeText(json);
-    workflowCopied.value = true;
-    setTimeout(() => (workflowCopied.value = false), 2000);
-  } catch (err) {
-    console.error("Workflow copy failed:", err);
-  }
-}
-
 function toggleFavorite() { return curate({ kind: "favorite", value: !props.file.is_favorite }); }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    e.preventDefault();
-    if (showWorkflowInspector.value) {
-      showWorkflowInspector.value = false;
-      return;
-    }
-    emit("close");
-    return;
-  }
+  const top = getTopDialog();
+  if (e.defaultPrevented || isEditableTarget(e.target) || isEditableTarget(typeof document === "undefined" ? null : document.activeElement) ||
+    (top && top.element !== viewerRoot.value) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Escape") { e.preventDefault(); closeViewer(); return; }
+  if (e.key === "i" || e.key === "I") { e.preventDefault(); showDetails.value = !showDetails.value; return; }
+  if (e.key === "+" || e.key === "=") { e.preventDefault(); setZoom(currentScale.value * 1.15); return; }
+  if (e.key === "-") { e.preventDefault(); setZoom(currentScale.value * 0.85); return; }
   if (e.key === "ArrowLeft") {
     e.preventDefault();
     prev();
@@ -288,30 +334,36 @@ function handleKeyDown(e: KeyboardEvent) {
       toggleMute();
       return;
     }
-    if (e.key === "i" || e.key === "I") {
-      e.preventDefault();
-      showWorkflowInspector.value = !showWorkflowInspector.value;
-      return;
-    }
+
   }
 }
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("resize", measureCanvas);
+  window.addEventListener("mouseup", onMouseUp);
+  if (window.matchMedia?.("(max-width: 900px)").matches) showDetails.value = false;
+  measureCanvas();
+  if (typeof ResizeObserver !== "undefined" && canvasElement.value) {
+    resizeObserver = new ResizeObserver(measureCanvas); resizeObserver.observe(canvasElement.value);
+  }
 });
 
 onUnmounted(() => {
+  disposed = true; clearAdjacentImages(); resizeObserver?.disconnect();
   window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener("resize", measureCanvas);
+  window.removeEventListener("mouseup", onMouseUp);
 });
 </script>
 
 <template>
   <div
-    class="lightbox-overlay"
+    ref="viewerRoot" class="lightbox-overlay" :class="{ embedded: !fullScreen }"
+    :role="fullScreen ? 'dialog' : 'region'" :aria-modal="fullScreen || undefined" :aria-label="`${t.preview.preview}: ${getFileName(file.path)}`"
     @mousemove="onMouseMove"
     @mouseup="onMouseUp"
-    @click.self="emit('close')"
-    v-dialog="() => emit('close')"
+    v-viewer-dialog="fullScreen ? closeViewer : false"
   >
     <!-- Top HUD Bar -->
     <header class="lightbox-header">
@@ -339,20 +391,19 @@ onUnmounted(() => {
 
       <div class="header-actions">
         <span class="index-indicator">
-          {{ currentIndex + 1 }} / {{ files.length }}
+          {{ Math.max(0, currentIndex + 1) }} / {{ totalCount ?? files.length }}
         </span>
-        <button
-          type="button"
-          class="hud-btn"
-          :title="t.menu.resetZoom"
-          @click="resetTransform"
-        >
-          {{ Math.round(scale * 100) }}%
-        </button>
+        <button class="hud-btn" :aria-label="t.workbench.fit" @click="resetTransform">{{ t.workbench.fit }}</button>
+        <button class="hud-btn" :aria-label="t.workbench.actualSize" @click="actualSize">100%</button>
+        <label class="zoom-control"><input type="range" min="0.001" max="8" step="0.001" :value="currentScale" :aria-label="t.workbench.zoom"
+          @input="setZoom(Number(($event.target as HTMLInputElement).value))" /><span>{{ (currentScale * 100).toFixed(currentScale < 0.1 ? 1 : 0) }}%</span></label>
+        <button class="hud-btn" :aria-label="showDetails ? t.workbench.hideDetails : t.workbench.showDetails" :aria-pressed="showDetails" @click="showDetails = !showDetails">{{ t.workbench.details }}</button>
+        <button class="hud-btn" :aria-label="fullScreen ? t.workbench.exitFullscreen : t.workbench.fullscreen" :aria-pressed="fullScreen" @click="fullScreen = !fullScreen">{{ fullScreen ? t.workbench.exitFullscreen : t.workbench.fullscreen }}</button>
         <button
           type="button"
           class="hud-btn close-hud"
           :title="`${t.preview.close} (Esc)`"
+          :aria-label="t.preview.close"
           @click="emit('close')"
         >
           ✕
@@ -360,13 +411,15 @@ onUnmounted(() => {
       </div>
     </header>
 
+    <div class="viewer-workspace">
+    <div class="viewer-media">
     <!-- Center Viewer Canvas -->
     <div
-      class="lightbox-canvas"
+      ref="canvasElement" class="lightbox-canvas"
       :class="{ dragging: isDragging }"
       @wheel="handleWheel"
       @mousedown="onMouseDown"
-      @click.self="emit('close')"
+
     >
       <!-- Navigation Prev -->
       <button
@@ -383,7 +436,9 @@ onUnmounted(() => {
       <div
         class="img-container"
         :style="{
-          transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+          transform: `translate(${translateX}px, ${translateY}px) scale(${renderedScale})`,
+          width: mediaSize.width ? `${mediaSize.width}px` : undefined,
+          height: mediaSize.height ? `${mediaSize.height}px` : undefined,
         }"
       >
         <video
@@ -403,6 +458,8 @@ onUnmounted(() => {
           v-else
           :src="assetUrl(file.path)"
           :alt="getFileName(file.path)"
+          :key="`${file.path}-${file.modified_at}`"
+          @load="onImageLoad"
           :class="{ blurred: file.is_nsfw && !revealedNsfw }"
           draggable="false"
         />
@@ -418,6 +475,7 @@ onUnmounted(() => {
       <!-- Navigation Next -->
       <button
         v-if="hasNext"
+        :disabled="navigationBusy"
         type="button"
         class="nav-arrow next"
         title="› (→)"
@@ -504,9 +562,9 @@ onUnmounted(() => {
       <button
         type="button"
         class="v-ctrl-btn workflow-btn"
-        :class="{ active: showWorkflowInspector }"
+        :class="{ active: showDetails }"
         :title="`${t.preview.videoWorkflow} (I)`"
-        @click.stop="showWorkflowInspector = !showWorkflowInspector"
+        @click.stop="showDetails = !showDetails"
       >
         <span>⚡ {{ t.preview.videoWorkflow }}</span>
       </button>
@@ -567,89 +625,15 @@ onUnmounted(() => {
       </div>
     </footer>
 
-    <!-- Video / Generation Workflow Inspector Slide-out Drawer -->
-    <div
-      v-if="showWorkflowInspector"
-      class="workflow-inspector-panel"
-      @click.stop
-    >
-      <div class="inspector-header">
-        <h4>⚡ {{ t.preview.videoWorkflow }}</h4>
-        <button
-          type="button"
-          class="hud-btn close-hud"
-          @click="showWorkflowInspector = false"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div class="inspector-content">
-        <div class="info-section">
-          <div v-if="file.metadata?.model_name" class="info-item">
-            <span class="info-key">{{ t.preview.modelName }}</span>
-            <span class="info-val highlight">{{ file.metadata.model_name }}</span>
-          </div>
-          <div v-if="file.metadata?.sampler" class="info-item">
-            <span class="info-key">{{ t.preview.sampler }}</span>
-            <span class="info-val">{{ file.metadata.sampler }}</span>
-          </div>
-          <div v-if="file.metadata?.steps" class="info-item">
-            <span class="info-key">{{ t.preview.steps }}</span>
-            <span class="info-val">{{ file.metadata.steps }}</span>
-          </div>
-          <div v-if="file.metadata?.cfg_scale" class="info-item">
-            <span class="info-key">{{ t.preview.cfgScale }}</span>
-            <span class="info-val">{{ file.metadata.cfg_scale }}</span>
-          </div>
-          <div v-if="file.metadata?.seed" class="info-item">
-            <span class="info-key">{{ t.preview.seed }}</span>
-            <span class="info-val">{{ file.metadata.seed }}</span>
-          </div>
-          <div v-if="file.metadata?.duration_seconds" class="info-item">
-            <span class="info-key">{{ t.preview.duration }}</span>
-            <span class="info-val">{{ formatDuration(file.metadata.duration_seconds) }}</span>
-          </div>
-          <div v-if="file.metadata?.fps" class="info-item">
-            <span class="info-key">{{ t.preview.fps }}</span>
-            <span class="info-val">{{ Math.round(file.metadata.fps) }} fps</span>
-          </div>
-          <div v-if="file.metadata?.video_codec" class="info-item">
-            <span class="info-key">{{ t.preview.codec }}</span>
-            <span class="info-val">{{ file.metadata.video_codec }}</span>
-          </div>
-        </div>
-
-        <!-- Prompts -->
-        <div v-if="file.metadata?.prompt" class="prompt-box">
-          <div class="prompt-box-header">
-            <span>{{ t.preview.prompt }}</span>
-            <button type="button" class="mini-copy-btn" @click="copyPrompt">
-              {{ promptCopied ? t.preview.copied : t.preview.copyPrompt }}
-            </button>
-          </div>
-          <p class="prompt-text">{{ file.metadata.prompt }}</p>
-        </div>
-
-        <div v-if="file.metadata?.negative_prompt" class="prompt-box">
-          <div class="prompt-box-header">
-            <span>{{ t.preview.negativePrompt }}</span>
-          </div>
-          <p class="prompt-text negative">{{ file.metadata.negative_prompt }}</p>
-        </div>
-
-        <!-- Raw JSON / Workflow Parameters -->
-        <div v-if="file.metadata?.parameters || file.metadata?.raw" class="workflow-raw-box">
-          <div class="prompt-box-header">
-            <span>Workflow Graph / Metadata</span>
-            <button type="button" class="mini-copy-btn" @click="copyWorkflow">
-              {{ workflowCopied ? t.preview.workflowCopied : t.preview.copyWorkflow }}
-            </button>
-          </div>
-          <pre class="raw-pre">{{ file.metadata.parameters || file.metadata.raw }}</pre>
-        </div>
-      </div>
     </div>
+    <InspectorPane v-if="showDetails" ref="detailPanel" :file="file" embedded
+      @close="showDetails = false" @open-lightbox="showDetails = false"
+      @curated="emit('curated', $event)" @open-tag-modal="emit('openTagModal', $event)" @open-album-modal="emit('openAlbumModal', $event)"
+      @open-auto-tag-modal="emit('openAutoTagModal', $event)" @find-similar="emit('findSimilar', $event)"
+      @filter-by-model="emit('filterByModel', $event)" @filter-by-hash="emit('filterByHash', $event)"
+      @open-lora-manager="emit('openLoraManager')" @register-lora="emit('openLoraManager')" @tags-changed="emit('tagsChanged', $event)" />
+    </div>
+
   </div>
 </template>
 
@@ -751,8 +735,8 @@ onUnmounted(() => {
 }
 
 .img-container {
-  max-width: 90vw;
-  max-height: 82vh;
+  max-width: none;
+  max-height: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -761,8 +745,10 @@ onUnmounted(() => {
 }
 
 .img-container img {
-  max-width: 90vw;
-  max-height: 82vh;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
   border-radius: 4px;
@@ -900,8 +886,8 @@ onUnmounted(() => {
 }
 
 .img-container video {
-  max-width: 90vw;
-  max-height: 82vh;
+  max-width: none;
+  max-height: none;
   object-fit: contain;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
   border-radius: 4px;
@@ -1157,4 +1143,22 @@ onUnmounted(() => {
   overflow: auto;
   white-space: pre;
 }
+.lightbox-overlay { background: var(--color-bg-app); color: var(--color-text-primary); }
+.lightbox-overlay.embedded { position: relative; inset: auto; width: 100%; height: 100%; min-width: 0; z-index: auto; }
+.viewer-workspace { display: flex; flex: 1; min-height: 0; position: relative; }
+.viewer-media { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; }
+.lightbox-header { height: auto; min-height: 46px; flex-wrap: wrap; gap: 8px; padding: 8px 12px; background: var(--color-bg-primary); border-bottom: 1px solid var(--border-color); }
+.file-info, .header-actions { min-width: 0; flex-wrap: wrap; }
+.file-name { color: var(--color-text-primary); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zoom-control { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; }
+.zoom-control input { width: 80px; accent-color: var(--color-accent); }
+.hud-btn { color: var(--color-text-primary); background: var(--color-bg-secondary); border-color: var(--border-color); }
+.img-container { flex-shrink: 0; max-width: none; max-height: none; }
+.img-container img, .img-container video { max-width: none; max-height: none; width: 100%; height: 100%; }
+.lightbox-footer { position: static; padding: 10px; flex-shrink: 0; height: auto; min-height: 54px; box-sizing: border-box; background: var(--color-bg-primary); }
+.footer-center-hud { flex-wrap: wrap; justify-content: center; }
+button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+@media (max-width: 900px) { .viewer-workspace > :deep(.inspector-eagle) { position: absolute; right: 0; top: 0; bottom: 0; z-index: 20; box-shadow: -12px 0 24px rgba(0,0,0,.25); } }
+@media (max-width: 500px) { .file-info .badge { display: none; } .header-actions { gap: 6px; } .viewer-workspace > :deep(.inspector-eagle) { width: min(320px,100%); min-width: 0; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>

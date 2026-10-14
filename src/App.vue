@@ -172,6 +172,7 @@ const tagTargetFileIds = ref<number[]>([]);
 const autoTagModalOpen = ref(false);
 const autoTagTargetFile = ref<ImageFile | null>(null);
 const inspectorRef = ref<InstanceType<typeof InspectorPane> | null>(null);
+const lightboxRef = ref<InstanceType<typeof LightboxModal> | null>(null);
 const addFolderModalOpen = ref(false);
 const onboardingModalOpen = ref(false);
 /** Session-level guard: once the onboarding modal is dismissed it can never reopen. */
@@ -455,7 +456,7 @@ function handleWindowKeyDown(e: KeyboardEvent) {
     return;
   }
 
-  if (e.defaultPrevented) return;
+  if (e.defaultPrevented || lightboxFile.value) return;
   if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "m" || e.key === "M")) {
     e.preventDefault();
     onToggleGlobalMasking();
@@ -976,6 +977,8 @@ const galleryContextKey = computed(() =>
     filters: activeCriteria.value,
   }),
 );
+
+watch(galleryContextKey, () => { lightboxFile.value = null; });
 
 const emptyGalleryMessage = computed(() => {
   if (error.value) return error.value;
@@ -1608,6 +1611,7 @@ function onBatchAddToAlbum() {
 
 function onAddedToAlbum(_album: Album) {
   selectedFilePaths.value = new Set();
+  void loadAlbumsAndTags();
 }
 
 function onOpenTagModal(fileIds?: number[]) {
@@ -1629,12 +1633,13 @@ function handleOpenAutoTag(file?: ImageFile) {
   autoTagModalOpen.value = true;
 }
 
-async function onAutoTagsApplied() {
+async function refreshOrganization() {
   await loadAlbumsAndTags();
+  await Promise.all([inspectorRef.value?.loadTags(), lightboxRef.value?.reloadOrganization()]);
+}
+async function onAutoTagsApplied() {
+  await refreshOrganization();
   await refreshCounts();
-  if (inspectorRef.value) {
-    await inspectorRef.value.loadTags();
-  }
 }
 
 function patchBatchFlag(ids: number[], flag: "is_favorite" | "is_nsfw", value: boolean) {
@@ -1669,6 +1674,7 @@ async function refreshBatchFlagMutation() {
   selectedFilePaths.value = new Set([...selectedPaths].filter(path => validPaths.has(path)));
   selectionAnchorPath.value = anchor && validPaths.has(anchor) ? anchor : null;
   if (selectedFile.value && !validPaths.has(selectedFile.value.path)) selectedFile.value = null;
+  if (lightboxFile.value && !validPaths.has(lightboxFile.value.path)) lightboxFile.value = null;
 }
 
 async function onBatchToggleFavorite(isFavorite: boolean) {
@@ -2419,7 +2425,7 @@ function onResetZoom() {
       <!-- Center Gallery Canvas (Eagle Grid/Waterfall) -->
       <main class="gallery-canvas">
         <!-- Top Toolbar -->
-        <div class="gallery-topbar">
+        <div v-show="!lightboxFile" class="gallery-topbar">
           <!-- Breadcrumbs / Title -->
           <div class="topbar-left">
             <h2 class="target-title">
@@ -2537,7 +2543,7 @@ function onResetZoom() {
         </div>
 
         <!-- Similarity Search Banner -->
-        <div v-if="similaritySourceFile" class="similarity-banner">
+        <div v-if="similaritySourceFile && !lightboxFile" class="similarity-banner">
           <div class="similarity-banner-left">
             <span class="similarity-badge">🔍 {{ t.preview.similaritySearchTitle }}</span>
             <span class="similarity-file-name" :title="getFileName(similaritySourceFile.path)">
@@ -2591,7 +2597,7 @@ function onResetZoom() {
         </div>
 
         <!-- Main Viewport: Grid or Table -->
-        <div class="gallery-viewport">
+        <div v-if="!lightboxFile" class="gallery-viewport">
           <VirtualGrid
             v-if="viewMode !== 'table'"
             :files="files"
@@ -2680,11 +2686,25 @@ function onResetZoom() {
             @transform-selected="handleOpenBatchTransformModal()"
           />
         </div>
+        <LightboxModal
+          v-else-if="lightboxFile" ref="lightboxRef" embedded
+          :file="lightboxFile"
+          :files="files" :total-count="galleryTotal" :has-more="galleryHasMore" :load-more="loadMoreFiles"
+          @close="lightboxFile = null"
+          @navigate="onLightboxNavigate"
+          @update-file="onUpdateFile"
+          @curated="onFileCurated"
+          @find-similar="handleFindSimilar"
+          @open-tag-modal="onOpenTagModal([$event])" @open-album-modal="onOpenAlbumModal([$event])"
+          @open-auto-tag-modal="handleOpenAutoTag" @filter-by-model="onFilterByModel" @filter-by-hash="onFilterByHash"
+          @open-lora-manager="loraModalOpen = true" @tags-changed="refreshOrganization"
+        />
+
       </main>
 
       <!-- Right Inspector Panel (Collapsible) -->
       <InspectorPane
-        v-if="inspectorOpen"
+        v-if="inspectorOpen && !lightboxFile"
         ref="inspectorRef"
         :file="selectedFile"
         :selected-count="selectedFilesList.length"
@@ -2700,6 +2720,7 @@ function onResetZoom() {
         @find-similar="handleFindSimilar"
         @open-lora-manager="loraModalOpen = true"
         @register-lora="() => { loraModalOpen = true; }"
+        @tags-changed="refreshOrganization"
       />
     </div>
 
@@ -2712,18 +2733,6 @@ function onResetZoom() {
       :progress="progress"
       :thumb-progress="thumbProgress"
       :has-filter="!!searchQuery.trim() || activeFilterCount > 0"
-    />
-
-    <!-- Fullscreen Lightbox Modal (Eagle Quick Look) -->
-    <LightboxModal
-      v-if="lightboxFile"
-      :file="lightboxFile"
-      :files="files"
-      @close="lightboxFile = null"
-      @navigate="onLightboxNavigate"
-      @update-file="onUpdateFile"
-        @curated="onFileCurated"
-      @find-similar="handleFindSimilar"
     />
 
     <!-- Modals & Drawers -->
@@ -2795,7 +2804,7 @@ function onResetZoom() {
       @created="loadAlbumsAndTags"
       @updated="loadAlbumsAndTags"
       @deleted="loadAlbumsAndTags"
-      @tagged="loadAlbumsAndTags"
+      @tagged="refreshOrganization"
     />
 
     <!-- WD14 AI Auto-Tagger Modal -->

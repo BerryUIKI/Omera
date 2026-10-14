@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   dialog,
+  conditionalDialog,
   hasActiveDialog,
   getActiveDialogCount,
   getTopDialog,
@@ -376,4 +377,22 @@ test("dialog listener teardown removes window event listener when stack empties"
   } finally {
     teardownDomMock();
   }
+});
+
+test("workbench full-screen transitions register modal focus once and restore background access", () => {
+  setupDomMock();
+  try {
+    const root = new MockElement();
+    const background = new MockElement();
+    const viewer = new MockElement();
+    root.appendChild(background); root.appendChild(viewer);
+    conditionalDialog.mounted(viewer, { value: false });
+    assert.equal(hasActiveDialog(), false); assert.equal(background.inert, false);
+    conditionalDialog.updated(viewer, { value: () => {} });
+    conditionalDialog.updated(viewer, { value: () => {} });
+    assert.equal(getActiveDialogCount(), 1); assert.equal(background.inert, true);
+    conditionalDialog.updated(viewer, { value: false });
+    assert.equal(getActiveDialogCount(), 0); assert.equal(background.inert, false);
+    conditionalDialog.unmounted(viewer, { value: false });
+  } finally { teardownDomMock(); }
 });
