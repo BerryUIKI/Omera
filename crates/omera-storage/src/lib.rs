@@ -11,6 +11,7 @@ mod cloud_sync_roots;
 mod db;
 mod engine;
 pub mod legacy_migration;
+pub mod library_location;
 mod migration_export;
 mod migrations;
 pub mod recovery;

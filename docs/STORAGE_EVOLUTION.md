@@ -28,6 +28,14 @@ Do not add indexes for every column or introduce a second authoritative database
 
 ## Schema and migration rules
 
+An explicit database-directory choice uses a validated WAL-inclusive copy and
+an atomically published `library-location.json` selection record in Omera app
+data. It retains the original database and media. Startup resolves the selection
+before opening connections or workers; missing/corrupt selected locations fail
+instead of silently creating a replacement library. The default remains
+`<app-data>/omera.db`. Configuration, receipts, models and thumbnail caches stay
+in application data, independently of the selected database directory.
+
 Library batch transformations take short locks for folder/file reads and the
 single-row derivative update. Decode, verification, publication, archive/Trash
 and progress callbacks run outside the application database mutex. Transform
