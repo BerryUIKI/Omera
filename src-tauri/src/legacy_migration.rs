@@ -20,6 +20,7 @@ use tauri::{AppHandle, Manager};
 pub struct MigrationCoordinator {
     pub active_job: Option<LegacyMigrationJob>,
     pub active_plans: HashMap<String, LegacyMigrationPreview>,
+    pub plan_revisions: HashMap<String, String>,
     pub active_cleanup_previews: HashMap<String, LegacyCleanupPreview>,
     pub migration_lock: Arc<Mutex<()>>,
 }
@@ -41,8 +42,9 @@ impl MigrationCoordinator {
         omera_root: &Path,
         candidates: &[(String, PathBuf)],
     ) -> Result<LegacyMigrationStatus, String> {
-        let destination_exists = omera_root.join("omera.db").exists();
-        let active_receipt = storage_migration::load_receipt(omera_root).ok().flatten();
+        let dest_db_path = omera_storage::library_location::database_path(omera_root)?;
+        let destination_exists = dest_db_path.exists();
+        let active_receipt = storage_migration::load_receipt(omera_root)?;
 
         let mut discovered_sources = Vec::new();
         for (identifier, path) in candidates {
@@ -54,12 +56,21 @@ impl MigrationCoordinator {
             }
         }
 
-        let dest_db_path = omera_root.join("omera.db");
         let destination_is_empty =
             destination_exists && storage_migration::is_database_empty(&dest_db_path);
 
         let stage = if let Some(ref receipt) = active_receipt {
-            if receipt.cleanup_status == "pending" {
+            if matches!(
+                receipt.cleanup_status.as_str(),
+                "preparing" | "activation_pending"
+            ) {
+                "awaiting_restart".to_string()
+            } else if matches!(
+                receipt.cleanup_status.as_str(),
+                "failed" | "activation_blocked"
+            ) {
+                "failed".to_string()
+            } else if receipt.cleanup_status == "pending" && receipt.activated_at.is_some() {
                 "cleanup_available".to_string()
             } else {
                 "migrated".to_string()
@@ -97,43 +108,15 @@ impl MigrationCoordinator {
         })
     }
 
-    /// Attempt automatic migration on startup if omera.db does not exist yet
-    /// and there is exactly one unambiguous, unlocked legacy source database.
-    pub fn auto_migrate_if_unambiguous(&mut self, app: &AppHandle) -> Result<bool, String> {
-        let (omera_root, _) = resolve_migration_roots(app)?;
-        if omera_root.join("omera.db").exists() {
-            return Ok(false);
-        }
-
-        let status = self.get_status(app)?;
-        if status.discovered_sources.len() == 1 {
-            let source = &status.discovered_sources[0];
-            if !source.is_locked {
-                let preview = self.preview_migration(app, &source.source_id)?;
-                if preview.conflicts.is_empty() {
-                    let job = self.start_migration(app, &preview.plan_id)?;
-                    if job.status == "completed" {
-                        eprintln!(
-                            "Auto-migrated legacy Berry library from {} to {}",
-                            source.database_path,
-                            omera_root.join("omera.db").display()
-                        );
-                        return Ok(true);
-                    }
-                }
-            }
-        }
-        Ok(false)
-    }
-
     /// Preview a migration plan for a specific discovered source.
     pub fn preview_migration(
         &mut self,
         app: &AppHandle,
         source_id: &str,
+        destination_directory: Option<&Path>,
     ) -> Result<LegacyMigrationPreview, String> {
         let (omera_root, candidates) = resolve_migration_roots(app)?;
-        self.preview_migration_for_roots(&omera_root, &candidates, source_id)
+        self.preview_migration_to(&omera_root, &candidates, source_id, destination_directory)
     }
 
     /// Internal method to preview a migration plan given specific roots (testable without AppHandle).
@@ -142,6 +125,16 @@ impl MigrationCoordinator {
         omera_root: &Path,
         candidates: &[(String, PathBuf)],
         source_id: &str,
+    ) -> Result<LegacyMigrationPreview, String> {
+        self.preview_migration_to(omera_root, candidates, source_id, None)
+    }
+
+    pub fn preview_migration_to(
+        &mut self,
+        omera_root: &Path,
+        candidates: &[(String, PathBuf)],
+        source_id: &str,
+        destination_directory: Option<&Path>,
     ) -> Result<LegacyMigrationPreview, String> {
         let mut target_source = None;
         for (identifier, path) in candidates {
@@ -158,30 +151,60 @@ impl MigrationCoordinator {
         })?;
 
         let mut conflicts = Vec::new();
-        let destination_db = omera_root.join("omera.db");
+        let destination_db = match destination_directory {
+            Some(directory) => omera_storage::library_location::destination_in(directory)?,
+            None => omera_storage::library_location::database_path(omera_root)?,
+        };
+        for (_, legacy_root) in candidates {
+            if legacy_root != omera_root
+                && legacy_root
+                    .canonicalize()
+                    .is_ok_and(|root| destination_db.starts_with(root))
+            {
+                conflicts.push("[SOURCE_DESTINATION_OVERLAP] Choose a directory outside legacy application data".into());
+            }
+        }
+        let revision = source_revision(Path::new(&source.root_path));
+        if let Err(ref error) = revision {
+            conflicts.push(error.clone());
+        }
+        if destination_db.with_extension("pending-restore.db").exists() {
+            conflicts
+                .push("[PLAN_EXPIRED] A restart is required to finish the pending restore".into());
+        }
         if destination_db.exists() && !storage_migration::is_database_empty(&destination_db) {
-            conflicts.push("Target database omera.db already exists. An explicit import or manual recovery is required.".into());
+            conflicts.push("[DESTINATION_EXISTS] Target database omera.db already exists. Choose another directory.".into());
         }
         if source.is_locked {
-            conflicts.push("Source database is active or locked by another process. Please close Berry AI Studio before migrating.".into());
+            conflicts.push("[SOURCE_BUSY] Close the legacy application before importing.".into());
         }
 
         let exclusions = vec![
-            "External linked directories and custom storage vaults are preserved in place and excluded from migration staging.".into(),
-            "Snapshot backup archives (*.zip) are preserved in their original location.".into(),
+            "mediaExcluded".into(),
+            "cacheExcluded".into(),
+            "modelsExcluded".into(),
+            "backupsExcluded".into(),
         ];
 
         let required_space_bytes = source
             .database_size_bytes
             .saturating_mul(3)
             .saturating_add(1024 * 1024);
-        let available_space_bytes = get_available_disk_space(omera_root);
+        let available_space_bytes = get_available_disk_space(
+            destination_db
+                .parent()
+                .ok_or("Missing database directory")?,
+        );
 
         if available_space_bytes.is_some_and(|space| space < required_space_bytes) {
             conflicts.push(format!(
-                "Insufficient disk space on destination volume: required {} bytes, available {} bytes",
-                required_space_bytes, available_space_bytes.unwrap_or_default()
+                "[INSUFFICIENT_SPACE] Required {} bytes, available {} bytes",
+                required_space_bytes,
+                available_space_bytes.unwrap_or_default()
             ));
+        }
+        if available_space_bytes.is_none() {
+            conflicts.push("[SPACE_UNKNOWN] Could not verify destination capacity".into());
         }
 
         let plan_id = uuid::Uuid::new_v4().to_string();
@@ -196,6 +219,9 @@ impl MigrationCoordinator {
             exclusions,
         };
 
+        if let Ok(revision) = revision {
+            self.plan_revisions.insert(plan_id.clone(), revision);
+        }
         self.active_plans.insert(plan_id, preview.clone());
         Ok(preview)
     }
@@ -226,8 +252,29 @@ impl MigrationCoordinator {
         &mut self,
         plan: &LegacyMigrationPreview,
     ) -> Result<LegacyMigrationJob, String> {
-        let _lock = self
-            .migration_lock
+        let result = self.execute_migration_plan_inner(plan);
+        if let Err(ref error) = result {
+            if let Some(job) = self.active_job.as_mut() {
+                job.status = "failed".into();
+                if job.error.is_none() {
+                    job.error = Some(MigrationError::new(
+                        "MIGRATION_FAILED",
+                        "error.migration.failed",
+                        true,
+                        Some(error.clone()),
+                    ));
+                }
+            }
+        }
+        result
+    }
+
+    fn execute_migration_plan_inner(
+        &mut self,
+        plan: &LegacyMigrationPreview,
+    ) -> Result<LegacyMigrationJob, String> {
+        let gate = self.migration_lock.clone();
+        let _lock = gate
             .try_lock()
             .map_err(|_| "Another migration is currently in progress")?;
 
@@ -237,7 +284,7 @@ impl MigrationCoordinator {
             plan_id: plan.plan_id.clone(),
             status: "copying".to_string(),
             progress: 0.1,
-            current_step: "Staging and validating SQLite database".to_string(),
+            current_step: "stepCopying".to_string(),
             error: None,
             receipt: None,
         };
@@ -248,56 +295,65 @@ impl MigrationCoordinator {
         let destination_root = PathBuf::from(&plan.destination_root);
         let destination_db = PathBuf::from(&plan.destination_db);
 
-        std::fs::create_dir_all(&destination_root).map_err(|e| e.to_string())?;
-        let staging_dir = tempfile::tempdir_in(&destination_root).map_err(|e| e.to_string())?;
-
-        // If destination exists but is an empty, unpopulated database created by startup
-        // without an active receipt, safely remove the empty stub so the migrated database can publish.
-        if destination_db.exists() && storage_migration::is_database_empty(&destination_db) {
-            let active_receipt = storage_migration::load_receipt(&destination_root)
-                .ok()
-                .flatten();
-            if active_receipt.is_none() {
-                let _ = std::fs::remove_file(&destination_db);
-                let _ = std::fs::remove_file(destination_root.join("omera.db-wal"));
-                let _ = std::fs::remove_file(destination_root.join("omera.db-shm"));
-            }
+        if omera_storage::migration_paths::database_in_use(&source_db) {
+            return Err("[SOURCE_BUSY] Close the legacy application before importing".into());
+        }
+        let revision = source_revision(&source_root)?;
+        if self
+            .plan_revisions
+            .get(&plan.plan_id)
+            .is_some_and(|expected| expected != &revision)
+        {
+            return Err("[SOURCE_CHANGED] Source library changed after preview".into());
+        }
+        if destination_db.exists() && !storage_migration::is_database_empty(&destination_db) {
+            return Err(
+                "[DESTINATION_EXISTS] Target library contains data; choose another directory"
+                    .into(),
+            );
         }
 
+        std::fs::create_dir_all(&destination_root).map_err(|e| e.to_string())?;
+        let staging_dir = tempfile::tempdir_in(
+            destination_db
+                .parent()
+                .ok_or("Missing database directory")?,
+        )
+        .map_err(|e| e.to_string())?;
+        let staged_db = staging_dir.path().join("import.db");
+
         // 1. Stage and migrate SQLite database
-        let db_size = match storage_migration::migrate_database(
-            &source_db,
-            &destination_db,
-            staging_dir.path(),
-        ) {
-            Ok(size) => size,
-            Err(e) => {
-                let err = MigrationError::new(
-                    e.code.clone(),
-                    e.message_key.clone(),
-                    e.retryable,
-                    e.context.clone(),
-                );
-                job.status = "failed".to_string();
-                job.error = Some(err);
-                self.active_job = Some(job.clone());
-                return Err(format!("Database migration failed: {e}"));
-            }
-        };
+        let db_size =
+            match storage_migration::migrate_database(&source_db, &staged_db, staging_dir.path()) {
+                Ok(size) => size,
+                Err(e) => {
+                    let err = MigrationError::new(
+                        e.code.clone(),
+                        e.message_key.clone(),
+                        e.retryable,
+                        e.context.clone(),
+                    );
+                    job.status = "failed".to_string();
+                    job.error = Some(err);
+                    self.active_job = Some(job.clone());
+                    return Err(format!("Database migration failed: {e}"));
+                }
+            };
 
         job.progress = 0.5;
         job.status = "validating".to_string();
-        job.current_step = "Validating migrated database and configuration".to_string();
+        job.current_step = "stepValidating".to_string();
         self.active_job = Some(job.clone());
 
         // Compute SHA-256 integrity hash of published database
-        let integrity_hash = compute_file_sha256(&destination_db).unwrap_or_default();
+        let integrity_hash =
+            omera_storage::migration_fingerprint::database_fingerprint(&staged_db)?;
 
         let mut artifacts = vec![MigratedArtifact {
             category: "database".to_string(),
             source_path: source_db.to_string_lossy().to_string(),
             destination_path: destination_db.to_string_lossy().to_string(),
-            status: "success".to_string(),
+            status: "staged".to_string(),
             size_bytes: db_size,
         }];
 
@@ -314,7 +370,11 @@ impl MigrationCoordinator {
                     let dest_already_existed = dest_config_path.exists();
 
                     // Migrate credentials into new Omera keyring
-                    let cred_res = config_store::migrate_credentials_to_omera(&legacy_cfg);
+                    let cred_res = if dest_already_existed {
+                        Ok(0)
+                    } else {
+                        config_store::migrate_credentials_to_omera(&legacy_cfg)
+                    };
                     let save_res = config_store::save_migrated(&dest_config_path, legacy_cfg);
 
                     let (status, failure_err) = match (cred_res, save_res) {
@@ -393,7 +453,7 @@ impl MigrationCoordinator {
 
         job.progress = 0.8;
         job.status = "activating".to_string();
-        job.current_step = "Writing durable migration receipt".to_string();
+        job.current_step = "stepActivating".to_string();
         self.active_job = Some(job.clone());
 
         // 3. Write durable migration receipt
@@ -403,7 +463,7 @@ impl MigrationCoordinator {
             .unwrap_or_default()
             .as_secs();
 
-        let receipt = MigrationReceipt {
+        let mut receipt = MigrationReceipt {
             receipt_id,
             source_id: plan.source.source_id.clone(),
             source_identifier: plan.source.identifier.clone(),
@@ -414,13 +474,31 @@ impl MigrationCoordinator {
             created_at: now_sec,
             artifacts,
             integrity_hash,
-            cleanup_status: "pending".to_string(),
-            source_revision: String::new(),
+            cleanup_status: "failed".to_string(),
+            source_revision: revision.clone(),
             activated_at: None,
             activation_requires_empty: false,
         };
 
-        if let Err(e) = storage_migration::save_receipt(&destination_root, &receipt) {
+        if source_revision(&source_root)? != revision {
+            return Err(
+                "[SOURCE_CHANGED] Source changed during migration; original data was preserved"
+                    .into(),
+            );
+        }
+        let publication = if job.error.is_some() {
+            storage_migration::save_receipt(&destination_root, &receipt)
+        } else {
+            omera_storage::legacy_activation::stage_library(
+                &destination_root,
+                &staged_db,
+                receipt.clone(),
+            )
+            .map(|staged| {
+                receipt = staged;
+            })
+        };
+        if let Err(e) = publication {
             job.status = "failed".to_string();
             job.error = Some(MigrationError::new(
                 "INTEGRITY_FAILED",
@@ -435,10 +513,10 @@ impl MigrationCoordinator {
         job.progress = 1.0;
         if job.error.is_some() {
             job.status = "failed".to_string();
-            job.current_step = "Migration failed during configuration persistence".to_string();
+            job.current_step = "failedTitle".to_string();
         } else {
-            job.status = "completed".to_string();
-            job.current_step = "Migration completed successfully".to_string();
+            job.status = "awaiting_restart".to_string();
+            job.current_step = "stepActivating".to_string();
         }
         job.receipt = Some(receipt);
         self.active_job = Some(job.clone());
@@ -783,6 +861,21 @@ impl MigrationCoordinator {
     }
 }
 
+fn source_revision(root: &Path) -> Result<String, String> {
+    omera_storage::migration_paths::plain_metadata(root)?;
+    omera_storage::migration_paths::plain_metadata(&root.join("berry.db"))?;
+    let mut hash = Sha256::new();
+    hash.update(omera_storage::migration_fingerprint::database_fingerprint(
+        &root.join("berry.db"),
+    )?);
+    let config = root.join("config.json");
+    if config.exists() {
+        omera_storage::migration_paths::plain_metadata(&config)?;
+        hash.update(compute_file_sha256(&config)?);
+    }
+    Ok(hex::encode(hash.finalize()))
+}
+
 /// Resolve candidate legacy roots and target Omera root from the runtime application environment.
 pub fn resolve_migration_roots(
     app: &AppHandle,
@@ -966,7 +1059,7 @@ mod tests {
         let job = coordinator
             .execute_migration_plan(&preview)
             .expect("Migration execution should succeed");
-        assert_eq!(job.status, "completed");
+        assert_eq!(job.status, "awaiting_restart");
 
         // 4. Assert source config.json bytes and hash are 100% identical before and after
         let source_hash_after = compute_file_sha256(&source_config_path).unwrap();
@@ -1164,7 +1257,7 @@ mod tests {
         let job = coordinator
             .execute_migration_plan(&preview)
             .expect("Migration should succeed");
-        assert_eq!(job.status, "completed");
+        assert_eq!(job.status, "awaiting_restart");
 
         let receipt = job.receipt.expect("Receipt must exist");
         let config_art = receipt
@@ -1239,7 +1332,7 @@ mod tests {
         let job = coordinator
             .execute_migration_plan(&preview)
             .expect("Migration should succeed");
-        assert_eq!(job.status, "completed");
+        assert_eq!(job.status, "awaiting_restart");
 
         let receipt = job.receipt.expect("Receipt must exist");
         let config_art = receipt
@@ -1445,8 +1538,11 @@ mod tests {
         let job = coordinator
             .execute_migration_plan(&preview)
             .expect("Migration execution should succeed");
-        assert_eq!(job.status, "completed");
+        assert_eq!(job.status, "awaiting_restart");
 
+        omera_storage::legacy_activation::prepare_startup(omera_dir.path()).unwrap();
+        omera_storage::recovery::apply_pending_restore(&omera_db).unwrap();
+        omera_storage::legacy_activation::finalize_startup(omera_dir.path(), &omera_db).unwrap();
         // Now omera.db is populated with migrated data (has 1 folder)
         let omera_conn = omera_storage::rusqlite::Connection::open(&omera_db).unwrap();
         let count: i64 = omera_conn
