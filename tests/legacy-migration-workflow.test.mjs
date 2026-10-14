@@ -42,19 +42,16 @@ test("Legacy Migration Workflow UI: Modal, entry points, and contracts", async (
   );
   assert.match(
     modalContent,
-    /invoke<LegacyMigrationPreview>\(\s*"preview_legacy_migration"[\s\S]*?sourceId:\s*selectedSourceId\.value/,
+    /invoke<LegacyMigrationPreview>\(\s*"preview_legacy_migration"[\s\S]*?sourceId:\s*sourceId\.value/,
     "Modal must call preview_legacy_migration with sourceId",
   );
   assert.match(
     modalContent,
-    /invoke<LegacyMigrationJob>\(\s*"start_legacy_migration"[\s\S]*?planId:\s*activePreview\.value\.plan_id/,
+    /invoke<LegacyMigrationJob>\(\s*"start_legacy_migration"[\s\S]*?planId:\s*preview\.value\.plan_id/,
     "Modal must call start_legacy_migration with planId",
   );
-  assert.match(
-    modalContent,
-    /invoke<LegacyMigrationJob>\(\s*"get_legacy_migration_job"[\s\S]*?jobId/,
-    "Modal must poll get_legacy_migration_job with jobId",
-  );
+  assert.match(modalContent, /awaiting_restart/, "Staged imports wait for restart verification");
+  assert.match(modalContent, /confirm_legacy_cleanup/, "Cleanup requires a separately confirmed review");
 
   // 3. UI access points exist
   // SettingsModal has entry point
@@ -120,12 +117,12 @@ test("Legacy Migration Workflow UI: Modal, entry points, and contracts", async (
   // 5. Retry workflow on failure
   assert.match(
     modalContent,
-    /handleStartMigration/,
+    /async function start\(/,
     "Modal must allow retry execution on failed jobs",
   );
   assert.match(
     modalContent,
-    /handleBackToSources/,
+    /t\.legacyMigration\.backToSources/,
     "Modal must allow backing out to source selection",
   );
 });

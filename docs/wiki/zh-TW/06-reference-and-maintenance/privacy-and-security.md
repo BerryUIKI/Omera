@@ -38,7 +38,7 @@ Omera 所有的類神經網路演算法皆透過內嵌的 **ONNX Runtime** 執�
 
 ## 4. 開源透明性與授權條款
 
-Omera 是完全自由且開源的軟體，採用 **GNU Affero 通用公共授權條款第 3 版 (AGPL-3.0)** 進行發布：
+Omera 是完全自由且開源的軟體，採用 **Apache License 2.0** 進行發布：
 
 - 每一行 Rust 後端架構程式碼、Tauri 跨行程橋接命令以及 Vue 3 前端組件程式碼，均完整公開於 [GitHub 倉庫](https://github.com/BerryUIKI/Omera) 供大眾審閱。
 - 您享有完全的自由度在個人工作站或商業工作室環境中稽核、編譯、分支或部署 Omera。

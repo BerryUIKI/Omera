@@ -38,7 +38,7 @@ Lors de l'exportation ou de la préparation d'œuvres destinées à une diffusio
 
 ## 4. Transparence Open-Source & Licence
 
-Omera est un logiciel libre et open-source publié sous la licence **GNU Affero General Public License v3.0 (AGPL-3.0)** :
+Omera est un logiciel libre et open-source publié sous la licence **Apache License 2.0** :
 
 - Chaque ligne de code du backend en Rust, des commandes de passerelle Tauri et des composants d'interface en Vue 3 est publiquement vérifiable sur [GitHub](https://github.com/BerryUIKI/Omera).
 - Vous disposez d'une totale liberté pour auditer, compiler, créer un embranchement (fork) ou déployer Omera dans votre environnement personnel ou au sein d'un studio professionnel.

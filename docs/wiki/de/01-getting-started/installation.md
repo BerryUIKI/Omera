@@ -67,39 +67,35 @@ und installiert das Redistributable nicht automatisch.
 
 ---
 
-## 3. Einrichtungsassistent beim ersten Start
+## 3. Erste Omera-Einrichtung und Import aus Berry
 
-Beim ersten Start von Omera öffnet sich automatisch der interaktive **Einrichtungsassistent** (`OnboardingModal.vue`), um Sie durch die Konfiguration zu führen.
+Wählen Sie beim ersten Start die Anwendungssprache und das Datenbankverzeichnis.
+Diese Einrichtung erscheint auch nach einer abgeschlossenen Berry-Einrichtung.
+Standardmäßig liegt die Datenbank in den Omera-Anwendungsdaten. Ein anderes
+Verzeichnis ändert nur den Datenbankort; Einstellungen, Modelle, Cache und
+Originalmedien behalten ihre Speicherorte.
 
-```mermaid
-flowchart TD
-    A["Omera starten"] --> B["Willkommen & Konzeptvorstellung"]
-    B --> C["Erkennung lokaler KI-Werkzeuge"]
-    C --> D{"Lokale Installationen gefunden?"}
-    D -- Ja --> E["1-Klick-Hinzufügen von SD WebUI / ComfyUI / Fooocus"]
-    D -- Nein --> F["Manuelle Ordnerauswahl"]
-    E --> G["Erfassungsmodus konfigurieren: Link vs. Pipeline"]
-    F --> G
-    G --> H["Initiale Schnellindizierung"]
-    H --> I["Bereit zur Studio-Nutzung"]
-```
+1. Prüfen Sie gefundene Berry-Quellen. Der Importplan zeigt Quelle, Ziel,
+   Speicherbedarf, verfügbaren Platz und Warnungen. Beenden Sie die alte Anwendung.
+   Ist die Kapazität unbekannt, beheben Sie das Problem vor dem Import.
+2. Importieren Sie einen geprüften Snapshot, ohne die aktive Bibliothek zu
+   überschreiben. Starten Sie Omera zur Aktivierung neu. Quelldatenbank und Medien
+   bleiben erhalten.
+3. Nach geprüfter Aktivierung zeigt die optionale Bereinigung die genauen
+   Anwendungsdateien. Wählen und bestätigen Sie diese separat. Geänderte Dateien
+   erfordern eine neue Prüfung. Medien, externe Bibliotheken und gemeinsame Ordner
+   sind ausgeschlossen. Sie können alle alten Daten behalten.
+4. Fahren Sie mit der optionalen Erkennung lokaler KI-Ausgaben und der Pipeline-
+   Einrichtung fort oder überspringen Sie sie. Beim Abschluss wird das Verzeichnis
+   gespeichert. Vor optionalen Dateisystemprüfungen wird die SQLite-Bibliothek geladen.
 
-### Schritte des Einrichtungsassistenten:
-1. **Willkommensbildschirm**: Stellt die 3 Kernpfeiler vor:
-   - Blitzschnelle lokale Indizierung mit verlustfreier Extraktion von Generierungs-Metadaten.
-   - Intelligente Poker-Deck-Serienstapel und direkter Bildvergleich nebeneinander.
-   - 100% Offline-Datenschutz ohne jegliche Telemetrie.
-2. **Automatische Erkennung lokaler KI-Engines**:
-   - Omera scannt typische lokale Verzeichnisse über alle Laufwerke hinweg (z. B. `C:\`, `D:\`, `/home/`) nach Ausgabeordnern von:
-     - **AUTOMATIC1111 / SD.Next** (`outputs/txt2img-images`, `outputs/img2img-images`)
-     - **ComfyUI** (`ComfyUI/output`)
-     - **Fooocus** (`Fooocus/outputs`)
-     - **InvokeAI** (`invokeai/outputs`)
-   - Gefundene Verzeichnisse können mit einem einzigen Klick als **AIGC-Pipelines** oder **Externe Links** angebunden werden.
-3. **Speichermodus auswählen**:
-   - Bestimmen Sie, wie Omera mit Ihren Dateien interagieren soll (weitere Details unter [Ordnermodi & Import](../02-library-management/folder-modes-and-import.md)).
-4. **Abschluss**:
-   - Omera initialisiert die lokale SQLite-Datenbank (`omera.db`) im Write-Ahead Logging (WAL)-Modus, startet den Hintergrund-Ordnerscan und leitet Sie direkt in die Hauptgalerie weiter.
+Prüfen Sie den Plan nach einem fehlgeschlagenen Import erneut. Bestehende, nicht
+leere Bibliotheken bleiben erhalten; wählen Sie bei Bedarf ein separates Ziel.
+
+Das Datenbankverzeichnis kann auch in den Einstellungen geändert werden. Omera
+speichert die Auswahl erst nach Prüfung der Kopie; starten Sie danach neu. Die
+folgenden Anwendungsdatenverzeichnisse bleiben für Einstellungen und andere
+Anwendungsdateien zuständig, auch wenn die Datenbank woanders liegt.
 
 ---
 

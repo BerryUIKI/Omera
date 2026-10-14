@@ -39,7 +39,7 @@ Omera 是一款開源、本機優先的資產管理器與提示詞工作台，�
 - **[偏好設定完整指南](06-reference-and-maintenance/settings-reference.md)**：橫跨全部 8 個設定分頁的完整參數參考指南。
 - **[資料庫與快取維護](06-reference-and-maintenance/database-maintenance.md)**：SQLite WAL 結構壓縮（`VACUUM`）、資料庫快照備份與復原、縮圖快取配額（LRU 淘汰機制）與背景工作佇列診斷。
 - **[更新與生命週期](06-reference-and-maintenance/updating.md)**：應用程式內建自動更新、跨版本資料完全隔離儲存保證，以及手動發布版本覆蓋升級。
-- **[隱私與安全架構](06-reference-and-maintenance/privacy-and-security.md)**：100% 本機離線優先架構、零遙測數據收集、本機 AI 推論安全隔離與 AGPL-3.0 授權條款。
+- **[隱私與安全架構](06-reference-and-maintenance/privacy-and-security.md)**：100% 本機離線優先架構、零遙測數據收集、本機 AI 推論安全隔離與 Apache-2.0 授權條款。
 - **[疑難排解與常見問題](06-reference-and-maintenance/troubleshooting-and-faq.md)**：常見疑難解決方案、效能最佳化建議與實用 FAQ。
 - **[產品專有名詞詞彙表](06-reference-and-maintenance/glossary.md)**：核心領域專有名詞權威定義（Hero 封面圖、Ingestion Pipeline 收穫管線、Jaccard similarity 傑卡德相似度、Keyset cursor 鍵集游標、OCC 樂觀並行控制、Poker-deck card 撲克牌折疊卡等）。
 

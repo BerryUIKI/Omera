@@ -38,7 +38,7 @@ Al exportar o empaquetar obras de arte para su publicación en Internet, Omera i
 
 ## 4. Transparencia de código abierto y licencia
 
-Omera es software libre y de código abierto publicado bajo la licencia **GNU Affero General Public License v3.0 (AGPL-3.0)**:
+Omera es software libre y de código abierto publicado bajo la licencia **Apache License 2.0**:
 
 - Cada línea de código del backend en Rust, de los comandos del puente de Tauri y de los componentes frontend en Vue 3 es públicamente auditable en [GitHub](https://github.com/BerryUIKI/Omera).
 - Dispone de total libertad para auditar, compilar, bifurcar (fork) o desplegar Omera dentro de su espacio de trabajo personal o en entornos comerciales de estudio.

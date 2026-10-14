@@ -83,39 +83,34 @@ running the packaged application requires the redistributable runtime. See
 
 ---
 
-## 3. First-Run Onboarding Wizard
+## 3. First Omera Setup and Legacy Import
 
-When you launch Omera for the first time, the interactive **Onboarding Wizard** (`OnboardingModal.vue`) appears automatically to guide you through setup.
+On the first Omera launch, choose the application language and database directory.
+This setup also appears if you completed onboarding in Berry. The default database
+is in Omera application data; a custom directory changes the database location,
+while configuration, models, caches and original media keep their locations.
 
-```mermaid
-flowchart TD
-    A[Launch Omera] --> B[Welcome & Concept Introduction]
-    B --> C[Local AI Tool Detection]
-    C --> D{Found Local Installations?}
-    D -- Yes --> E[One-Click Add SD WebUI / ComfyUI / Fooocus]
-    D -- No --> F[Manual Folder Selection]
-    E --> G[Configure Ingestion Mode: Link vs Pipeline]
-    F --> G
-    G --> H[Initial Fast Indexing]
-    H --> I[Ready to Explore Studio]
-```
+1. Review any discovered Berry source. Open the import plan to inspect the source,
+   destination, required space, available capacity and warnings. Close the legacy
+   application before importing. If capacity cannot be confirmed, resolve that
+   problem before proceeding.
+2. Import a verified snapshot without overwriting the active library. Restart
+   Omera to activate the snapshot. The source database and media are retained.
+3. After verified activation, optional cleanup shows exact eligible application
+   artifacts. Select and confirm those artifacts separately. Changed artifacts
+   require renewed review; user media, external vaults and shared folders are
+   excluded from automatic application-data cleanup. You can keep all old data.
+4. Continue optional local AI output detection and pipeline setup, or skip it.
+   Finish setup to save the database-directory choice. Existing Omera libraries
+   load from SQLite before optional filesystem reconciliation.
 
-### Onboarding Steps:
-1. **Welcome Screen**: Introduces the 3 core pillars:
-   - High-speed local indexing with lossless generation metadata extraction.
-   - Intelligent poker-card burst stacking and side-by-side comparison.
-   - 100% offline privacy with zero telemetry.
-2. **Local AI Engine Auto-Detection**:
-   - Omera probes common local directories across all drives (e.g., `C:\`, `D:\`, `/home/`) looking for outputs from:
-     - **AUTOMATIC1111 / SD.Next** (`outputs/txt2img-images`, `outputs/img2img-images`)
-     - **ComfyUI** (`ComfyUI/output`)
-     - **Fooocus** (`Fooocus/outputs`)
-     - **InvokeAI** (`invokeai/outputs`)
-   - If detected, you can connect them with a single click as **AIGC Pipelines** or **External Links**.
-3. **Select Storage Mode**:
-   - Choose how Omera interacts with your files (read more in [Folder Modes & Importing](../02-library-management/folder-modes-and-import.md)).
-4. **Completion**:
-   - Omera initializes the local SQLite database (`omera.db`) in Write-Ahead Logging (WAL) mode, starts background folder scanning, and brings you directly into the main studio gallery.
+A failed import must be reviewed again before retrying. An existing nonempty
+library is preserved; choose a separate destination if the plan requires one.
+
+The database-directory choice can also be changed in Settings. Omera publishes
+it only after validating the copied database; restart to use the selected library.
+The application-data directories below remain the locations for settings and
+other application files, even when the database is stored elsewhere.
 
 ---
 

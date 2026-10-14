@@ -39,7 +39,7 @@ Omera は、AI生成クリエイター、プロンプトエンジニア、ビジ
 - **[環境設定パラメータリファレンス](06-reference-and-maintenance/settings-reference.md)**: 8つの設定タブの全パラメータ詳細ガイド。
 - **[データベースとキャッシュのメンテナンス](06-reference-and-maintenance/database-maintenance.md)**: SQLite WAL 最適化・圧縮（`VACUUM`）、データベースのバックアップと復元、サムネイルキャッシュバジェット（LRU 破棄）、処理キューステータス診断。
 - **[アップデートとライフサイクル](06-reference-and-maintenance/updating.md)**: アプリ内自動更新、バージョンアップ時の完全データ保護保証、手動リリース更新手順。
-- **[プライバシーとセキュリティアーキテクチャ](06-reference-and-maintenance/privacy-and-security.md)**: 100% オフラインファースト、テレメトリ完全ゼロ、ローカル AI 推論分離、AGPL-3.0 ライセンス。
+- **[プライバシーとセキュリティアーキテクチャ](06-reference-and-maintenance/privacy-and-security.md)**: 100% オフラインファースト、テレメトリ完全ゼロ、ローカル AI 推論分離、Apache-2.0 ライセンス。
 - **[トラブルシューティングとよくある質問 (FAQ)](06-reference-and-maintenance/troubleshooting-and-faq.md)**: よくある問題の解決策、パフォーマンス最適化のヒント、FAQ。
 - **[プロダクト用語集](06-reference-and-maintenance/glossary.md)**: 専門用語の定義（表紙画像/Hero、取り込みパイプライン、Jaccard 類似度、キーセットカーソル、OCC、トランプ風スタックカードなど）。
 

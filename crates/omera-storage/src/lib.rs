@@ -10,8 +10,12 @@
 mod cloud_sync_roots;
 mod db;
 mod engine;
+pub mod legacy_activation;
 pub mod legacy_migration;
+pub mod library_location;
 mod migration_export;
+pub mod migration_fingerprint;
+pub mod migration_paths;
 mod migrations;
 pub mod recovery;
 

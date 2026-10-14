@@ -39,7 +39,7 @@ Omera 是一款开源、本地优先（Local-First）的媒体资产管理与提
 - **[首选项与设置完整参考](06-reference-and-maintenance/settings-reference.md)**：涵盖全部 8 大设置标签页的参数配置详解。
 - **[数据库维护与缓存管理](06-reference-and-maintenance/database-maintenance.md)**：SQLite WAL 空间压缩（`VACUUM`）、数据库热备份与恢复、缩略图磁盘预算控制（LRU 淘汰算法）以及后台任务队列诊断。
 - **[版本升级与数据保护机制](06-reference-and-maintenance/updating.md)**：应用内静默就地更新、跨版本数据零丢失架构保障与手动覆盖安装说明。
-- **[隐私架构与安全规范](06-reference-and-maintenance/privacy-and-security.md)**：100% 离线优先架构、零用户遥测收集、本地 AI 推理沙箱隔离与 AGPL-3.0 开源协议。
+- **[隐私架构与安全规范](06-reference-and-maintenance/privacy-and-security.md)**：100% 离线优先架构、零用户遥测收集、本地 AI 推理沙箱隔离与 Apache-2.0 开源协议。
 - **[常见故障排除与 FAQ](06-reference-and-maintenance/troubleshooting-and-faq.md)**：高频问题诊断指南、性能调优技巧与常见问答。
 - **[核心专有名词术语表](06-reference-and-maintenance/glossary.md)**：产品专属术语权威定义（Hero 封面、入库管线、Jaccard 相似度、游标分页、OCC 乐观并发控制、扑克牌卡片等）。
 

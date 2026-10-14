@@ -39,7 +39,7 @@ Omera is an open-source, local-first asset manager and prompt workbench engineer
 - **[Comprehensive Settings Reference](06-reference-and-maintenance/settings-reference.md)**: Complete parameter guide across all 8 preferences tabs.
 - **[Database & Cache Maintenance](06-reference-and-maintenance/database-maintenance.md)**: SQLite WAL compaction (`VACUUM`), database backup/restoration, thumbnail cache budget (LRU eviction), and queue diagnostics.
 - **[Updates & Lifecycle](06-reference-and-maintenance/updating.md)**: In-app auto-updater, data preservation guarantees across versions, and manual release upgrades.
-- **[Privacy & Security Architecture](06-reference-and-maintenance/privacy-and-security.md)**: 100% offline-first model, zero telemetry, local AI inference isolation, and AGPL-3.0 licensing.
+- **[Privacy & Security Architecture](06-reference-and-maintenance/privacy-and-security.md)**: 100% offline-first model, zero telemetry, local AI inference isolation, and Apache-2.0 licensing.
 - **[Troubleshooting & FAQ](06-reference-and-maintenance/troubleshooting-and-faq.md)**: Solutions to common issues, performance optimization tips, and frequently asked questions.
 - **[Product Glossary](06-reference-and-maintenance/glossary.md)**: Authoritative definitions for product domain terms (Hero, Ingestion Pipeline, Jaccard similarity, Keyset cursor, OCC, Poker-deck card, etc.).
 

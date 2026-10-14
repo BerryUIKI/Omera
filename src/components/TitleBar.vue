@@ -2,10 +2,15 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
+import { t } from "../i18n";
 
 defineProps<{
   title?: string;
   subtitle?: string;
+}>();
+
+const emit = defineEmits<{
+  openUpdater: [];
 }>();
 
 const appWindow = getCurrentWindow();
@@ -72,7 +77,16 @@ async function onClose() {
           <img src="../assets/logo.png" alt="Omera Logo" width="18" height="18" class="brand-logo-img" />
         </div>
         <span class="brand-title">{{ title || "Omera" }}</span>
-        <span v-if="subtitle" class="brand-subtitle">{{ subtitle }}</span>
+        <button
+          v-if="subtitle"
+          type="button"
+          class="brand-subtitle"
+          :title="t.menu.checkUpdates"
+          :aria-label="`${t.updater.title} (${subtitle})`"
+          @mousedown.stop
+          @dblclick.stop
+          @click.stop="emit('openUpdater')"
+        >{{ subtitle }}</button>
       </div>
 
       <!-- Menu Slot -->
@@ -189,6 +203,7 @@ async function onClose() {
 }
 
 .brand-subtitle {
+  font-family: inherit;
   font-size: 0.7rem;
   font-weight: 600;
   padding: 1px 6px;
@@ -197,6 +212,17 @@ async function onClose() {
   color: var(--badge-cyan-text, #155e75);
   border: 1px solid var(--badge-cyan-border, rgba(18, 181, 203, 0.3));
   flex-shrink: 0;
+  cursor: pointer;
+}
+
+.brand-subtitle:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-accent);
+}
+
+.brand-subtitle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .titlebar-drag-spacer {

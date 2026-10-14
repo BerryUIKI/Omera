@@ -38,7 +38,7 @@ When exporting or packaging artworks for public distribution, Omera includes a d
 
 ## 4. Open-Source Transparency & License
 
-Omera is free, open-source software licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**:
+Omera is free, open-source software licensed under the **Apache License 2.0**:
 
 - Every line of Rust backend code, Tauri bridge commands, and Vue 3 frontend components is publicly auditable on [GitHub](https://github.com/BerryUIKI/Omera).
 - You have complete freedom to audit, compile, fork, or deploy Omera within your personal workspace or commercial studio environment.
