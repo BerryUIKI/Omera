@@ -2687,7 +2687,7 @@ function onResetZoom() {
           />
         </div>
         <LightboxModal
-          v-else-if="lightboxFile" ref="lightboxRef" embedded
+          v-else-if="lightboxFile" ref="lightboxRef" embedded v-model:details-open="inspectorOpen"
           :file="lightboxFile"
           :files="files" :total-count="galleryTotal" :has-more="galleryHasMore" :load-more="loadMoreFiles"
           @close="lightboxFile = null"

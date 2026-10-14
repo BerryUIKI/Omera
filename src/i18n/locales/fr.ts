@@ -1134,6 +1134,8 @@ export const fr: typeof en = {
     "noCleanup": "Aucun fichier vérifié ne peut être nettoyé."
 },
   workbench: {
+    previousImage: "Image précédente",
+    nextImage: "Image suivante",
     "overview": "Aperçu",
     "generation": "Génération",
     "rawData": "Données brutes",

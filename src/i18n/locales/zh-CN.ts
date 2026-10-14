@@ -1134,6 +1134,8 @@ export const zhCN: typeof en = {
     "noCleanup": "没有已验证且可清理的文件。"
 },
   workbench: {
+    previousImage: "上一张图片",
+    nextImage: "下一张图片",
     "overview": "概览",
     "generation": "生成信息",
     "rawData": "原始数据",

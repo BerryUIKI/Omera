@@ -14,7 +14,7 @@ export async function withProductionComponent(name, initialProps, invoke, run, t
   globalThis[key] = invoke;
   const previousWindow = globalThis.window;
   globalThis.window ??= { addEventListener() {}, removeEventListener() {},
-    __TAURI_INTERNALS: { convertFileSrc: file => `asset:/${file}` } };
+    __TAURI_INTERNALS__: { convertFileSrc: file => `asset:/${file}` } };
   const filename = path.resolve(`src/components/${name}.vue`);
   const { descriptor } = parse(fs.readFileSync(filename, 'utf8'));
   const script = compileScript(descriptor, { id: name });

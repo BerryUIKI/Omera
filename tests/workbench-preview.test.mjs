@@ -13,6 +13,8 @@ test('production workbench retains fit zoom, loaded-page navigation, and explici
     assert.equal(controls.currentScale.value, .5);
     controls.actualSize(); assert.equal(controls.currentScale.value, 1);
     controls.fullScreen.value = true; controls.closeViewer(); assert.equal(controls.fullScreen.value, false); assert.equal(events.length, 0);
+    props.detailsOpen = false; await nextTick(); assert.equal(controls.showDetails.value, false);
+    controls.showDetails.value = true; await nextTick(); assert.deepEqual(events.at(-1), ['update:detailsOpen', true]);
     const pending = controls.next(); assert.equal(controls.navigationBusy.value, true);
     await controls.next(); props.files = [first, second]; release(); await pending;
     assert.deepEqual(events.at(-1), ['navigate', second]);

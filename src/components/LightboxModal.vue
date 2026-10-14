@@ -12,6 +12,7 @@ const props = defineProps<{
   file: ImageFile;
   files: ImageFile[];
   embedded?: boolean;
+  detailsOpen?: boolean;
   totalCount?: number;
   hasMore?: boolean;
   loadMore?: () => Promise<void>;
@@ -30,12 +31,15 @@ const emit = defineEmits<{
   filterByHash: [hash: string];
   openLoraManager: [];
   tagsChanged: [fileId: number];
+  "update:detailsOpen": [visible: boolean];
 }>();
 
 const scale = ref(1);
 const fitMode = ref(true);
 const fullScreen = ref(!props.embedded);
-const showDetails = ref(!!props.embedded);
+const showDetails = ref(props.detailsOpen ?? !!props.embedded);
+watch(() => props.detailsOpen, visible => { if (visible !== undefined) showDetails.value = visible; });
+watch(showDetails, visible => emit("update:detailsOpen", visible));
 const viewerRoot = ref<HTMLElement | null>(null);
 const canvasElement = ref<HTMLElement | null>(null);
 const detailPanel = ref<InstanceType<typeof InspectorPane> | null>(null);
@@ -426,7 +430,7 @@ onUnmounted(() => {
         v-if="hasPrev"
         type="button"
         class="nav-arrow prev"
-        title="‹ (←)"
+        :title="`${t.workbench.previousImage} (←)`" :aria-label="t.workbench.previousImage"
         @click.stop="prev"
       >
         ‹
@@ -478,7 +482,7 @@ onUnmounted(() => {
         :disabled="navigationBusy"
         type="button"
         class="nav-arrow next"
-        title="› (→)"
+        :title="`${t.workbench.nextImage} (→)`" :aria-label="t.workbench.nextImage"
         @click.stop="next"
       >
         ›

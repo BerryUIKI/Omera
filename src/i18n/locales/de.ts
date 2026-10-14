@@ -1134,6 +1134,8 @@ export const de: typeof en = {
     "noCleanup": "Keine verifizierten Dateien zur Bereinigung verfügbar."
 },
   workbench: {
+    previousImage: "Vorheriges Bild",
+    nextImage: "Nächstes Bild",
     "overview": "Übersicht",
     "generation": "Generierung",
     "rawData": "Rohdaten",

@@ -1132,6 +1132,8 @@ export const en = {
     "noCleanup": "No verified files are eligible for cleanup."
 },
   workbench: {
+    previousImage: "Previous image",
+    nextImage: "Next image",
     "overview": "Overview",
     "generation": "Generation",
     "rawData": "Raw Data",

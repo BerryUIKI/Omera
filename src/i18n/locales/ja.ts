@@ -1134,6 +1134,8 @@ export const ja: typeof en = {
     "noCleanup": "安全に処理できる確認済みファイルはありません。"
 },
   workbench: {
+    previousImage: "前の画像",
+    nextImage: "次の画像",
     "overview": "概要",
     "generation": "生成情報",
     "rawData": "生データ",

@@ -1134,6 +1134,8 @@ export const es: typeof en = {
     "noCleanup": "No hay archivos verificados aptos para limpiar."
 },
   workbench: {
+    previousImage: "Imagen anterior",
+    nextImage: "Imagen siguiente",
     "overview": "Resumen",
     "generation": "Generación",
     "rawData": "Datos originales",

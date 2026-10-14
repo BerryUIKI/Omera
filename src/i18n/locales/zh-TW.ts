@@ -1134,6 +1134,8 @@ export const zhTW: typeof en = {
     "noCleanup": "沒有已驗證且可清理的檔案。"
 },
   workbench: {
+    previousImage: "上一張圖片",
+    nextImage: "下一張圖片",
     "overview": "概覽",
     "generation": "生成資訊",
     "rawData": "原始資料",
