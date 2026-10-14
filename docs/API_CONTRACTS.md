@@ -242,6 +242,12 @@ measurement fails. Unknown space must not be represented by `u64::MAX` or shown
 as an enormous capacity. Windows measures caller-available bytes with
 `GetDiskFreeSpaceExW`; UI sizes scale through GB/TB and larger units.
 
+Discovered `database_size_bytes` includes SQLite sidecars; `total_size_bytes`
+is the legacy application directory inventory and includes disposable caches.
+It is not the import payload. Migration copies database/configuration only,
+clears the copied `thumbnail_cache_entries`, and preserves source thumbnails,
+models, external media, vaults and backups in place.
+
 The following migration lifecycle states and structured error envelope represent proposed extensions for future UI/backend coordination:
 
 - Migration states: `discovered -> awaiting_source_choice -> planned -> copying -> validating -> activating -> migrated -> cleanup_available`. Failure records the failed stage and preserves retry/recovery evidence. Cleanup states: `retained`, `cleaning`, `partially_cleaned`, `cleaned`. Restarting must not promote a partially activated migration to success.

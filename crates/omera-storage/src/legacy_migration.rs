@@ -256,6 +256,19 @@ pub fn migrate_database(
         )
     })?;
 
+    // Cache files are never imported; rebuild their derived manifest lazily.
+    migrated
+        .connection()
+        .execute("DELETE FROM thumbnail_cache_entries", [])
+        .map_err(|e| {
+            MigrationError::new(
+                "INTEGRITY_FAILED",
+                "error.migration.cache_reset_failed",
+                false,
+                Some(e.to_string()),
+            )
+        })?;
+
     // Consolidate staged database to clean rollback journal
     migrated
         .connection()
@@ -364,7 +377,7 @@ pub fn verify_destination_health(destination_db: &Path) -> Result<bool, String> 
     }
 }
 
-/// Check if a SQLite database exists and is empty (contains 0 indexed files and 0 folders).
+/// Check all persistent user tables, rather than just images and folders.
 /// Returns false if the file does not exist, cannot be opened, or contains user data.
 pub fn is_database_empty(db_path: &Path) -> bool {
     if !db_path.exists() {
@@ -372,13 +385,23 @@ pub fn is_database_empty(db_path: &Path) -> bool {
     }
     match Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY) {
         Ok(conn) => {
-            let files_count: i64 = conn
-                .query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0))
-                .unwrap_or(1);
-            let folders_count: i64 = conn
-                .query_row("SELECT COUNT(*) FROM folders", [], |r| r.get(0))
-                .unwrap_or(1);
-            files_count == 0 && folders_count == 0
+            let Ok(mut statement) = conn.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'thumbnail_cache_entries'") else { return false; };
+            let Ok(tables) = statement.query_map([], |row| row.get::<_, String>(0)) else {
+                return false;
+            };
+            let mut found_table = false;
+            for table in tables {
+                let Ok(table) = table else {
+                    return false;
+                };
+                found_table = true;
+                let quoted = table.replace('"', "\"\"");
+                let query = format!("SELECT EXISTS(SELECT 1 FROM \"{quoted}\" LIMIT 1)");
+                if conn.query_row(&query, [], |row| row.get::<_, bool>(0)) != Ok(false) {
+                    return false;
+                }
+            }
+            found_table
         }
         Err(_) => false,
     }
@@ -537,6 +560,54 @@ mod tests {
         // Add a folder
         db.add_folder("/test/folder").unwrap();
         assert!(!is_database_empty(&db_path));
+    }
+
+    #[test]
+    fn tags_and_albums_without_images_are_not_an_empty_library() {
+        for table in ["tags", "albums"] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("omera.db");
+            let db = crate::Database::connect(&path).unwrap();
+            db.connection()
+                .execute(
+                    &format!("INSERT INTO {table}(name) VALUES ('user data')"),
+                    [],
+                )
+                .unwrap();
+            assert!(!is_database_empty(&path));
+        }
+    }
+
+    #[test]
+    fn migration_excludes_thumbnail_files_and_resets_only_the_copied_manifest() {
+        let source = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let source_path = source.path().join("berry.db");
+        let cache_dir = source.path().join("thumbnails");
+        std::fs::create_dir(&cache_dir).unwrap();
+        let cached_file = cache_dir.join("example.webp");
+        std::fs::write(&cached_file, b"legacy thumbnail").unwrap();
+        let db = crate::Database::connect(&source_path).unwrap();
+        db.connection()
+            .execute(
+                "INSERT INTO thumbnail_cache_entries VALUES (1, 0, 384, 'webp', ?1, 16, 0)",
+                [cached_file.to_string_lossy().as_ref()],
+            )
+            .unwrap();
+        let target_path = target.path().join("omera.db");
+        migrate_database(&source_path, &target_path, staging.path()).unwrap();
+        let migrated = crate::Database::connect(&target_path).unwrap();
+        let count = |conn: &Connection| {
+            conn.query_row("SELECT COUNT(*) FROM thumbnail_cache_entries", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap()
+        };
+        assert_eq!(count(db.connection()), 1);
+        assert_eq!(count(migrated.connection()), 0);
+        assert_eq!(std::fs::read(&cached_file).unwrap(), b"legacy thumbnail");
+        assert!(!target.path().join("thumbnails").exists());
     }
 
     #[test]
