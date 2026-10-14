@@ -91,3 +91,20 @@ fixtures establish protocol behavior, not live-cloud or release qualification.
 Benchmark production query and cache functions on reproducible 1k, 10k, 50k and 100k fixtures; add 500k where resources permit. Include metadata-heavy rows, sparse fields, multiple tags/albums, stacked files, cold/warm caches, concurrent indexing, and deep pagination. Record hardware, commit, dataset generation, query plans, database/index bytes, peak memory, startup-to-first-page time, IPC bytes and p50/p95 latency.
 
 Compare against the same baseline and publish results in `docs/benchmarks/`. A redesign is accepted only when correctness tests pass and measured target workloads improve without material startup, write, memory, or recovery regressions. Synthetic loops that do not exercise production functions are not evidence. No engine change or unmeasured speedup is promised by this plan.
+
+## User-directed Omera activation
+
+First Omera setup asks for language and an existing database directory after the
+SQLite gallery has rendered. Legacy discovery remains available for all pre-1.0
+releases, but startup does not automatically import a source. Imports upgrade a
+staged SQLite backup and clear its thumbnail manifest without copying cache
+files. Source catalog/config revisions are rechecked before publication.
+
+A durable receipt journals preparing and activation_pending states. Existing
+empty targets use pending-restore staging; startup checks they still contain no
+user data before replacing them. A conflicting target retains both libraries and
+marks activation_blocked. Startup validates the selected snapshot and finalizes
+activation only after reopening it. Cleanup is a separate explicit dialog after
+that verification. Default startup scans, pipeline cleanup and update prompts
+wait until setup and the pending cleanup question have been resolved on a later
+launch. Cache files rebuild lazily from visible gallery requests.
