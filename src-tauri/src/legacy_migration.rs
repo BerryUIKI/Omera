@@ -22,6 +22,7 @@ pub struct MigrationCoordinator {
     pub active_plans: HashMap<String, LegacyMigrationPreview>,
     pub plan_revisions: HashMap<String, String>,
     pub active_cleanup_previews: HashMap<String, LegacyCleanupPreview>,
+    cleanup_revisions: HashMap<String, HashMap<String, String>>,
     pub migration_lock: Arc<Mutex<()>>,
 }
 
@@ -232,10 +233,9 @@ impl MigrationCoordinator {
         _app: &AppHandle,
         plan_id: &str,
     ) -> Result<LegacyMigrationJob, String> {
-        let plan =
-            self.active_plans.get(plan_id).cloned().ok_or_else(|| {
-                format!("Migration plan '{plan_id}' has expired or was not found")
-            })?;
+        let plan = self.active_plans.get(plan_id).cloned().ok_or_else(|| {
+            format!("[PLAN_EXPIRED] Migration plan '{plan_id}' has expired or was not found")
+        })?;
 
         if !plan.conflicts.is_empty() {
             let conflict_msg = plan.conflicts.join("; ");
@@ -539,7 +539,8 @@ impl MigrationCoordinator {
         app: &AppHandle,
         receipt_id: &str,
     ) -> Result<LegacyCleanupPreview, String> {
-        let (omera_root, _) = resolve_migration_roots(app)?;
+        let (omera_root, candidates) = resolve_migration_roots(app)?;
+        validate_known_receipt(&omera_root, &candidates)?;
         self.preview_cleanup_for_root(&omera_root, receipt_id)
     }
 
@@ -553,118 +554,64 @@ impl MigrationCoordinator {
             .filter(|r| r.receipt_id == receipt_id)
             .ok_or_else(|| format!("Receipt '{receipt_id}' not found"))?;
 
-        // 1. Verify destination health
-        let dest_db = PathBuf::from(&receipt.destination_db);
-        let destination_healthy = storage_migration::verify_destination_health(&dest_db)
-            .map_err(|e| format!("Destination check failed: {e}"))?;
-
-        if !destination_healthy {
-            return Err("Destination database is unhealthy or missing; cleanup blocked to protect source data.".into());
-        }
-
-        // 2. Scan source root and collect eligible app-owned files
+        verify_cleanup_receipt(&receipt)?;
+        let destination_healthy = true;
         let source_root = PathBuf::from(&receipt.source_root);
-        if !source_root.exists() {
-            return Err(format!(
-                "Source root '{}' no longer exists",
-                source_root.display()
-            ));
-        }
-
         let mut items = Vec::new();
         let mut total_size_bytes = 0u64;
-
-        if let Ok(entries) = std::fs::read_dir(&source_root) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let name = entry.file_name();
-                let name_str = name.to_string_lossy();
-
-                // Whitelisted application-owned categories
-                let (category, eligible, reason) = match name_str.as_ref() {
-                    "berry.db" | "berry.db-wal" | "berry.db-shm" => {
-                        ("database".to_string(), true, None)
-                    }
-                    "config.json" | "config.json.bak" => {
-                        // Configuration is only eligible for cleanup if the migration receipt
-                        // contains a successfully verified or preserved config artifact, AND
-                        // the destination configuration file actually exists and is readable.
-                        let dest_config = omera_root.join("config.json");
-                        let config_artifact_ok = receipt.artifacts.iter().any(|a| {
-                            a.category == "config"
-                                && (a.status == "success" || a.status == "skipped")
-                        });
-                        let dest_config_healthy = dest_config.exists()
-                            && config_store::load_readonly(&dest_config).is_ok();
-
-                        if config_artifact_ok && dest_config_healthy {
-                            ("config".to_string(), true, None)
-                        } else {
-                            (
-                                "config".to_string(),
-                                false,
-                                Some("Destination configuration not verified or missing".into()),
-                            )
-                        }
-                    }
-                    "thumbnails" => ("thumbnails".to_string(), true, None),
-                    "models" => {
-                        // Model directory is only eligible for cleanup if the destination model
-                        // directory exists, is non-empty, and has healthy artifacts matching source.
-                        let dest_models = omera_root.join("models");
-                        match storage_migration::validate_model_artifact_health(&path, &dest_models)
-                        {
-                            Ok(true) => ("models".to_string(), true, None),
-                            _ => (
-                                "models".to_string(),
-                                false,
-                                Some(
-                                    "Destination models not verified, missing or incomplete".into(),
-                                ),
-                            ),
-                        }
-                    }
-                    "updates" => ("updates".to_string(), true, None),
-                    other => {
-                        // User assets, external vaults, backups, or unexpected files
-                        if other.ends_with(".zip") {
-                            (
-                                "backup".to_string(),
-                                false,
-                                Some("Preserved backup archive".into()),
-                            )
-                        } else {
-                            (
-                                "user_data".to_string(),
-                                false,
-                                Some("Protected user directory or asset".into()),
-                            )
-                        }
-                    }
-                };
-
-                let size = if path.is_file() {
-                    entry.metadata().map(|m| m.len()).unwrap_or(0)
-                } else if path.is_dir() {
-                    calculate_folder_size(&path)
-                } else {
-                    0
-                };
-
-                if eligible {
-                    total_size_bytes += size;
-                }
-
-                items.push(CleanupItem {
-                    path: path.to_string_lossy().to_string(),
-                    category,
-                    size_bytes: size,
-                    eligible,
-                    reason,
-                });
+        let mut revisions = HashMap::new();
+        for entry in std::fs::read_dir(&source_root).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let (category, mut eligible, mut reason) = match name.as_str() {
+                "berry.db" => ("database", true, None),
+                "thumbnails" => (
+                    "thumbnails",
+                    verified_cache(&source_root, &path),
+                    Some("cacheProtected"),
+                ),
+                "config.json" | "config.json.bak" => ("config", false, Some("configProtected")),
+                "models" => ("models", false, Some("modelsExcluded")),
+                other if other.ends_with(".zip") => ("backup", false, Some("backupsExcluded")),
+                _ => ("user_data", false, Some("mediaExcluded")),
+            };
+            // Never follow links, shared media directories, or a cache belonging to Omera itself.
+            let plain = omera_storage::migration_paths::plain_metadata(&path);
+            if plain.is_err()
+                || registered_media(&source_root.join("berry.db"), &path)
+                || (category == "thumbnails"
+                    && source_root.canonicalize().ok() == omera_root.canonicalize().ok())
+            {
+                eligible = false;
+                reason = Some("mediaExcluded");
             }
+            let size = plain
+                .map(|m| {
+                    if m.is_file() {
+                        m.len()
+                    } else {
+                        calculate_folder_size(&path)
+                    }
+                })
+                .unwrap_or(0);
+            if eligible {
+                reason = None;
+                revisions.insert(
+                    path.to_string_lossy().into_owned(),
+                    omera_storage::migration_paths::artifact_fingerprint(&path)?,
+                );
+                total_size_bytes = total_size_bytes.saturating_add(size);
+            }
+            items.push(CleanupItem {
+                path: path.to_string_lossy().into_owned(),
+                category: category.into(),
+                size_bytes: size,
+                eligible,
+                reason: reason.map(str::to_owned),
+            });
         }
-
+        items.sort_by(|a, b| a.path.cmp(&b.path));
         let now_sec = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -680,6 +627,7 @@ impl MigrationCoordinator {
             destination_healthy,
         };
 
+        self.cleanup_revisions.insert(preview_id.clone(), revisions);
         self.active_cleanup_previews
             .insert(preview_id, preview.clone());
         Ok(preview)
@@ -692,7 +640,8 @@ impl MigrationCoordinator {
         preview_id: &str,
         confirmed: bool,
     ) -> Result<LegacyCleanupResult, String> {
-        let (omera_root, _) = resolve_migration_roots(app)?;
+        let (omera_root, candidates) = resolve_migration_roots(app)?;
+        validate_known_receipt(&omera_root, &candidates)?;
         self.confirm_cleanup_for_root(&omera_root, preview_id, confirmed)
     }
 
@@ -702,6 +651,18 @@ impl MigrationCoordinator {
         omera_root: &Path,
         preview_id: &str,
         confirmed: bool,
+    ) -> Result<LegacyCleanupResult, String> {
+        self.confirm_cleanup_using(omera_root, preview_id, confirmed, |path| {
+            trash::delete(path).map_err(|e| e.to_string())
+        })
+    }
+
+    fn confirm_cleanup_using(
+        &mut self,
+        omera_root: &Path,
+        preview_id: &str,
+        confirmed: bool,
+        mut dispose: impl FnMut(&Path) -> Result<(), String>,
     ) -> Result<LegacyCleanupResult, String> {
         if !confirmed {
             return Err("Cleanup was not confirmed by user".into());
@@ -718,99 +679,52 @@ impl MigrationCoordinator {
             .as_secs();
 
         if now_sec > preview.expires_at {
-            return Err("Cleanup preview has expired. Please review and preview again.".into());
+            return Err("[PLAN_EXPIRED] Cleanup preview has expired. Please review again.".into());
         }
 
         let mut receipt = storage_migration::load_receipt(omera_root)?
             .filter(|r| r.receipt_id == preview.receipt_id)
             .ok_or_else(|| format!("Receipt '{}' not found", preview.receipt_id))?;
 
-        // Re-verify destination database health immediately prior to disposal
-        let dest_db = PathBuf::from(&receipt.destination_db);
-        if !storage_migration::verify_destination_health(&dest_db).unwrap_or(false) {
-            return Err("Destination health verification failed immediately prior to cleanup. Operation aborted.".into());
+        verify_cleanup_receipt(&receipt)?;
+        let revisions = self
+            .cleanup_revisions
+            .remove(preview_id)
+            .ok_or("[PLAN_EXPIRED] Cleanup review is unavailable")?;
+        let source_root = Path::new(&receipt.source_root)
+            .canonicalize()
+            .map_err(|e| e.to_string())?;
+        // Validate the whole review before disposing of any item.
+        for item in preview.items.iter().filter(|item| item.eligible) {
+            let path = Path::new(&item.path);
+            let actual = path.canonicalize().map_err(|e| e.to_string())?;
+            if actual.parent() != Some(source_root.as_path())
+                || registered_media(&source_root.join("berry.db"), path)
+                || revisions.get(&item.path)
+                    != Some(&omera_storage::migration_paths::artifact_fingerprint(path)?)
+            {
+                return Err("[SOURCE_CHANGED] Cleanup artifacts changed after review".into());
+            }
         }
-
         let mut cleaned_count = 0;
         let mut failed_count = 0;
         let mut cleaned_bytes = 0u64;
         let mut errors = Vec::new();
 
-        let source_root_canon = PathBuf::from(&receipt.source_root)
-            .canonicalize()
-            .map_err(|e| e.to_string())?;
-
-        for item in preview.items {
+        let mut reviewed_items = preview.items;
+        reviewed_items.sort_by_key(|item| item.category == "database");
+        for item in reviewed_items {
             if !item.eligible {
                 continue;
             }
-
             let path = PathBuf::from(&item.path);
-            if !path.exists() {
+            if item.category == "database" && failed_count > 0 {
+                failed_count += 1;
+                errors.push("Legacy database retained because another cleanup item failed".into());
                 continue;
             }
-
-            // Ensure path does not escape the legacy root
-            if let Ok(canon) = path.canonicalize() {
-                if !canon.starts_with(&source_root_canon) {
-                    errors.push(format!(
-                        "Rejected path outside source root: {}",
-                        path.display()
-                    ));
-                    failed_count += 1;
-                    continue;
-                }
-            } else {
-                continue;
-            }
-
-            // Secondary defense: revalidate destination artifact health at execution time
-            match item.category.as_str() {
-                "config" => {
-                    let dest_config = omera_root.join("config.json");
-                    let config_artifact_ok = receipt.artifacts.iter().any(|a| {
-                        a.category == "config" && (a.status == "success" || a.status == "skipped")
-                    });
-                    if !config_artifact_ok
-                        || !dest_config.exists()
-                        || config_store::load_readonly(&dest_config).is_err()
-                    {
-                        errors.push(format!(
-                            "Execution skipped cleanup for config: destination unverified at {}",
-                            dest_config.display()
-                        ));
-                        failed_count += 1;
-                        continue;
-                    }
-                }
-                "models" => {
-                    let dest_models = omera_root.join("models");
-                    if !storage_migration::validate_model_artifact_health(&path, &dest_models)
-                        .unwrap_or(false)
-                    {
-                        errors.push(format!(
-                            "Execution skipped cleanup for models: destination unverified or incomplete at {}",
-                            dest_models.display()
-                        ));
-                        failed_count += 1;
-                        continue;
-                    }
-                }
-                "database"
-                    if !storage_migration::verify_destination_health(&dest_db).unwrap_or(false) =>
-                {
-                    errors.push(format!(
-                        "Execution skipped cleanup for database: destination unhealthy at {}",
-                        dest_db.display()
-                    ));
-                    failed_count += 1;
-                    continue;
-                }
-                _ => {}
-            }
-
             // Move to system Trash. NEVER use permanent deletion!
-            match trash::delete(&path) {
+            match dispose(&path) {
                 Ok(_) => {
                     cleaned_count += 1;
                     cleaned_bytes += item.size_bytes;
@@ -822,14 +736,6 @@ impl MigrationCoordinator {
             }
         }
 
-        // Clean up legacy credentials safely
-        let dest_config_path = omera_root.join("config.json");
-        if dest_config_path.exists() {
-            if let Ok(config) = config_store::load(&dest_config_path) {
-                let _ = config_store::cleanup_legacy_credentials(&config);
-            }
-        }
-
         let status = if failed_count == 0 {
             "cleaned".to_string()
         } else {
@@ -837,7 +743,7 @@ impl MigrationCoordinator {
         };
 
         receipt.cleanup_status = status.clone();
-        let _ = storage_migration::save_receipt(omera_root, &receipt);
+        storage_migration::save_receipt(omera_root, &receipt)?;
 
         Ok(LegacyCleanupResult {
             receipt_id: preview.receipt_id,
@@ -852,13 +758,145 @@ impl MigrationCoordinator {
     /// Persist user decision to defer cleanup and avoid repetitive launch prompts.
     pub fn defer_cleanup(&mut self, app: &AppHandle, receipt_id: &str) -> Result<(), String> {
         let (omera_root, _) = resolve_migration_roots(app)?;
-        let mut receipt = storage_migration::load_receipt(&omera_root)?
+        self.defer_cleanup_for_root(&omera_root, receipt_id)
+    }
+
+    pub fn defer_cleanup_for_root(
+        &mut self,
+        omera_root: &Path,
+        receipt_id: &str,
+    ) -> Result<(), String> {
+        let mut receipt = storage_migration::load_receipt(omera_root)?
             .filter(|r| r.receipt_id == receipt_id)
             .ok_or_else(|| format!("Receipt '{receipt_id}' not found"))?;
 
+        if receipt.activated_at.is_none()
+            || !matches!(
+                receipt.cleanup_status.as_str(),
+                "pending" | "deferred" | "partially_cleaned"
+            )
+        {
+            return Err("[PLAN_EXPIRED] Activation must finish before deciding cleanup".into());
+        }
         receipt.cleanup_status = "deferred".to_string();
-        storage_migration::save_receipt(&omera_root, &receipt)
+        storage_migration::save_receipt(omera_root, &receipt)
     }
+}
+
+fn validate_known_receipt(root: &Path, candidates: &[(String, PathBuf)]) -> Result<(), String> {
+    let receipt = storage_migration::load_receipt(root)?.ok_or("[PLAN_EXPIRED] Receipt missing")?;
+    let source = Path::new(&receipt.source_root)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if !candidates
+        .iter()
+        .any(|(_, path)| path.canonicalize().is_ok_and(|path| path == source))
+    {
+        return Err("[CLEANUP_PROTECTED] Source is outside known legacy application data".into());
+    }
+    Ok(())
+}
+
+fn verify_cleanup_receipt(receipt: &MigrationReceipt) -> Result<(), String> {
+    if receipt.activated_at.is_none()
+        || receipt.source_revision.is_empty()
+        || !matches!(
+            receipt.cleanup_status.as_str(),
+            "pending" | "deferred" | "partially_cleaned"
+        )
+        || !receipt
+            .artifacts
+            .iter()
+            .any(|a| a.category == "database" && a.status == "success")
+    {
+        return Err("[INTEGRITY_FAILED] Migration has not been activated and verified".into());
+    }
+    let root = Path::new(&receipt.source_root);
+    if omera_storage::migration_paths::database_in_use(&root.join("berry.db")) {
+        return Err("[SOURCE_BUSY] Close the legacy application before cleanup".into());
+    }
+    if source_revision(root)? != receipt.source_revision
+        || omera_storage::migration_fingerprint::database_fingerprint(Path::new(
+            &receipt.destination_db,
+        ))? != receipt.integrity_hash
+    {
+        return Err(
+            "[SOURCE_CHANGED] Source or destination catalog changed; original data was retained"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+fn registered_media(database: &Path, artifact: &Path) -> bool {
+    let Ok(conn) = storage_migration::validate_source_database(database) else {
+        return true;
+    };
+    let Ok(mut stmt) = conn.prepare("SELECT path FROM files UNION ALL SELECT path FROM folders")
+    else {
+        return true;
+    };
+    let Ok(paths) = stmt.query_map([], |row| row.get::<_, String>(0)) else {
+        return true;
+    };
+    let Ok(artifact) = artifact.canonicalize() else {
+        return true;
+    };
+    for path in paths {
+        let Ok(path) = path else {
+            return true;
+        };
+        let path = PathBuf::from(path);
+        let path = path.canonicalize().unwrap_or(path);
+        if path.starts_with(&artifact) || artifact.starts_with(&path) {
+            return true;
+        }
+    }
+    false
+}
+
+fn verified_cache(root: &Path, cache: &Path) -> bool {
+    fn files(dir: &Path, known: &std::collections::HashSet<PathBuf>) -> bool {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
+        for entry in entries {
+            let Ok(entry) = entry else {
+                return false;
+            };
+            let path = entry.path();
+            let Ok(meta) = omera_storage::migration_paths::plain_metadata(&path) else {
+                return false;
+            };
+            if meta.is_dir() {
+                if !files(&path, known) {
+                    return false;
+                }
+            } else if !path.canonicalize().is_ok_and(|p| known.contains(&p)) {
+                return false;
+            }
+        }
+        true
+    }
+    let Ok(conn) = storage_migration::validate_source_database(&root.join("berry.db")) else {
+        return false;
+    };
+    let Ok(mut stmt) = conn.prepare("SELECT path FROM thumbnail_cache_entries") else {
+        return false;
+    };
+    let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) else {
+        return false;
+    };
+    let mut known = std::collections::HashSet::new();
+    for path in rows {
+        let Ok(path) = path else {
+            return false;
+        };
+        if let Ok(path) = Path::new(&path).canonicalize() {
+            known.insert(path);
+        }
+    }
+    !known.is_empty() && files(cache, &known)
 }
 
 fn source_revision(root: &Path) -> Result<String, String> {
@@ -915,7 +953,7 @@ fn calculate_folder_size(dir: &Path) -> u64 {
     let mut total = 0u64;
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
-            if let Ok(meta) = entry.metadata() {
+            if let Ok(meta) = omera_storage::migration_paths::plain_metadata(&entry.path()) {
                 if meta.is_file() {
                     total += meta.len();
                 } else if meta.is_dir() && !meta.is_symlink() {
@@ -1598,252 +1636,112 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cleanup_preview_validates_destination_config_and_models() {
-        let omera_dir = tempfile::tempdir().unwrap();
-        let src_dir = tempfile::tempdir().unwrap();
-
-        let source_db = src_dir.path().join("berry.db");
-        std::fs::write(&source_db, b"sqlite format 3\0test_src_data").unwrap();
-
-        let source_config = src_dir.path().join("config.json");
-        std::fs::write(&source_config, b"{\"test\": 123}").unwrap();
-
-        let source_models = src_dir.path().join("models");
-        std::fs::create_dir_all(&source_models).unwrap();
-        std::fs::write(source_models.join("model1.bin"), b"model_data_bytes_1234").unwrap();
-
-        // Extra files that must never be eligible
-        let source_media = src_dir.path().join("vacation.png");
-        std::fs::write(&source_media, b"fake_png").unwrap();
-
-        let source_backup = src_dir.path().join("backup.zip");
-        std::fs::write(&source_backup, b"fake_zip").unwrap();
-
-        // Save a migration receipt in omera_dir with success status
-        let dest_db = omera_dir.path().join("omera.db");
-        // Create valid SQLite db at dest_db
-        let _ = omera_storage::Database::connect(&dest_db).unwrap();
-
-        let receipt_id = "test-receipt-cleanup-1";
+    fn cleanup_fixture(root: &Path, source: &Path) -> MigrationReceipt {
+        let db = omera_storage::Database::connect(&source.join("berry.db")).unwrap();
+        db.connection()
+            .execute("INSERT INTO tags(name) VALUES ('legacy')", [])
+            .unwrap();
+        drop(db);
+        let target = root.join("omera.db");
+        omera_storage::recovery::migrate_copy(&source.join("berry.db"), &target).unwrap();
         let receipt = MigrationReceipt {
-            receipt_id: receipt_id.into(),
-            source_id: "src1".into(),
-            source_identifier: "com.berryuiki.berryaistudio".into(),
-            source_root: src_dir.path().to_string_lossy().to_string(),
+            receipt_id: "cleanup".into(),
+            source_id: "legacy".into(),
+            source_identifier: "legacy".into(),
+            source_root: source.to_string_lossy().into(),
             source_schema_version: 1,
-            destination_root: omera_dir.path().to_string_lossy().to_string(),
-            destination_db: dest_db.to_string_lossy().to_string(),
-            created_at: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            artifacts: vec![
-                MigratedArtifact {
-                    category: "database".into(),
-                    source_path: source_db.to_string_lossy().to_string(),
-                    destination_path: dest_db.to_string_lossy().to_string(),
-                    status: "success".into(),
-                    size_bytes: 1024,
-                },
-                MigratedArtifact {
-                    category: "config".into(),
-                    source_path: source_config.to_string_lossy().to_string(),
-                    destination_path: omera_dir
-                        .path()
-                        .join("config.json")
-                        .to_string_lossy()
-                        .to_string(),
-                    status: "success".into(),
-                    size_bytes: 100,
-                },
-            ],
-            integrity_hash: "hash_clean".into(),
+            destination_root: root.to_string_lossy().into(),
+            destination_db: target.to_string_lossy().into(),
+            created_at: 0,
+            artifacts: vec![MigratedArtifact {
+                category: "database".into(),
+                source_path: source.join("berry.db").to_string_lossy().into(),
+                destination_path: target.to_string_lossy().into(),
+                status: "success".into(),
+                size_bytes: 1024,
+            }],
+            integrity_hash: omera_storage::migration_fingerprint::database_fingerprint(&target)
+                .unwrap(),
             cleanup_status: "pending".into(),
-            source_revision: String::new(),
-            activated_at: None,
+            source_revision: source_revision(source).unwrap(),
+            activated_at: Some(1),
             activation_requires_empty: false,
         };
-        storage_migration::save_receipt(omera_dir.path(), &receipt).unwrap();
-
-        let mut coordinator = MigrationCoordinator::new();
-
-        // Case 1: Destination config and destination models are MISSING
-        let preview1 = coordinator
-            .preview_cleanup_for_root(omera_dir.path(), receipt_id)
-            .expect("Preview should succeed");
-
-        let db_item = preview1
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("berry.db"))
-            .unwrap();
-        assert!(
-            db_item.eligible,
-            "Database should be eligible when destination is healthy"
-        );
-
-        let config_item = preview1
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("config.json"))
-            .unwrap();
-        assert!(
-            !config_item.eligible,
-            "Config should NOT be eligible when destination file is missing"
-        );
-        assert_eq!(
-            config_item.reason.as_deref(),
-            Some("Destination configuration not verified or missing")
-        );
-
-        let models_item = preview1
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("models"))
-            .unwrap();
-        assert!(
-            !models_item.eligible,
-            "Models should NOT be eligible when destination models missing"
-        );
-        assert_eq!(
-            models_item.reason.as_deref(),
-            Some("Destination models not verified, missing or incomplete")
-        );
-
-        let media_item = preview1
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("vacation.png"))
-            .unwrap();
-        assert!(
-            !media_item.eligible,
-            "Media file must never be eligible for cleanup"
-        );
-
-        let backup_item = preview1
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("backup.zip"))
-            .unwrap();
-        assert!(
-            !backup_item.eligible,
-            "Backup zip must never be eligible for cleanup"
-        );
-
-        // Case 2: Now add destination config and complete destination models
-        let dest_config = omera_dir.path().join("config.json");
-        let valid_config_bytes =
-            serde_json::to_vec_pretty(&crate::commands::AppConfig::default()).unwrap();
-        std::fs::write(&dest_config, &valid_config_bytes).unwrap();
-
-        let dest_models = omera_dir.path().join("models");
-        std::fs::create_dir_all(&dest_models).unwrap();
-        std::fs::write(dest_models.join("model1.bin"), b"model_data_bytes_1234").unwrap();
-
-        let preview2 = coordinator
-            .preview_cleanup_for_root(omera_dir.path(), receipt_id)
-            .expect("Preview should succeed");
-
-        let config_item2 = preview2
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("config.json"))
-            .unwrap();
-        assert!(
-            config_item2.eligible,
-            "Config should be eligible when destination is healthy"
-        );
-        assert!(config_item2.reason.is_none());
-
-        let models_item2 = preview2
-            .items
-            .iter()
-            .find(|i| i.path.ends_with("models"))
-            .unwrap();
-        assert!(
-            models_item2.eligible,
-            "Models should be eligible when destination models match source"
-        );
-        assert!(models_item2.reason.is_none());
+        storage_migration::save_receipt(root, &receipt).unwrap();
+        receipt
     }
 
     #[test]
-    fn test_confirm_cleanup_revalidates_destination_artifacts() {
-        let omera_dir = tempfile::tempdir().unwrap();
-        let src_dir = tempfile::tempdir().unwrap();
-
-        let source_config = src_dir.path().join("config.json");
-        std::fs::write(&source_config, b"{\"test\": 123}").unwrap();
-
-        let dest_db = omera_dir.path().join("omera.db");
-        let _ = omera_storage::Database::connect(&dest_db).unwrap();
-
-        let dest_config = omera_dir.path().join("config.json");
-        let valid_config_bytes =
-            serde_json::to_vec_pretty(&crate::commands::AppConfig::default()).unwrap();
-        std::fs::write(&dest_config, &valid_config_bytes).unwrap();
-
-        let receipt_id = "test-receipt-confirm-1";
-        let receipt = MigrationReceipt {
-            receipt_id: receipt_id.into(),
-            source_id: "src1".into(),
-            source_identifier: "com.berryuiki.berryaistudio".into(),
-            source_root: src_dir.path().to_string_lossy().to_string(),
-            source_schema_version: 1,
-            destination_root: omera_dir.path().to_string_lossy().to_string(),
-            destination_db: dest_db.to_string_lossy().to_string(),
-            created_at: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            artifacts: vec![MigratedArtifact {
-                category: "config".into(),
-                source_path: source_config.to_string_lossy().to_string(),
-                destination_path: dest_config.to_string_lossy().to_string(),
-                status: "success".into(),
-                size_bytes: 100,
-            }],
-            integrity_hash: "hash_clean".into(),
-            cleanup_status: "pending".into(),
-            source_revision: String::new(),
-            activated_at: None,
-            activation_requires_empty: false,
-        };
-        storage_migration::save_receipt(omera_dir.path(), &receipt).unwrap();
-
+    fn cleanup_requires_verified_activation_and_preserves_unverified_artifacts() {
+        let root = tempfile::tempdir().unwrap();
+        let source = tempfile::tempdir().unwrap();
+        let mut receipt = cleanup_fixture(root.path(), source.path());
+        for file in ["vacation.png", "backup.zip", "config.json.bak"] {
+            std::fs::write(source.path().join(file), b"keep").unwrap();
+        }
+        for dir in ["models", "thumbnails"] {
+            std::fs::create_dir(source.path().join(dir)).unwrap();
+            std::fs::write(source.path().join(dir).join("unknown.bin"), b"keep").unwrap();
+        }
         let mut coordinator = MigrationCoordinator::new();
         let preview = coordinator
-            .preview_cleanup_for_root(omera_dir.path(), receipt_id)
-            .expect("Preview should succeed");
-
-        let preview_id = preview.preview_id.clone();
-        let config_item = preview
+            .preview_cleanup_for_root(root.path(), "cleanup")
+            .unwrap();
+        assert!(preview
             .items
             .iter()
-            .find(|i| i.path.ends_with("config.json"))
+            .filter(|i| i.eligible)
+            .all(|i| i.path.ends_with("berry.db")));
+        assert_eq!(preview.items.iter().filter(|i| i.eligible).count(), 1);
+        assert!(coordinator
+            .confirm_cleanup_for_root(root.path(), &preview.preview_id, false)
+            .is_err());
+        assert!(source.path().join("berry.db").exists());
+        coordinator
+            .defer_cleanup_for_root(root.path(), "cleanup")
             .unwrap();
-        assert!(config_item.eligible);
-
-        // Simulate destination config becoming corrupted / removed before confirmation!
-        std::fs::remove_file(&dest_config).unwrap();
-
-        // Run confirmation
-        let result = coordinator
-            .confirm_cleanup_for_root(omera_dir.path(), &preview_id, true)
-            .expect("Confirmation should run");
-
-        // The config cleanup must have been skipped and an error recorded
-        assert_eq!(result.failed_count, 1);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("Execution skipped cleanup for config: destination unverified")));
-        // Source config must NOT have been trashed
-        assert!(
-            source_config.exists(),
-            "Source config must be preserved when destination validation fails"
+        assert_eq!(
+            storage_migration::load_receipt(root.path())
+                .unwrap()
+                .unwrap()
+                .cleanup_status,
+            "deferred"
         );
+        receipt.activated_at = None;
+        storage_migration::save_receipt(root.path(), &receipt).unwrap();
+        assert!(coordinator
+            .preview_cleanup_for_root(root.path(), "cleanup")
+            .is_err());
+        assert!(coordinator
+            .defer_cleanup_for_root(root.path(), "cleanup")
+            .is_err());
+    }
+
+    #[test]
+    fn cleanup_aborts_the_whole_review_if_either_catalog_changes() {
+        for change_source in [true, false] {
+            let root = tempfile::tempdir().unwrap();
+            let source = tempfile::tempdir().unwrap();
+            cleanup_fixture(root.path(), source.path());
+            let mut coordinator = MigrationCoordinator::new();
+            let preview = coordinator
+                .preview_cleanup_for_root(root.path(), "cleanup")
+                .unwrap();
+            let changed = if change_source {
+                source.path().join("berry.db")
+            } else {
+                root.path().join("omera.db")
+            };
+            let db = omera_storage::Database::connect(&changed).unwrap();
+            db.connection()
+                .execute("INSERT INTO tags(name) VALUES ('new data')", [])
+                .unwrap();
+            drop(db);
+            assert!(coordinator
+                .confirm_cleanup_for_root(root.path(), &preview.preview_id, true)
+                .is_err());
+            assert!(source.path().join("berry.db").exists());
+        }
     }
     #[test]
     fn changed_source_after_preview_prevents_publication() {
@@ -1922,5 +1820,96 @@ mod tests {
         assert!(source.path().join("thumbnails/old.webp").exists());
     }
 
-
+    #[test]
+    fn verified_cache_never_authorizes_cleanup_of_media_or_changed_files() {
+        let root = tempfile::tempdir().unwrap();
+        let source = tempfile::tempdir().unwrap();
+        let cache = source.path().join("thumbnails");
+        std::fs::create_dir(&cache).unwrap();
+        let thumb = cache.join("known.webp");
+        std::fs::write(&thumb, b"old thumbnail").unwrap();
+        let db = omera_storage::Database::connect(&source.path().join("berry.db")).unwrap();
+        db.connection().execute("INSERT INTO thumbnail_cache_entries(file_id,modified_at,max_edge,codec,path,size_bytes,last_accessed_at) VALUES (1,1,128,'webp',?1,13,1)", [thumb.to_str().unwrap()]).unwrap();
+        drop(db);
+        cleanup_fixture(root.path(), source.path());
+        let mut coordinator = MigrationCoordinator::new();
+        let preview = coordinator
+            .preview_cleanup_for_root(root.path(), "cleanup")
+            .unwrap();
+        assert!(preview
+            .items
+            .iter()
+            .any(|i| i.category == "thumbnails" && i.eligible));
+        std::fs::write(&thumb, b"new bytes after review").unwrap();
+        assert!(coordinator
+            .confirm_cleanup_for_root(root.path(), &preview.preview_id, true)
+            .is_err());
+        assert!(source.path().join("berry.db").exists());
+        assert!(thumb.exists());
+        let db = omera_storage::Database::connect(&source.path().join("berry.db")).unwrap();
+        db.add_folder(cache.to_str().unwrap()).unwrap();
+        drop(db);
+        let mut receipt = storage_migration::load_receipt(root.path())
+            .unwrap()
+            .unwrap();
+        receipt.source_revision = source_revision(source.path()).unwrap();
+        storage_migration::save_receipt(root.path(), &receipt).unwrap();
+        let preview = coordinator
+            .preview_cleanup_for_root(root.path(), "cleanup")
+            .unwrap();
+        assert!(
+            !preview
+                .items
+                .iter()
+                .find(|i| i.category == "thumbnails")
+                .unwrap()
+                .eligible
+        );
+    }
+    #[test]
+    fn cleanup_failure_retains_the_database_for_a_fresh_explicit_review() {
+        let root = tempfile::tempdir().unwrap();
+        let source = tempfile::tempdir().unwrap();
+        let cache = source.path().join("thumbnails");
+        std::fs::create_dir(&cache).unwrap();
+        let thumb = cache.join("known.webp");
+        std::fs::write(&thumb, b"cache").unwrap();
+        let media = source.path().join("original.png");
+        std::fs::write(&media, b"user media").unwrap();
+        let db = omera_storage::Database::connect(&source.path().join("berry.db")).unwrap();
+        db.connection().execute("INSERT INTO thumbnail_cache_entries(file_id,modified_at,max_edge,codec,path,size_bytes,last_accessed_at) VALUES (1,1,128,'webp',?1,5,1)", [thumb.to_str().unwrap()]).unwrap();
+        drop(db);
+        cleanup_fixture(root.path(), source.path());
+        let mut coordinator = MigrationCoordinator::new();
+        let mut disposed = Vec::new();
+        let preview = coordinator
+            .preview_cleanup_for_root(root.path(), "cleanup")
+            .unwrap();
+        let result = coordinator
+            .confirm_cleanup_using(root.path(), &preview.preview_id, true, |path| {
+                disposed.push(path.to_path_buf());
+                Err("Trash is unavailable".into())
+            })
+            .unwrap();
+        assert_eq!(disposed, vec![cache.clone()]);
+        assert_eq!(result.status, "partially_cleaned");
+        assert_eq!(result.failed_count, 2);
+        assert!(source.path().join("berry.db").exists());
+        let review = coordinator
+            .preview_cleanup_for_root(root.path(), "cleanup")
+            .unwrap();
+        let result = coordinator
+            .confirm_cleanup_using(root.path(), &review.preview_id, true, |path| {
+                std::fs::rename(path, root.path().join(path.file_name().unwrap()))
+                    .map_err(|e| e.to_string())
+            })
+            .unwrap();
+        assert_eq!(result.status, "cleaned");
+        assert_eq!(result.cleaned_count, 2);
+        assert!(media.exists());
+        assert!(!source.path().join("berry.db").exists());
+        assert!(
+            storage_migration::verify_destination_health(&root.path().join("omera.db")).unwrap()
+        );
+    }
 }

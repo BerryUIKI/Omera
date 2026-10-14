@@ -221,38 +221,6 @@ pub fn migrate_credentials_to_omera(config: &AppConfig) -> Result<usize, String>
     Ok(migrated_count)
 }
 
-/// Clean up legacy keyring entries only after verifying the Omera service has them safely stored.
-pub fn cleanup_legacy_credentials(config: &AppConfig) -> Result<usize, String> {
-    let mut accounts = Vec::new();
-    let mut collect = |val: &Option<String>| {
-        if let Some(account) = val.as_deref().and_then(|s| s.strip_prefix(PREFIX)) {
-            accounts.push(account.to_string());
-        }
-    };
-    collect(&config.cloud_backup.webdav_password);
-    collect(&config.cloud_backup.s3_secret_key);
-    collect(&config.cloud_backup.s3_access_key);
-    if let Some(account) = config.remote_connection_url.strip_prefix(PREFIX) {
-        accounts.push(account.to_string());
-    }
-
-    let mut removed = 0;
-    for account in accounts {
-        if let Ok(omera_entry) = keyring::Entry::new("Omera", &account) {
-            if omera_entry.get_password().is_ok() {
-                if let Ok(entry) = keyring::Entry::new("Berry-AI-Studio", &account) {
-                    let _ = entry.delete_credential();
-                    removed += 1;
-                }
-                if let Ok(entry) = keyring::Entry::new("Berry-AIGC-Toolbox", &account) {
-                    let _ = entry.delete_credential();
-                }
-            }
-        }
-    }
-    Ok(removed)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
