@@ -1845,4 +1845,82 @@ mod tests {
             "Source config must be preserved when destination validation fails"
         );
     }
+    #[test]
+    fn changed_source_after_preview_prevents_publication() {
+        let root = tempfile::tempdir().unwrap();
+        let source = tempfile::tempdir().unwrap();
+        let path = source.path().join("berry.db");
+        drop(omera_storage::Database::connect(&path).unwrap());
+        let candidates = vec![("legacy".into(), source.path().to_path_buf())];
+        let mut coordinator = MigrationCoordinator::new();
+        let status = coordinator
+            .get_status_for_roots(root.path(), &candidates)
+            .unwrap();
+        let preview = coordinator
+            .preview_migration_for_roots(
+                root.path(),
+                &candidates,
+                &status.discovered_sources[0].source_id,
+            )
+            .unwrap();
+        let db = omera_storage::Database::connect(&path).unwrap();
+        db.connection()
+            .execute("INSERT INTO tags(name) VALUES ('changed')", [])
+            .unwrap();
+        drop(db);
+        assert!(coordinator
+            .execute_migration_plan(&preview)
+            .unwrap_err()
+            .contains("SOURCE_CHANGED"));
+        assert!(!root.path().join("omera.db").exists());
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn custom_destination_keeps_existing_library_and_imports_without_thumbnails() {
+        let root = tempfile::tempdir().unwrap();
+        let source = tempfile::tempdir().unwrap();
+        let selected = tempfile::tempdir().unwrap();
+        let live = omera_storage::Database::connect(&root.path().join("omera.db")).unwrap();
+        live.connection()
+            .execute("INSERT INTO tags(name) VALUES ('current')", [])
+            .unwrap();
+        let src = omera_storage::Database::connect(&source.path().join("berry.db")).unwrap();
+        src.connection()
+            .execute("INSERT INTO tags(name) VALUES ('imported')", [])
+            .unwrap();
+        drop(src);
+        std::fs::create_dir(source.path().join("thumbnails")).unwrap();
+        std::fs::write(
+            source.path().join("thumbnails/old.webp"),
+            b"keep source cache",
+        )
+        .unwrap();
+        let candidates = vec![("legacy".into(), source.path().to_path_buf())];
+        let mut coordinator = MigrationCoordinator::new();
+        let status = coordinator
+            .get_status_for_roots(root.path(), &candidates)
+            .unwrap();
+        let preview = coordinator
+            .preview_migration_to(
+                root.path(),
+                &candidates,
+                &status.discovered_sources[0].source_id,
+                Some(selected.path()),
+            )
+            .unwrap();
+        assert!(preview.conflicts.is_empty(), "{:?}", preview.conflicts);
+        let job = coordinator.execute_migration_plan(&preview).unwrap();
+        assert_eq!(job.status, "awaiting_restart");
+        let active = omera_storage::library_location::database_path(root.path()).unwrap();
+        omera_storage::legacy_activation::prepare_startup(root.path()).unwrap();
+        let reopened = omera_storage::Database::connect(&active).unwrap();
+        omera_storage::legacy_activation::finalize_startup(root.path(), &active).unwrap();
+        assert_eq!(reopened.list_tags().unwrap()[0].name, "imported");
+        assert_eq!(live.list_tags().unwrap()[0].name, "current");
+        assert!(!selected.path().join("thumbnails").exists());
+        assert!(source.path().join("thumbnails/old.webp").exists());
+    }
+
+
 }
