@@ -209,6 +209,13 @@ compatible defaults for earlier installations. Optional preview decoding remains
 bounded by the visible window; hiding preview avoids speculative thumbnail work.
 
 
+### Gallery navigation anchors
+
+Navigation captures anchors before component unmount clears the scroll element.
+The anchor uses the current DOM offset, including scroll changes that precede
+the next animation frame. Grid/Table compute the corresponding index directly;
+Waterfall queries the existing column index over the current visible window.
+
 ### Session sensitive-content masking
 
 The gallery toolbar shows the active session state with a text/icon toggle and
