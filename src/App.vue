@@ -2286,6 +2286,7 @@ function onResetZoom() {
     <TitleBar
       :title="t.app.title"
       :subtitle="info ? `v${info.app_version}` : undefined"
+      @open-updater="updateModalOpen = true"
     >
       <template #leading>
         <!-- Toggle Sidebar Button (Eagle style at far left before software name) -->
@@ -2809,6 +2810,7 @@ function onResetZoom() {
       :info="info"
       @close="settingsModalOpen = false"
       @save="onSettingsSaved"
+      @open-updater="updateModalOpen = true"
     />
 
     <!-- Update Modal -->
