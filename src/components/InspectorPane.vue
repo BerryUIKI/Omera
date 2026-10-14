@@ -83,7 +83,7 @@ let tagsRequest = 0;
 let lorasRequest = 0;
 onBeforeUnmount(() => { thumbnailRequest++; tagsRequest++; lorasRequest++; });
 const isCurrent = (file: ImageFile) => props.file?.id === file.id && props.file?.path === file.path && props.file?.modified_at === file.modified_at;
-watch(() => [props.file?.id, props.file?.path, props.file?.modified_at], () => {
+watch([() => props.file?.id, () => props.file?.path, () => props.file?.modified_at], () => {
   const snapshot = props.file;
   const request = ++thumbnailRequest;
   activeTab.value = "overview";

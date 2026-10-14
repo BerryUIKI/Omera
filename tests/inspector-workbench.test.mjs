@@ -29,6 +29,8 @@ test('production Inspector shows organization for photos and retains generation 
     controls.activeTab.value = 'rawData'; html = await render(); assert.match(html, /original parameters/);
     await controls.setRating(5);
     assert.deepEqual(events.at(-1), ['curated', { fileId: 2, patch: { rating: 5 } }]);
+    props.file = { ...generated, rating: 5 }; await nextTick();
+    assert.equal(controls.activeTab.value, 'rawData');
     props.file = photo; await nextTick();
     assert.equal(controls.activeTab.value, 'overview');
   });
