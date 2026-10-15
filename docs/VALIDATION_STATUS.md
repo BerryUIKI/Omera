@@ -154,3 +154,26 @@ Follow-ups are added to #394 and #396; dependencies are refreshed using merge
 commits, with no rebases or squash merges. #393 remains the first integration
 candidate with its existing green Linux/macOS/Windows CI. Feature-based PRs still
 need their required CI after dependency merges and retargeting to `dev`.
+
+## Joint workbench integration (2026-10-15)
+
+The user approved a shared integration branch, `codex/workbench-joint`, based on
+`dev` at `3b445f9` after #393 merged. It combines #394–#398 through merge commits
+from `codex/organization-dialog-events` and `codex/settings-search-themes`, which
+include their Inspector, gallery anchor, and preview prerequisites. The focused
+PRs remain available for review, and all their individual commits are retained.
+Use merge commits when integrating this branch to preserve that history.
+
+#393 was squash-merged upstream. Its original commit and the new `dev` commit
+have identical trees; the resulting three conflicts were resolved against the
+validated feature tree. Before this documentation update, the complete joint
+tree matched the earlier combined checkpoint `4cee241` exactly.
+
+Fresh local checks on the joint branch passed: `pnpm run build`, all 294 tests
+from `pnpm run test:stack` (including the memory and scroll suites),
+`cargo fmt --all -- --check`, and the IPC inventory check (161 commands).
+The existing bundle-size advisory remains. The joint PR targets `dev`, allowing
+the existing Linux/macOS/Windows CI matrix to validate the combined changes.
+Native installed WebView, real-media/video, and native reduced-motion smoke
+checks remain release acceptance work; the earlier synthetic browser evidence
+continues to apply to the identical frontend source.
