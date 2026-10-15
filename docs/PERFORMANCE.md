@@ -281,3 +281,25 @@ transitions are disabled by reduced-motion rules.
 Settings search scans a fixed translated description catalog, never media,
 configuration values, or credentials. Theme cards edit the existing configuration
 draft; applying a palette still follows successful persistence.
+
+### Language catalog loading
+
+English remains the bundled fallback. The other six catalogs use literal dynamic
+imports, so the production entry does not load every language. Startup resolves
+the saved setting (including Auto and the legacy `berry_locale` fallback), waits
+for that local catalog before mounting, and falls back to English with an error
+notification if loading fails. It does not wait for filesystem reconciliation.
+
+Catalog promises are shared and cached for this application session. Selection
+revisions prevent late replies or stale failures from overriding a newer choice.
+The active locale and its complete catalog publish together. Settings and first
+setup prepare the selected catalog before saving the preference, then publish it
+only after persistence succeeds. Preparation alone does not change UI language;
+failed loads preserve the active language and saved setting.
+
+On Windows with Vite 6.4.3, the production entry decreased from 695.21 kB at
+`d287b4e` to 373.77 kB after this change (46%); gzip decreased from 230.46 to
+118.39 kB. Each deferred catalog is 49–62 kB. English startup requests none of
+them; another startup language adds its own catalog. These are JavaScript asset
+measurements, not installed application size or measured startup-time gains.
+The build's 500 kB chunk advisory no longer appears.
