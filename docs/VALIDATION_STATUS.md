@@ -77,3 +77,103 @@ snapshot records above or imply installer/release readiness.
 No real user legacy directory, media, shared vault, or credentials were imported
 or removed during these checks. Native installed old-to-new upgrade and
 cross-platform installer/crash-fault matrices still require release validation.
+
+## Workbench usability follow-up (2026-10-14)
+
+Combined local evidence on Windows in `codex/version-update-check`, before
+splitting the changes into the user-approved small PR stack:
+
+- `pnpm run build`: passed; the existing bundle-size advisory remains.
+- `pnpm run test:stack`: 290 tests passed. New coverage executes production
+  Inspector/viewer/organization actions, verifies registered curation commands,
+  late-reply fences, selected-tab preservation, bounded next-page navigation,
+  conditional modal focus, pixel geometry, translated settings discovery,
+  draft theme radios, and anchor capture before Vue clears element references.
+- `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, and
+  `cargo test --workspace`: passed, including 82 application and 98 storage
+  tests. This phase introduces no Rust changes, IPC commands, or config fields.
+- The production application was mounted in an isolated English browser fixture
+  with mocked IPC and 520 synthetic entries. Grid, Waterfall, and Table were
+  checked at wide and narrow sizes, including preview return, a rapid scrollbar
+  drag, keyboard selection, stack expansion/collapse, ordinary-photo Overview,
+  generated-image tabs, nested organization dialogs, Fit/100%, full-screen
+  Escape, settings result focus, empty results, and save-only theme application.
+  Mounted gallery cards/rows remained bounded to the visible window plus
+  overscan. At display density 1, a 1600-pixel image measured 1600 display pixels
+  at 100%. Reduced-motion safeguards are covered by style/regression checks;
+  a native reduced-motion session was not exercised.
+
+Browser evidence uses synthetic media and mocked persistence. Native installed
+WebView behavior, real media/video codecs, and installed application smoke
+checks remain separate release validation. No real library, legacy data,
+credentials, or settings were changed by these fixtures. Each isolated PR also
+receives its relevant TypeScript and production regression checks.
+
+The follow-up is published as six draft PRs with individual commits preserved:
+
+| PR | Scope | Current base |
+| --- | --- | --- |
+| [#393](https://github.com/BerryUIKI/Omera/pull/393) | Confirmed curation field patches and registered IPC | `dev` |
+| [#394](https://github.com/BerryUIKI/Omera/pull/394) | Inspector tabs and shared UI-label foundations | #393 branch |
+| [#395](https://github.com/BerryUIKI/Omera/pull/395) | Current-offset anchor capture before unmount | #394 branch |
+| [#396](https://github.com/BerryUIKI/Omera/pull/396) | Central preview, shared Inspector, physical-pixel zoom | #395 branch |
+| [#397](https://github.com/BerryUIKI/Omera/pull/397) | Settings search and draft theme cards | #394 branch |
+| [#398](https://github.com/BerryUIKI/Omera/pull/398) | Organization dialog dismissal/refresh contracts | #396 branch |
+
+The user explicitly approved stacked bases for this change. Merge #393, #394,
+#395, #396, then #398; #397 can follow #394 independently. Retarget each child
+to `dev` after its prerequisite merges and merge the updated `dev` into the
+child to trigger required CI without rewriting commits. The current CI branch
+filter schedules PR checks against `dev`; #393 passed Linux/macOS/Windows CI,
+while the feature-based draft PRs still require those checks after retargeting.
+Preserve individual commits instead of squash-merging.
+
+## Workbench review follow-up (2026-10-15)
+
+A production regression pass reproduced three gaps before applying fixes:
+
+- Inspector: reclassifying an already revealed image as sensitive did not mask
+  it again. The classification watcher now remasks without resetting the tab.
+- Viewer: a pending next-page reply could navigate after an A/B/A selection
+  round trip or a same-path media replacement. A selection revision cancels it.
+- App shortcuts: embedded preview blocked Preferences, help, sidebar, and folder
+  shortcuts together with hidden-gallery actions. App commands now remain
+  available; gallery mutations, editable focus, and modal isolation stay guarded.
+
+Each fix has a separate commit and a regression that failed before the change.
+`pnpm run build` and all 294 frontend tests passed on the combined checkout;
+isolated Inspector/viewer branches also passed TypeScript and relevant tests.
+The English production-app browser fixture verified Ctrl+comma opening
+Preferences from preview, B toggling navigation, and renewed sensitive masking
+with Raw Data still selected. Persistence and media were synthetic mocked IPC.
+No native installed application or real library was changed. Rust, IPC, and
+configuration schemas are unchanged; the October 14 Rust validation remains the
+backend baseline rather than a claim of a new native desktop smoke test.
+
+Follow-ups are added to #394 and #396; dependencies are refreshed using merge
+commits, with no rebases or squash merges. #393 remains the first integration
+candidate with its existing green Linux/macOS/Windows CI. Feature-based PRs still
+need their required CI after dependency merges and retargeting to `dev`.
+
+## Joint workbench integration (2026-10-15)
+
+The user approved a shared integration branch, `codex/workbench-joint`, based on
+`dev` at `3b445f9` after #393 merged. It combines #394–#398 through merge commits
+from `codex/organization-dialog-events` and `codex/settings-search-themes`, which
+include their Inspector, gallery anchor, and preview prerequisites. The focused
+PRs remain available for review, and all their individual commits are retained.
+Use merge commits when integrating this branch to preserve that history.
+
+#393 was squash-merged upstream. Its original commit and the new `dev` commit
+have identical trees; the resulting three conflicts were resolved against the
+validated feature tree. Before this documentation update, the complete joint
+tree matched the earlier combined checkpoint `4cee241` exactly.
+
+Fresh local checks on the joint branch passed: `pnpm run build`, all 294 tests
+from `pnpm run test:stack` (including the memory and scroll suites),
+`cargo fmt --all -- --check`, and the IPC inventory check (161 commands).
+The existing bundle-size advisory remains. The joint PR targets `dev`, allowing
+the existing Linux/macOS/Windows CI matrix to validate the combined changes.
+Native installed WebView, real-media/video, and native reduced-motion smoke
+checks remain release acceptance work; the earlier synthetic browser evidence
+continues to apply to the identical frontend source.

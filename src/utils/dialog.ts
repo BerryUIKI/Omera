@@ -1,4 +1,4 @@
-import type { Directive } from "vue";
+import type { Directive, ObjectDirective, DirectiveBinding, VNode } from "vue";
 
 export type DialogEntry = {
   element: HTMLElement;
@@ -25,7 +25,7 @@ export function getTopDialog(): DialogEntry | undefined {
 
 export function isEditableTarget(target: EventTarget | null): boolean {
   return (
-    target instanceof HTMLElement &&
+    typeof HTMLElement !== "undefined" && target instanceof HTMLElement &&
     !!target.closest('input, textarea, select, [contenteditable="true"]')
   );
 }
@@ -158,3 +158,28 @@ export const dialog: Directive<HTMLElement, () => void> = {
     }
   },
 };
+
+/** Enable modal focus/inertness only while a workbench surface is in full screen. */
+export const conditionalDialog: ObjectDirective<HTMLElement, (() => void) | false> = {
+  mounted: reconcileConditionalDialog,
+  updated: reconcileConditionalDialog,
+  unmounted(element, binding, vnode, previous) {
+    if (stack.some(entry => entry.element === element)) {
+      (dialog as ObjectDirective<HTMLElement, () => void>).unmounted?.(element,
+        binding as DirectiveBinding<() => void>, vnode, previous);
+    }
+  },
+};
+
+function reconcileConditionalDialog(
+  element: HTMLElement, binding: DirectiveBinding<(() => void) | false>,
+  vnode: VNode<HTMLElement, HTMLElement>, previous: VNode<HTMLElement, HTMLElement> | null,
+) {
+  const registered = stack.some(entry => entry.element === element);
+  const controlled = dialog as ObjectDirective<HTMLElement, () => void>;
+  const closeBinding = binding as DirectiveBinding<() => void>;
+  if (!binding.value) {
+    if (registered) controlled.unmounted?.(element, closeBinding, vnode, null);
+  } else if (registered) controlled.updated?.(element, closeBinding, vnode, previous ?? vnode);
+  else controlled.mounted?.(element, closeBinding, vnode, null);
+}
