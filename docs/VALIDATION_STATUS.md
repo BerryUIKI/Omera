@@ -177,3 +177,25 @@ the existing Linux/macOS/Windows CI matrix to validate the combined changes.
 Native installed WebView, real-media/video, and native reduced-motion smoke
 checks remain release acceptance work; the earlier synthetic browser evidence
 continues to apply to the identical frontend source.
+
+## Post-integration audit (2026-10-15)
+
+- #399 merged into `dev` at `466b8bb`, preserving the small commits from
+  #394–#398. The merged tree matches the validated joint head `3160331`.
+  [Post-merge CI](https://github.com/BerryUIKI/Omera/actions/runs/38704249822)
+  passed on Windows, macOS, and Linux. All included PRs are merged or closed
+  with integration references; the audit found no remaining open feature PRs.
+- A viewer follow-up reproduced stale video time/duration on navigation and
+  source revision changes. `317f4ca` clears the timeline and keys the video
+  element by source revision. Build and all 295 frontend tests passed. An
+  isolated browser fixture verified the new duration fallback and replacement
+  of the video element after a same-path revision. It used synthetic entries
+  without playable media; codec playback was not tested.
+- Remaining work: native installed WebView and real-media/video smoke checks;
+  the native narrow/wide gallery, keyboard, and reduced-motion matrix; and
+  installed next-version/signed publication qualification tracked by #256.
+  Earlier synthetic browser checks and passing CI do not close these gates.
+  Installer/Sandbox tests previously deferred by the owner were not restarted.
+- The existing Vite bundle-size advisory remains a performance follow-up.
+  This audit introduces no Rust, IPC, schema, or configuration changes and
+  makes no release-readiness claim.

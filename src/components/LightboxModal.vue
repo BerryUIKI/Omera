@@ -210,6 +210,11 @@ const playbackRate = ref(1.0);
 const videoCurrentTime = ref(0);
 const videoDuration = ref(0);
 
+watch([() => props.file.path, () => props.file.modified_at], () => {
+  videoCurrentTime.value = 0;
+  videoDuration.value = 0;
+});
+
 const playbackRates = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
 function togglePlay() {
@@ -450,6 +455,7 @@ onUnmounted(() => {
       >
         <video
           v-if="isVideoContainer(file.container)"
+          :key="`${file.path}-${file.modified_at}`"
           ref="videoRef"
           :src="assetUrl(file.path)"
           :loop="isLooping"
