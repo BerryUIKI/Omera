@@ -85,10 +85,12 @@ const promptCopied = ref(false);
 const revealedNsfw = ref(false);
 
 const cachedIndex = ref(-1);
+let selectionRevision = 0;
 
 watch(
-  () => props.file.path,
-  (newPath) => {
+  [() => props.file.path, () => props.file.modified_at],
+  ([newPath]) => {
+    selectionRevision++;
     resetTransform();
     decodedSize.value = { width: 0, height: 0 };
     revealedNsfw.value = false;
@@ -147,11 +149,12 @@ async function next() {
   }
   if (!props.hasMore || !props.loadMore) return;
   const source = props.file.path;
+  const revision = selectionRevision;
   navigationBusy.value = true;
   try {
     await props.loadMore();
     await nextTick();
-    if (disposed || props.file.path !== source) return;
+    if (disposed || selectionRevision !== revision) return;
     const index = props.files.findIndex(file => file.path === source);
     const following = props.files[index + 1];
     if (index >= 0 && following) emit("navigate", following);

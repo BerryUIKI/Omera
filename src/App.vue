@@ -456,7 +456,44 @@ function handleWindowKeyDown(e: KeyboardEvent) {
     return;
   }
 
-  if (e.defaultPrevented || lightboxFile.value) return;
+  if (e.defaultPrevented) return;
+
+  // Settings Modal: Cmd+, / Ctrl+,
+  if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+    e.preventDefault();
+    settingsModalOpen.value = !settingsModalOpen.value;
+    return;
+  }
+
+  // Feature Guide & Documentation: F1 or Ctrl+Shift+H
+  if (e.key === "F1" || (e.shiftKey && (e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H"))) {
+    e.preventDefault();
+    helpGuideDrawerOpen.value = !helpGuideDrawerOpen.value;
+    return;
+  }
+
+  // Help Modal: ?
+  if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+    e.preventDefault();
+    shortcutsHelpModalOpen.value = !shortcutsHelpModalOpen.value;
+    return;
+  }
+
+  // Toggle Sidebar: B / b (without ctrl/meta)
+  if ((e.key === "b" || e.key === "B") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    sidebarOpen.value = !sidebarOpen.value;
+    return;
+  }
+
+  // Open Add Folder Modal: Cmd+O / Ctrl+O
+  if ((e.ctrlKey || e.metaKey) && (e.key === "o" || e.key === "O")) {
+    e.preventDefault();
+    addFolderModalOpen.value = true;
+    return;
+  }
+
+  if (lightboxFile.value) return;
   if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "m" || e.key === "M")) {
     e.preventDefault();
     onToggleGlobalMasking();
@@ -480,27 +517,6 @@ function handleWindowKeyDown(e: KeyboardEvent) {
     return;
   }
 
-  // Settings Modal: Cmd+, / Ctrl+,
-  if ((e.ctrlKey || e.metaKey) && e.key === ",") {
-    e.preventDefault();
-    settingsModalOpen.value = !settingsModalOpen.value;
-    return;
-  }
-
-  // Feature Guide & Documentation: F1 or Ctrl+Shift+H
-  if (e.key === "F1" || (e.shiftKey && (e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H"))) {
-    e.preventDefault();
-    helpGuideDrawerOpen.value = !helpGuideDrawerOpen.value;
-    return;
-  }
-
-  // Help Modal: ?
-  if (e.key === "?" || (e.shiftKey && e.key === "/")) {
-    e.preventDefault();
-    shortcutsHelpModalOpen.value = !shortcutsHelpModalOpen.value;
-    return;
-  }
-
   // Focus Search Bar: / or Cmd+F / Ctrl+F
   if (e.key === "/" || ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F"))) {
     e.preventDefault();
@@ -514,20 +530,6 @@ function handleWindowKeyDown(e: KeyboardEvent) {
   if ((e.key === "i" || e.key === "I") && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     inspectorOpen.value = !inspectorOpen.value;
-    return;
-  }
-
-  // Toggle Sidebar: B / b (without ctrl/meta)
-  if ((e.key === "b" || e.key === "B") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    sidebarOpen.value = !sidebarOpen.value;
-    return;
-  }
-
-  // Open Add Folder Modal: Cmd+O / Ctrl+O
-  if ((e.ctrlKey || e.metaKey) && (e.key === "o" || e.key === "O")) {
-    e.preventDefault();
-    addFolderModalOpen.value = true;
     return;
   }
 

@@ -49,3 +49,15 @@ test('slow tag/LoRA replies cannot overwrite the newly selected image', async ()
     assert.equal(controls.detectedLoras.value.length, 0);
   });
 });
+
+test('classifying a previously revealed photo as sensitive masks it without resetting the active tab', async () => {
+  setLocale('en');
+  await withProductionComponent('InspectorPane', { file: { ...generated, is_nsfw: true } }, async () => [], async ({ controls, props, render }) => {
+    controls.revealedNsfw.value = true; controls.activeTab.value = 'rawData';
+    props.file = { ...generated, is_nsfw: false }; await nextTick();
+    props.file = { ...generated, is_nsfw: true }; await nextTick();
+    assert.equal(controls.revealedNsfw.value, false);
+    assert.equal(controls.activeTab.value, 'rawData');
+    assert.match(await render(), /class="blurred"/);
+  });
+});

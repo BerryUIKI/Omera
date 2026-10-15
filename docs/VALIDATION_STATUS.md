@@ -127,3 +127,30 @@ child to trigger required CI without rewriting commits. The current CI branch
 filter schedules PR checks against `dev`; #393 passed Linux/macOS/Windows CI,
 while the feature-based draft PRs still require those checks after retargeting.
 Preserve individual commits instead of squash-merging.
+
+## Workbench review follow-up (2026-10-15)
+
+A production regression pass reproduced three gaps before applying fixes:
+
+- Inspector: reclassifying an already revealed image as sensitive did not mask
+  it again. The classification watcher now remasks without resetting the tab.
+- Viewer: a pending next-page reply could navigate after an A/B/A selection
+  round trip or a same-path media replacement. A selection revision cancels it.
+- App shortcuts: embedded preview blocked Preferences, help, sidebar, and folder
+  shortcuts together with hidden-gallery actions. App commands now remain
+  available; gallery mutations, editable focus, and modal isolation stay guarded.
+
+Each fix has a separate commit and a regression that failed before the change.
+`pnpm run build` and all 294 frontend tests passed on the combined checkout;
+isolated Inspector/viewer branches also passed TypeScript and relevant tests.
+The English production-app browser fixture verified Ctrl+comma opening
+Preferences from preview, B toggling navigation, and renewed sensitive masking
+with Raw Data still selected. Persistence and media were synthetic mocked IPC.
+No native installed application or real library was changed. Rust, IPC, and
+configuration schemas are unchanged; the October 14 Rust validation remains the
+backend baseline rather than a claim of a new native desktop smoke test.
+
+Follow-ups are added to #394 and #396; dependencies are refreshed using merge
+commits, with no rebases or squash merges. #393 remains the first integration
+candidate with its existing green Linux/macOS/Windows CI. Feature-based PRs still
+need their required CI after dependency merges and retargeting to `dev`.
