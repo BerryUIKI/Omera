@@ -47,3 +47,19 @@ test('pending next-page navigation is cancelled by a selection round trip or a n
     }, stubInspector);
   }
 });
+
+test('video navigation and source revision changes clear the previous timeline', async () => {
+  const video = { ...first, path: '/clip.mp4', container: 'mp4', metadata: { duration_seconds: 90 } };
+  await withProductionComponent('LightboxModal', { file: video, files: [video], embedded: true }, async () => null,
+    async ({ controls, props, render }) => {
+      controls.videoCurrentTime.value = 75; controls.videoDuration.value = 90;
+      props.file = { ...video, path: '/next.mp4', metadata: { duration_seconds: 12 } }; await nextTick();
+      assert.equal(controls.videoCurrentTime.value, 0);
+      assert.equal(controls.videoDuration.value, 0);
+      assert.match(await render(), /00:00 \/ 00:12/);
+      controls.videoCurrentTime.value = 8; controls.videoDuration.value = 12;
+      props.file = { ...props.file, modified_at: 2 }; await nextTick();
+      assert.equal(controls.videoCurrentTime.value, 0);
+      assert.equal(controls.videoDuration.value, 0);
+    }, stubInspector);
+});
