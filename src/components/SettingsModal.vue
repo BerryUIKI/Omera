@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -42,6 +42,8 @@ import {
   type StoragePaths,
   type AppConfig,
 } from "../utils/config";
+import { settingsSearchIndex, searchSettings, type SettingsTab, type SettingsSearchEntry } from "../utils/settings-search";
+import ThemePicker from "./ThemePicker.vue";
 import { applyTheme, normalizeTheme, type AppTheme } from "../utils/theme";
 import ThumbnailDiagnosticsModal from "./ThumbnailDiagnosticsModal.vue";
 import MigrationWizardModal from "./MigrationWizardModal.vue";
@@ -80,8 +82,30 @@ const emit = defineEmits<{
   }): void;
 }>();
 
-const activeTab = ref<"general" | "display" | "stacking" | "interop" | "collaboration" | "cloudBackup" | "parsers" | "developer" | "about">("general");
+const activeTab = ref<SettingsTab>("general");
 const allowOverrideExistingPrompt = ref(false);
+const settingsContent = ref<HTMLElement | null>(null);
+const searchQuery = ref("");
+const focusedSetting = ref("");
+const searchResults = computed(() => searchSettings(settingsSearchIndex(t.value), searchQuery.value));
+function selectTab(tab: SettingsTab) {
+  searchQuery.value = ""; focusedSetting.value = ""; activeTab.value = tab;
+  if (tab === "cloudBackup") void handleListSnapshots();
+}
+async function openSearchResult(entry: SettingsSearchEntry) {
+  selectTab(entry.tab); focusedSetting.value = entry.target;
+  await nextTick();
+  const element = settingsContent.value?.querySelector<HTMLElement>(`[data-setting-id="${entry.target}"]`);
+  element?.scrollIntoView({ block: "nearest", behavior: "auto" });
+  (element?.querySelector<HTMLElement>('input[type="radio"]:checked:not(:disabled)')
+    ?? element?.querySelector<HTMLElement>("input:not(:disabled),select:not(:disabled),button:not(:disabled),textarea:not(:disabled)")
+    ?? element)?.focus();
+}
+function closeSettings() {
+  if (searchQuery.value) searchQuery.value = "";
+  else emit("close");
+}
+
 
 // Settings state (backed by persistent config.json)
 const selectedLocale = ref<LocaleSetting>(currentLocaleSetting.value);
@@ -651,7 +675,7 @@ async function saveSettings() {
 </script>
 
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="emit('close')" v-dialog="() => emit('close')">
+  <div v-if="show" class="modal-overlay" @click.self="emit('close')" v-dialog="closeSettings">
     <div class="settings-dialog" role="dialog" aria-modal="true" :aria-label="t.settings.title">
       <!-- Header -->
       <div class="dialog-header">
@@ -664,14 +688,19 @@ async function saveSettings() {
 
       <!-- Body: Left Tabs + Right Content -->
       <div class="dialog-body">
-        <aside class="settings-tabs" role="tablist" :aria-label="t.settings.title">
+        <aside class="settings-tabs">
+          <div class="settings-search">
+            <input v-model="searchQuery" type="search" :aria-label="t.settingsSearch.label" :placeholder="t.settingsSearch.placeholder" />
+            <button v-if="searchQuery" type="button" :aria-label="t.settingsSearch.clear" @click="searchQuery = ''">×</button>
+          </div>
+          <div role="tablist" :aria-label="t.settings.title">
           <button
             type="button"
             class="tab-btn"
             :class="{ active: activeTab === 'general' }"
             role="tab"
             :aria-selected="activeTab === 'general'"
-            @click="activeTab = 'general'"
+            @click="selectTab('general')"
           >
             <span aria-hidden="true">⚙</span><span>{{ t.settings.tabs.general }}</span>
           </button>
@@ -681,7 +710,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'display' }"
             role="tab"
             :aria-selected="activeTab === 'display'"
-            @click="activeTab = 'display'"
+            @click="selectTab('display')"
           >
             <span aria-hidden="true">▦</span><span>{{ t.settings.tabs.display }}</span>
           </button>
@@ -691,7 +720,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'stacking' }"
             role="tab"
             :aria-selected="activeTab === 'stacking'"
-            @click="activeTab = 'stacking'"
+            @click="selectTab('stacking')"
           >
             <span aria-hidden="true">▱</span><span>{{ t.settings.tabs.stacking || 'Stacks' }}</span>
           </button>
@@ -701,7 +730,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'interop' }"
             role="tab"
             :aria-selected="activeTab === 'interop'"
-            @click="activeTab = 'interop'"
+            @click="selectTab('interop')"
           >
             <span aria-hidden="true">🔌</span><span>{{ t.interop.title }}</span>
           </button>
@@ -711,7 +740,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'collaboration' }"
             role="tab"
             :aria-selected="activeTab === 'collaboration'"
-            @click="activeTab = 'collaboration'"
+            @click="selectTab('collaboration')"
           >
             <span aria-hidden="true">👥</span><span>{{ t.settings.tabs.collaboration || 'Team & Database' }}</span>
           </button>
@@ -721,7 +750,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'cloudBackup' }"
             role="tab"
             :aria-selected="activeTab === 'cloudBackup'"
-            @click="activeTab = 'cloudBackup'; handleListSnapshots();"
+            @click="selectTab('cloudBackup')"
           >
             <span aria-hidden="true">☁️</span><span>{{ t.settings.tabs.cloudBackup }}</span>
           </button>
@@ -731,7 +760,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'parsers' }"
             role="tab"
             :aria-selected="activeTab === 'parsers'"
-            @click="activeTab = 'parsers'"
+            @click="selectTab('parsers')"
           >
             <span aria-hidden="true">⌘</span><span>{{ t.settings.tabs.parsers }}</span>
           </button>
@@ -741,7 +770,7 @@ async function saveSettings() {
             :class="{ active: activeTab === 'developer' }"
             role="tab"
             :aria-selected="activeTab === 'developer'"
-            @click="activeTab = 'developer'"
+            @click="selectTab('developer')"
           >
             <span aria-hidden="true">🛠️</span><span>{{ t.settings.developer }}</span>
           </button>
@@ -751,22 +780,31 @@ async function saveSettings() {
             :class="{ active: activeTab === 'about' }"
             role="tab"
             :aria-selected="activeTab === 'about'"
-            @click="activeTab = 'about'"
+            @click="selectTab('about')"
           >
             <span aria-hidden="true">ⓘ</span><span>{{ t.settings.tabs.about }}</span>
           </button>
+          </div>
         </aside>
 
-        <section class="settings-content">
+        <section ref="settingsContent" class="settings-content">
+          <div v-if="searchQuery.trim()" class="settings-search-results">
+            <p role="status">{{ t.settingsSearch.results.replace('{count}', String(searchResults.length)) }}</p>
+            <p v-if="!searchResults.length">{{ t.settingsSearch.noResults }}</p>
+            <button v-for="result in searchResults" :key="result.id" type="button" class="settings-search-result" @click="openSearchResult(result)">
+              <span class="result-category">{{ result.category }}</span><strong>{{ result.label }}</strong><span>{{ result.description }}</span>
+            </button>
+          </div>
+          <div v-show="!searchQuery.trim()">
           <!-- Tab: General -->
-          <div v-if="activeTab === 'general'" class="settings-panel">
+          <div v-if="activeTab === 'general'" class="settings-panel" data-setting-id="category-general" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.generalTitle }}</h4>
               <p class="panel-subtitle">{{ t.settings.generalSubtitle }}</p>
             </div>
 
             <!-- Language Setting -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.language" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.language' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.language }}</span>
                 <span class="row-desc">{{ t.settings.languageDesc }}</span>
@@ -782,7 +820,7 @@ async function saveSettings() {
               </select>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.defaultView" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.defaultView' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.defaultView }}</span>
                 <span class="row-desc">{{ t.settings.defaultViewDesc }}</span>
@@ -794,7 +832,7 @@ async function saveSettings() {
               </select>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.autoScan" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.autoScan' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.autoScan }}</span>
                 <span class="row-desc">{{ t.settings.autoScanDesc }}</span>
@@ -802,7 +840,7 @@ async function saveSettings() {
               <input v-model="autoScanOnStartup" type="checkbox" class="toggle-checkbox" />
             </div>
 
-            <div v-if="autoScanOnStartup" class="setting-row">
+            <div v-if="autoScanOnStartup" class="setting-row" data-setting-id="settings.startupScanInterval" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.startupScanInterval' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.startupScanInterval }}</span>
                 <span class="row-desc">{{ t.settings.startupScanIntervalDesc }}</span>
@@ -815,7 +853,7 @@ async function saveSettings() {
               </select>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.autoCheckUpdate" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.autoCheckUpdate' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.autoCheckUpdate }}</span>
                 <span class="row-desc">{{ t.settings.autoCheckUpdateDesc }}</span>
@@ -823,7 +861,7 @@ async function saveSettings() {
               <input v-model="autoCheckUpdate" type="checkbox" class="toggle-checkbox" />
             </div>
 
-            <div class="setting-row immediate-action-row">
+            <div class="setting-row immediate-action-row" data-setting-id="settings.suppressedWarnings" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.suppressedWarnings' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.suppressedWarnings }}</span>
                 <span class="row-desc">{{ t.settings.suppressedWarningsDesc }}</span>
@@ -841,7 +879,7 @@ async function saveSettings() {
               </button>
             </div>
 
-            <div v-if="isWindows" class="setting-row immediate-action-row">
+            <div v-if="isWindows" class="setting-row immediate-action-row" data-setting-id="settings.desktopShortcut" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.desktopShortcut' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.desktopShortcut }}</span>
                 <span class="row-desc">{{ t.settings.desktopShortcutDesc }}</span>
@@ -861,27 +899,21 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Display & Safety -->
-          <div v-if="activeTab === 'display'" class="settings-panel">
+          <div v-if="activeTab === 'display'" class="settings-panel" data-setting-id="category-display" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.displayTitle }}</h4>
               <p class="panel-subtitle">{{ t.settings.displaySubtitle }}</p>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.theme" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.theme' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.theme }}</span>
                 <span class="row-desc">{{ t.settings.themeDesc }}</span>
               </div>
-              <select v-model="selectedTheme" class="select-input">
-                <option value="system">{{ t.settings.themeSystem }}</option>
-                <option value="midnight">{{ t.settings.themeMidnight }}</option>
-                <option value="graphite">{{ t.settings.themeGraphite }}</option>
-                <option value="violet">{{ t.settings.themeViolet }}</option>
-                <option value="light">{{ t.settings.themeLight }}</option>
-              </select>
+              <ThemePicker v-model="selectedTheme" />
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.blurNsfw" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.blurNsfw' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.blurNsfw }}</span>
                 <span class="row-desc">{{ t.settings.blurNsfwDesc }}</span>
@@ -889,7 +921,7 @@ async function saveSettings() {
               <input v-model="blurNsfwDefault" type="checkbox" class="toggle-checkbox" />
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.showBadges" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.showBadges' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.showBadges }}</span>
                 <span class="row-desc">{{ t.settings.showBadgesDesc }}</span>
@@ -897,7 +929,7 @@ async function saveSettings() {
               <input v-model="showCardBadges" type="checkbox" class="toggle-checkbox" />
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.thumbResolution" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.thumbResolution' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.thumbResolution }}</span>
                 <span class="row-desc">{{ t.settings.thumbResolutionDesc }}</span>
@@ -910,7 +942,7 @@ async function saveSettings() {
               </select>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.thumbnailCacheBudget" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.thumbnailCacheBudget' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.thumbnailCacheBudget }}</span>
                 <span class="row-desc">{{ t.settings.thumbnailCacheBudgetDesc }}</span>
@@ -925,7 +957,7 @@ async function saveSettings() {
               </select>
             </div>
 
-            <div class="setting-row immediate-action-row">
+            <div class="setting-row immediate-action-row" data-setting-id="settings.cacheManagement" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cacheManagement' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.cacheManagement }}</span>
                 <span class="row-desc">
@@ -958,13 +990,13 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Stacking & Bursts -->
-          <div v-if="activeTab === 'stacking'" class="settings-panel">
+          <div v-if="activeTab === 'stacking'" class="settings-panel" data-setting-id="category-stacking" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.stackingTitle || 'Image Stacking & Burst Grouping' }}</h4>
               <p class="panel-subtitle">{{ t.settings.stackingSubtitle }}</p>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.allowMultipleStacks" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.allowMultipleStacks' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.allowMultipleStacks }}</span>
                 <span class="row-desc">{{ t.settings.allowMultipleStacksDesc }}</span>
@@ -972,7 +1004,7 @@ async function saveSettings() {
               <input v-model="allowMultipleStacksOpen" type="checkbox" class="toggle-checkbox" />
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.autoStack" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.autoStack' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.autoStack || 'Enable Automatic Stacking' }}</span>
                 <span class="row-desc">{{ t.settings.autoStackDesc || 'Automatically group consecutive images generated with identical or similar prompts into stacked cards' }}</span>
@@ -980,7 +1012,7 @@ async function saveSettings() {
               <input v-model="autoStack" type="checkbox" class="toggle-checkbox" />
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.stackThreshold" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.stackThreshold' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.stackThreshold || 'Prompt Similarity Threshold' }}</span>
                 <span class="row-desc">{{ t.settings.stackThresholdDesc || 'Minimum tokenized prompt similarity to group images (Current: ' + Math.round(stackSimilarityThreshold * 100) + '%)' }}</span>
@@ -998,7 +1030,7 @@ async function saveSettings() {
               </div>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.stackTimeWindow" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.stackTimeWindow' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.stackTimeWindow || 'Max Time Window Between Generations' }}</span>
                 <span class="row-desc">{{ t.settings.stackTimeWindowDesc || 'Group images only if generated within this time range' }}</span>
@@ -1014,14 +1046,14 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Generation Interop -->
-          <div v-if="activeTab === 'interop'" class="settings-panel">
+          <div v-if="activeTab === 'interop'" class="settings-panel" data-setting-id="category-interop" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.interop.title }}</h4>
               <p class="panel-subtitle">Configure local WebUI and ComfyUI endpoints for generation interop and workflow execution.</p>
             </div>
 
             <!-- ComfyUI Base URL -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="interop.comfyUrl" tabindex="-1" :class="{ 'search-target': focusedSetting === 'interop.comfyUrl' }">
               <div class="row-info">
                 <span class="row-label">{{ t.interop.comfyUrl }}</span>
                 <span class="row-desc">Default: http://127.0.0.1:8188</span>
@@ -1052,7 +1084,7 @@ async function saveSettings() {
             </div>
 
             <!-- SD WebUI Base URL -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="interop.webuiUrl" tabindex="-1" :class="{ 'search-target': focusedSetting === 'interop.webuiUrl' }">
               <div class="row-info">
                 <span class="row-label">{{ t.interop.webuiUrl }}</span>
                 <span class="row-desc">Default: http://127.0.0.1:7860</span>
@@ -1084,14 +1116,14 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Team Collaboration & Database -->
-          <div v-if="activeTab === 'collaboration'" class="settings-panel">
+          <div v-if="activeTab === 'collaboration'" class="settings-panel" data-setting-id="category-collaboration" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.collaborationTitle }}</h4>
               <p class="panel-subtitle">{{ t.settings.collaborationSubtitle }}</p>
             </div>
 
             <!-- Database Engine Backend -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.storageBackend" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.storageBackend' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.storageBackend }}</span>
                 <span class="row-desc">{{ t.review.remoteUnavailable }}</span>
@@ -1104,7 +1136,7 @@ async function saveSettings() {
             </div>
 
             <!-- Client Identifier -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.clientId" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.clientId' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.clientId }}</span>
                 <span class="row-desc">{{ t.settings.clientIdDesc }}</span>
@@ -1150,7 +1182,7 @@ async function saveSettings() {
             </div>
 
             <!-- Real-time Sync Status -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.syncStatus" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.syncStatus' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.syncStatus }}</span>
                 <span class="row-desc">{{ t.settings.lastSynced }}: {{ lastSyncDisplay }}</span>
@@ -1241,7 +1273,7 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Cloud Snapshot Backup & Restore -->
-          <div v-if="activeTab === 'cloudBackup'" class="settings-panel">
+          <div v-if="activeTab === 'cloudBackup'" class="settings-panel" data-setting-id="category-cloudBackup" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.cloudBackup.title }}</h4>
               <p class="panel-subtitle">{{ t.settings.cloudBackup.subtitle }}</p>
@@ -1254,7 +1286,7 @@ async function saveSettings() {
             />
 
             <!-- Provider Selection -->
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.cloudBackup.provider" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.provider' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.cloudBackup.provider }}</span>
               </div>
@@ -1266,7 +1298,7 @@ async function saveSettings() {
             </div>
 
             <!-- Provider Options: Local / SMB / NFS -->
-            <div v-if="cloudProvider === 'local_path'" class="setting-row">
+            <div v-if="cloudProvider === 'local_path'" class="setting-row" data-setting-id="settings.cloudBackup.localPath" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.localPath' }">
               <div class="row-info">
                 <span class="row-label">{{ t.settings.cloudBackup.localPath }}</span>
               </div>
@@ -1286,7 +1318,7 @@ async function saveSettings() {
 
             <!-- Provider Options: WebDAV -->
             <template v-if="cloudProvider === 'webdav'">
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.webdavEndpoint" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.webdavEndpoint' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.webdavEndpoint }}</span>
                 </div>
@@ -1297,7 +1329,7 @@ async function saveSettings() {
                   placeholder="https://nextcloud.example.com/remote.php/dav/files/user/backups/"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.webdavUser" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.webdavUser' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.webdavUser }}</span>
                 </div>
@@ -1308,7 +1340,7 @@ async function saveSettings() {
                   placeholder="admin"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.webdavPassword" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.webdavPassword' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.webdavPassword }}</span>
                 </div>
@@ -1323,7 +1355,7 @@ async function saveSettings() {
 
             <!-- Provider Options: S3 Compatible -->
             <template v-if="cloudProvider === 's3'">
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.s3Endpoint" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.s3Endpoint' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.s3Endpoint }}</span>
                 </div>
@@ -1334,7 +1366,7 @@ async function saveSettings() {
                   placeholder="https://<account-id>.r2.cloudflarestorage.com or s3.amazonaws.com"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.s3Bucket" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.s3Bucket' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.s3Bucket }}</span>
                 </div>
@@ -1345,7 +1377,7 @@ async function saveSettings() {
                   placeholder="my-omera-backups"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.s3Region" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.s3Region' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.s3Region }}</span>
                 </div>
@@ -1356,7 +1388,7 @@ async function saveSettings() {
                   placeholder="auto or us-east-1"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.s3AccessKey" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.s3AccessKey' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.s3AccessKey }}</span>
                 </div>
@@ -1367,7 +1399,7 @@ async function saveSettings() {
                   placeholder="Access Key ID"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.s3SecretKey" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.s3SecretKey' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.s3SecretKey }}</span>
                 </div>
@@ -1378,7 +1410,7 @@ async function saveSettings() {
                   placeholder="Secret Access Key"
                 />
               </div>
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.s3Prefix" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.s3Prefix' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.s3Prefix }}</span>
                 </div>
@@ -1528,7 +1560,7 @@ async function saveSettings() {
               </div>
 
               <!-- Strategy & Concurrency -->
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.syncStrategy" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.syncStrategy' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.syncStrategy }}</span>
                 </div>
@@ -1538,7 +1570,7 @@ async function saveSettings() {
                 </select>
               </div>
 
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.concurrency" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.concurrency' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.concurrency }}</span>
                 </div>
@@ -1556,7 +1588,7 @@ async function saveSettings() {
               </div>
 
               <!-- Bandwidth limit & Remote Prefix -->
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.bandwidthLimit" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.bandwidthLimit' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.bandwidthLimit }}</span>
                   <span class="row-desc">{{ t.settings.cloudBackup.bandwidthLimitDesc }}</span>
@@ -1572,7 +1604,7 @@ async function saveSettings() {
                 />
               </div>
 
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.remoteMediaPrefix" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.remoteMediaPrefix' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.remoteMediaPrefix }}</span>
                 </div>
@@ -1585,7 +1617,7 @@ async function saveSettings() {
                 />
               </div>
 
-              <div class="setting-row">
+              <div class="setting-row" data-setting-id="settings.cloudBackup.dryRun" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.cloudBackup.dryRun' }">
                 <div class="row-info">
                   <span class="row-label">{{ t.settings.cloudBackup.dryRun }}</span>
                 </div>
@@ -1685,7 +1717,7 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Parsers -->
-          <div v-if="activeTab === 'parsers'" class="settings-panel">
+          <div v-if="activeTab === 'parsers'" class="settings-panel" data-setting-id="category-parsers" tabindex="-1">
             <h4 class="panel-title">{{ t.settings.parsersTitle }}</h4>
             <p class="panel-subtitle">{{ t.settings.parsersSubtitle }}</p>
 
@@ -1719,13 +1751,13 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: Developer Options -->
-          <div v-if="activeTab === 'developer'" class="settings-panel">
+          <div v-if="activeTab === 'developer'" class="settings-panel" data-setting-id="category-developer" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.developerOptions }}</h4>
               <p class="panel-subtitle">{{ t.settings.developerDesc }}</p>
             </div>
 
-            <div class="setting-row">
+            <div class="setting-row" data-setting-id="settings.allowOverrideExistingPrompt" tabindex="-1" :class="{ 'search-target': focusedSetting === 'settings.allowOverrideExistingPrompt' }">
               <div class="setting-info">
                 <span class="row-label">{{ t.settings.allowOverrideExistingPrompt }}</span>
                 <span class="row-desc">{{ t.settings.allowOverrideExistingPromptDesc }}</span>
@@ -1738,7 +1770,7 @@ async function saveSettings() {
           </div>
 
           <!-- Tab: About & Storage -->
-          <div v-if="activeTab === 'about'" class="settings-panel">
+          <div v-if="activeTab === 'about'" class="settings-panel" data-setting-id="category-about" tabindex="-1">
             <div class="panel-heading">
               <h4 class="panel-title">{{ t.settings.aboutTitle }}</h4>
               <p class="panel-subtitle">{{ t.settings.aboutSubtitle }}</p>
@@ -1803,6 +1835,7 @@ async function saveSettings() {
                 </button>
               </div>
             </div>
+          </div>
           </div>
         </section>
       </div>
@@ -1965,6 +1998,7 @@ async function saveSettings() {
 }
 
 .settings-content {
+  min-width: 0;
   flex: 1;
   padding: 24px 26px 30px;
   overflow-y: auto;
@@ -2614,5 +2648,21 @@ async function saveSettings() {
   .close-btn {
     transition: none;
   }
+}
+.settings-tabs [role="tablist"] { display: flex; flex-direction: column; gap: 3px; }
+.settings-search { position: relative; margin-bottom: 12px; }
+.settings-search input { width: 100%; box-sizing: border-box; padding: 9px 27px 9px 10px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--bg-input); color: var(--text-primary); font: inherit; font-size: .8rem; }
+.settings-search button { position: absolute; right: 4px; top: 4px; background: none; color: var(--text-primary); border: 0; cursor: pointer; font-size: 20px; }
+.settings-search-result { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 14px; margin: 0 0 10px; text-align: left; color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font: inherit; }
+.settings-search-result > span { color: var(--text-secondary); font-size: .78rem; line-height: 1.5; }
+.settings-search-result .result-category { color: var(--color-accent); }
+.settings-search-result:hover { border-color: var(--color-accent); }
+.settings-search input:focus-visible, .settings-search-result:focus-visible, .search-target { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.setting-row[data-setting-id="settings.theme"] { align-items: flex-start; flex-direction: column; }
+@media (prefers-reduced-motion: reduce) { .tab-btn, .setting-row, .btn { transition: none; } }
+@media (max-width: 720px) {
+  .settings-tabs { flex-direction: column; flex-shrink: 0; overflow: visible; }
+  .settings-tabs [role="tablist"] { flex-direction: row; overflow-x: auto; }
+  .settings-search { width: 100%; margin-bottom: 4px; }
 }
 </style>
