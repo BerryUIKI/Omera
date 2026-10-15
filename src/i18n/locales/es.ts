@@ -626,6 +626,7 @@ export const es: typeof en = {
     language: "Idioma de la aplicación",
     languageDesc: "Seleccione el idioma de la interfaz (Auto sigue el idioma del sistema)",
     languageAuto: "Automático (idioma del sistema)",
+    languageLoadFailed: "No se pudo cargar este idioma. El idioma anterior sigue activo. Inténtalo de nuevo.",
     defaultView: "Vista predeterminada de galería",
     defaultViewDesc: "Seleccione el modo de visualización al iniciar la aplicación",
     viewGrid: "Cuadrícula en cascada (Grid)",

@@ -626,6 +626,7 @@ export const fr: typeof en = {
     language: "Langue de l'application",
     languageDesc: "Choisir la langue d'affichage (Auto suit la langue du système)",
     languageAuto: "Automatique (langue du système)",
+    languageLoadFailed: "Impossible de charger cette langue. La langue précédente reste active. Veuillez réessayer.",
     defaultView: "Vue par défaut de la galerie",
     defaultViewDesc: "Choisir le mode d'affichage des images au démarrage",
     viewGrid: "Grille en cascade (Grid)",

@@ -17,7 +17,7 @@ test('Inspector tabs distinguish image facts, generation fields including zero v
 });
 
 test('production Inspector shows organization for photos and retains generation and raw workflows', async () => {
-  setLocale('en');
+  await setLocale('en');
   await withProductionComponent('InspectorPane', { file: photo, embedded: true }, async () => [], async ({ controls, props, render, events }) => {
     let html = await render();
     assert.match(html, /No tags yet/); assert.match(html, /Add Tag/); assert.match(html, /Add to album/);
@@ -51,7 +51,7 @@ test('slow tag/LoRA replies cannot overwrite the newly selected image', async ()
 });
 
 test('classifying a previously revealed photo as sensitive masks it without resetting the active tab', async () => {
-  setLocale('en');
+  await setLocale('en');
   await withProductionComponent('InspectorPane', { file: { ...generated, is_nsfw: true } }, async () => [], async ({ controls, props, render }) => {
     controls.revealedNsfw.value = true; controls.activeTab.value = 'rawData';
     props.file = { ...generated, is_nsfw: false }; await nextTick();

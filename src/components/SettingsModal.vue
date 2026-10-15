@@ -28,6 +28,7 @@ import { startCloudSyncWithConfirmation } from "../utils/cloud-sync-namespace";
 import {
   currentLocaleSetting,
   setLocale,
+  prepareLocale,
   SUPPORTED_LOCALES,
   t,
   type LocaleSetting,
@@ -611,10 +612,11 @@ async function saveSettings() {
 
   // Write to persistent config.json using the originally loaded config
   try {
+    const locale = selectedLocale.value;
     const baseConfig = loadedConfig.value || await loadAppConfig();
     const updatedConfig: AppConfig = {
       ...baseConfig,
-      locale: selectedLocale.value,
+      locale,
       auto_scan: autoScanOnStartup.value,
       startup_scan_interval_minutes: startupScanIntervalMinutes.value,
       theme: selectedTheme.value,
@@ -639,11 +641,12 @@ async function saveSettings() {
       cloud_backup: getCurrentCloudConfig(),
       allow_override_existing_prompt: allowOverrideExistingPrompt.value,
     };
+    await prepareLocale(locale);
     await saveAppConfig(updatedConfig);
     // Update loadedConfig to the newly saved version
     loadedConfig.value = updatedConfig;
 
-    setLocale(selectedLocale.value);
+    await setLocale(locale);
     setThumbnailMaxEdge(thumbnailMaxEdge.value);
     setThumbnailCacheBudgetMb(thumbnailCacheBudgetMb.value);
     applyTheme(selectedTheme.value);
@@ -651,7 +654,7 @@ async function saveSettings() {
     void loadCacheStats();
 
     emit("save", {
-      locale: selectedLocale.value,
+      locale,
       autoScan: autoScanOnStartup.value,
       startupScanIntervalMinutes: startupScanIntervalMinutes.value,
       theme: selectedTheme.value,

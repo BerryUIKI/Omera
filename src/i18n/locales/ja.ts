@@ -626,6 +626,7 @@ export const ja: typeof en = {
     language: "表示言語",
     languageDesc: "インターフェースの表示言語を選択します (Auto システム準拠)",
     languageAuto: "自動（システム設定に従う）",
+    languageLoadFailed: "この言語を読み込めませんでした。以前の表示言語を維持しています。もう一度お試しください。",
     defaultView: "デフォルトのギャラリー表示",
     defaultViewDesc: "アプリ起動時のデフォルト画像表示モードを選択します",
     viewGrid: "グリッド表示 (Grid)",

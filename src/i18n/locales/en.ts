@@ -624,6 +624,7 @@ export const en = {
     language: "Application Language",
     languageDesc: "Choose display language (Auto follows OS language)",
     languageAuto: "Auto (System)",
+    languageLoadFailed: "Could not load this language. Your previous language is still active. Please try again.",
     defaultView: "Default Gallery View",
     defaultViewDesc: "Choose default image view mode at startup",
     viewGrid: "Grid Waterfall (Grid)",

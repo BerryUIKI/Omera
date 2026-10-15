@@ -59,3 +59,25 @@ test('a failed stale choice does not reject or affect the newer language', async
   await state.select('en'); reject(Error('old failure')); await pending;
   assert.equal(state.locale.value, 'en');
 });
+
+test('startup loads a legacy saved language before use without rewriting its preference', async () => {
+  const storage = new Map([['berry_locale', 'fr']]);
+  const writes = [];
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => { writes.push([key, value]); storage.set(key, value); },
+  } });
+  try {
+    const locale = await import('../src/i18n/index.ts?legacy-startup');
+    assert.equal(locale.currentLocaleSetting.value, 'fr');
+    await locale.initializeLocale();
+    assert.equal(locale.currentLocale.value, 'fr');
+    assert.equal(locale.t.value.settings.language, (await import('../src/i18n/locales/fr.ts')).fr.settings.language);
+    assert.deepEqual(writes, [['omera_locale', 'fr']]);
+    assert.equal(storage.get('berry_locale'), 'fr');
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+    else delete globalThis.localStorage;
+  }
+});
