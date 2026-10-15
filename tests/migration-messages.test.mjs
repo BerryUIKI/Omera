@@ -10,13 +10,13 @@ import { de } from '../src/i18n/locales/de.ts';
 import { fr } from '../src/i18n/locales/fr.ts';
 import { es } from '../src/i18n/locales/es.ts';
 
-test('migration errors and exclusions follow the selected language', () => {
-  setLocale('en');
+test('migration errors and exclusions follow the selected language', async () => {
+  await setLocale('en');
   assert.equal(migrationMessage('Database migration failed: [DESTINATION_EXISTS] error.migration.destination_exists: details'), t.value.setup.destinationExists);
   assert.equal(migrationMessage('cacheExcluded'), en.setup.cacheExcluded);
   assert.equal(migrationMessage('unrecognized diagnostic'), en.setup.genericError);
   assert.doesNotMatch(Object.values(en.setup).join(' '), /[\u3400-\u9fff]/);
-  setLocale('zh-CN');
+  await setLocale('zh-CN');
   assert.equal(migrationMessage('[SOURCE_CHANGED] details'), zhCN.setup.sourceChanged);
   assert.equal(migrationMessage('cacheExcluded'), zhCN.setup.cacheExcluded);
   for (const locale of [zhCN, zhTW, ja, de, fr, es]) {

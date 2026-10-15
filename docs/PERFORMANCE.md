@@ -209,6 +209,13 @@ compatible defaults for earlier installations. Optional preview decoding remains
 bounded by the visible window; hiding preview avoids speculative thumbnail work.
 
 
+### Gallery navigation anchors
+
+Navigation captures anchors before component unmount clears the scroll element.
+The anchor uses the current DOM offset, including scroll changes that precede
+the next animation frame. Grid/Table compute the corresponding index directly;
+Waterfall queries the existing column index over the current visible window.
+
 ### Session sensitive-content masking
 
 The gallery toolbar shows the active session state with a text/icon toggle and
@@ -243,3 +250,56 @@ Status reads use a separate short memory lock. Idle polls do not rewrite
 unchanged schedule state or resolve keyring credentials. Attempts are durably
 recorded before provider work; failure/restart backoff prevents tight retries.
 Application exit stops future attempts without blocking on an in-flight upload.
+
+### Image workbench and shared Inspector
+
+Opening preview replaces the center gallery viewport while retaining library
+navigation. Grid/Table components unmount instead of retaining hidden decoded
+thumbnails. Navigation saves the current DOM scroll offset before unmount,
+while the element reference is still present; restoration retains a bounded
+anchor map rather than additional library pages. Waterfall anchor lookup uses
+the existing column index and the visible window.
+
+The viewer decodes the current media and preloads at most two adjacent still
+images. Navigation releases those preloads and unmount releases observers and
+window listeners. Moving past the loaded extent requests the existing bounded
+page API, fences late replies by media selection revision (including selection
+round trips and same-path replacements), and never loads a complete library. Fit uses the measured canvas and display density; 100% maps one image
+pixel to one physical display pixel. Panning and zoom affect only the current
+media transform. Optional full screen enables modal focus isolation; embedded
+preview leaves library navigation accessible. Application preferences, help,
+folder creation, and sidebar shortcuts remain available in embedded preview;
+hidden-gallery mutation shortcuts still yield to the viewer.
+
+One Inspector is active per preview. Its embedded mode avoids an additional
+thumbnail request. Tag, thumbnail, and LoRA replies are fenced by selection
+revision. Curation publishes only confirmed field patches and preserves fresh
+metadata. Overview contains organization and technical facts; Generation and
+Raw Data appear only when their corresponding data exists. Nonessential viewer
+transitions are disabled by reduced-motion rules.
+
+Settings search scans a fixed translated description catalog, never media,
+configuration values, or credentials. Theme cards edit the existing configuration
+draft; applying a palette still follows successful persistence.
+
+### Language catalog loading
+
+English remains the bundled fallback. The other six catalogs use literal dynamic
+imports, so the production entry does not load every language. Startup resolves
+the saved setting (including Auto and the legacy `berry_locale` fallback), waits
+for that local catalog before mounting, and falls back to English with an error
+notification if loading fails. It does not wait for filesystem reconciliation.
+
+Catalog promises are shared and cached for this application session. Selection
+revisions prevent late replies or stale failures from overriding a newer choice.
+The active locale and its complete catalog publish together. Settings and first
+setup prepare the selected catalog before saving the preference, then publish it
+only after persistence succeeds. Preparation alone does not change UI language;
+failed loads preserve the active language and saved setting.
+
+On Windows with Vite 6.4.3, the production entry decreased from 695.21 kB at
+`d287b4e` to 373.77 kB after this change (46%); gzip decreased from 230.46 to
+118.39 kB. Each deferred catalog is 49–62 kB. English startup requests none of
+them; another startup language adds its own catalog. These are JavaScript asset
+measurements, not installed application size or measured startup-time gains.
+The build's 500 kB chunk advisory no longer appears.

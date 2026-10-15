@@ -15,6 +15,7 @@ function setup(save) {
     loadAppConfig: async () => { throw new Error("must retain loaded revision"); },
     getStorageItem: () => null, getCurrentCloudConfig: () => ({}),
     loadCacheStats: async () => {}, emit: (...args) => events.push(args),
+    prepareLocale: async () => {},
     setLocale: () => events.push(["locale"]), applyTheme: () => events.push(["theme"]),
     setThumbnailMaxEdge: () => events.push(["edge"]), setThumbnailCacheBudgetMb: () => events.push(["budget"]),
   };
@@ -54,6 +55,16 @@ test("settings save prevents duplicate submissions and applies preferences after
   await first;
   assert.equal(context.loadedConfig.value.config_revision, 8);
   assert.deepEqual(events.map(event => event[0]), ["locale", "edge", "budget", "theme", "save", "close"]);
+  assert.equal(context.savingSettings.value, false);
+});
+
+test("a failed language preparation prevents saving or applying preferences", async () => {
+  const { context, events } = setup(async () => assert.fail("must not save an unavailable language"));
+  context.prepareLocale = async () => { throw Error("catalog unavailable"); };
+  await context.saveSettings();
+  assert.match(context.saveError.value, /catalog unavailable/);
+  assert.equal(context.loadedConfig.value.config_revision, 7);
+  assert.deepEqual(events, []);
   assert.equal(context.savingSettings.value, false);
 });
 

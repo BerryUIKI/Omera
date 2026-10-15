@@ -19,7 +19,7 @@ function refreshContext() {
   const context = {
     galleryContextKey: { value: "favorites:desc" }, libraryRequestVersion: 0,
     selectedFilePaths: { value: new Set(["a", "b"]) }, selectionAnchorPath: { value: "b" },
-    selectedFile: { value: { path: "b" } }, files: { value: [{ path: "a" }, { path: "b" }] },
+    lightboxFile: { value: { path: "b" } }, selectedFile: { value: { path: "b" } }, files: { value: [{ path: "a" }, { path: "b" }] },
     galleryHasMore: { value: false }, nextGalleryOffset: { value: 0 },
     refreshCounts: async () => {}, loadMoreFiles: async () => assert.fail("unexpected paging"),
   };
@@ -38,6 +38,7 @@ test("production refresh retains surviving selection and removes filtered anchor
   assert.deepEqual([...context.selectedFilePaths.value], ["a"]);
   assert.equal(context.selectionAnchorPath.value, null);
   assert.equal(context.selectedFile.value, null);
+  assert.equal(context.lightboxFile.value, null);
 });
 
 test("production refresh refills the prior extent serially and retains a reordered anchor", async () => {
@@ -53,6 +54,7 @@ test("production refresh refills the prior extent serially and retains a reorder
   assert.equal(pages, 1);
   assert.deepEqual([...context.selectedFilePaths.value], ["a", "b"]);
   assert.equal(context.selectionAnchorPath.value, "b");
+  assert.equal(context.lightboxFile.value.path, "b");
 });
 
 test("production refresh stops on non-advancing pages or navigation without restoring stale selection", async () => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ref } from "vue";
+import { ref, createRenderer, h } from "vue";
 
 import {
   useGalleryNavigation,
@@ -416,3 +416,20 @@ test("empty gallery message and recovery selection state transitions", () => {
   assert.equal(selectedFilePaths.value.size, 0, "selectedFilePaths should be cleared on recover");
 });
 
+
+test("gallery removal saves the latest DOM offset before Vue clears element refs", () => {
+  const element = ref(null);
+  const files = Array.from({length: 20}, (_, i) => createFile(i + 1));
+  const renderer = createRenderer({ createElement: () => ({ scrollTop: 623 }), createText: () => ({}), createComment: () => ({}),
+    insert() {}, remove() {}, setText() {}, setElementText() {}, patchProp() {}, parentNode: () => null, nextSibling: () => null });
+  const app = renderer.createApp({ setup() {
+    useGalleryNavigation({ element, key: () => 'preview-return', files: () => files, revision: () => 0,
+      loading: () => false, hasMore: () => false, loadingMore: () => false, top: index => index * 100,
+      itemHeight: () => 100, firstVisible: () => Math.floor(element.value.scrollTop / 100),
+      loadMore: () => assert.fail('unexpected paging'), onRestore() {} });
+    return () => h('div', { ref: element });
+  } });
+  app.mount({}); app.unmount();
+  assert.equal(element.value, null);
+  assert.deepEqual(getGalleryNavigationAnchor('preview-return'), { id: 7, offset: 23, index: 6 });
+});

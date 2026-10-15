@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, useId, nextTick, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { DetectedLora, ImageFile, Tag } from "../types";
 import { assetUrl, formatBytes, formatDuration, formatPlatformName, getFileName, normalizePath } from "../utils/image";
 import { getThumbnailUrl } from "../utils/thumbnail";
-import { t } from "../i18n";
+import { inspectorTabs, rawMetadata, type InspectorTab } from "../utils/inspector";
+import { t, currentLocale } from "../i18n";
 import {
   extractWorkflowJson,
   hasComfyWorkflow,
@@ -13,11 +14,13 @@ import {
   sendWorkflowToComfyUI,
 } from "../utils/generation";
 import { loadAppConfig } from "../utils/config";
+import { useFileCuration, type CurationChange } from "../utils/file-curation";
 import { useNotification } from "../utils/notification";
 
 const props = defineProps<{
   file: ImageFile | null;
   selectedCount?: number;
+  embedded?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -26,6 +29,8 @@ const emit = defineEmits<{
   openTagModal: [fileId: number];
   openAlbumModal: [fileId: number];
   updateFile: [file: ImageFile];
+  curated: [change: CurationChange];
+  tagsChanged: [fileId: number];
   filterByModel: [model: string];
   filterByHash: [hash: string];
   findSimilar: [file: ImageFile];
@@ -46,8 +51,27 @@ const promptCopied = ref(false);
 const negativePromptCopied = ref(false);
 const seedCopied = ref(false);
 const rawCopied = ref(false);
-const showRaw = ref(false);
+const activeTab = ref<InspectorTab>("overview");
+const tabId = useId();
+const tabsElement = ref<HTMLElement | null>(null);
+const tabs = computed(() => inspectorTabs(props.file, detectedLoras.value.length > 0));
+const rawData = computed(() => rawMetadata(props.file));
+const modifiedDate = computed(() => props.file?.modified_at ? new Date(props.file.modified_at * 1000).toLocaleString(currentLocale.value) : "—");
+watch(tabs, available => { if (!available.includes(activeTab.value)) activeTab.value = "overview"; });
+async function onTabKeydown(event: KeyboardEvent) {
+  const available = tabs.value;
+  const index = available.indexOf(activeTab.value);
+  let next = index;
+  if (event.key === "ArrowRight") next = (index + 1) % available.length;
+  else if (event.key === "ArrowLeft") next = (index + available.length - 1) % available.length;
+  else if (event.key === "Home") next = 0;
+  else if (event.key === "End") next = available.length - 1;
+  else return;
+  event.preventDefault(); activeTab.value = available[next];
+  await nextTick(); tabsElement.value?.querySelectorAll<HTMLButtonElement>("[role=tab]")[next]?.focus();
+}
 const revealedNsfw = ref(false);
+watch(() => props.file?.is_nsfw, sensitive => { if (sensitive) revealedNsfw.value = false; });
 const thumbUrl = ref("");
 const sendingComfy = ref(false);
 const sendingWebui = ref(false);
@@ -55,20 +79,24 @@ const comfyStatusMsg = ref<string | null>(null);
 const webuiStatusMsg = ref<string | null>(null);
 const workflowCopied = ref(false);
 
-watch(
-  () => props.file,
-  async (newFile) => {
-    revealedNsfw.value = false;
-    if (newFile) {
-      thumbUrl.value = assetUrl(newFile.path); // instant fallback
-      thumbUrl.value = await getThumbnailUrl(newFile);
-    } else {
-      thumbUrl.value = "";
-    }
-    await Promise.all([loadTags(), loadDetectedLoras()]);
-  },
-  { immediate: true },
-);
+let thumbnailRequest = 0;
+let tagsRequest = 0;
+let lorasRequest = 0;
+onBeforeUnmount(() => { thumbnailRequest++; tagsRequest++; lorasRequest++; });
+const isCurrent = (file: ImageFile) => props.file?.id === file.id && props.file?.path === file.path && props.file?.modified_at === file.modified_at;
+watch([() => props.file?.id, () => props.file?.path, () => props.file?.modified_at], () => {
+  const snapshot = props.file;
+  const request = ++thumbnailRequest;
+  activeTab.value = "overview";
+  revealedNsfw.value = false;
+  thumbUrl.value = ""; fileTags.value = []; detectedLoras.value = [];
+  if (snapshot && !props.embedded) {
+    void getThumbnailUrl(snapshot).then(url => {
+      if (request === thumbnailRequest && isCurrent(snapshot)) thumbUrl.value = url;
+    }).catch(() => {});
+  }
+  void loadTags(); void loadDetectedLoras();
+}, { immediate: true });
 
 let triggerCopyTimeout: any = null;
 async function copyTriggerText(text: string) {
@@ -85,81 +113,45 @@ async function copyTriggerText(text: string) {
 }
 
 async function loadDetectedLoras() {
-  if (!props.file?.id) {
-    detectedLoras.value = [];
-    return;
-  }
+  const snapshot = props.file;
+  const request = ++lorasRequest;
+  if (snapshot?.id == null) { detectedLoras.value = []; return; }
   try {
-    detectedLoras.value = await invoke<DetectedLora[]>("get_image_detected_loras", {
-      fileId: props.file.id,
-    });
-  } catch (e) {
-    console.error("Failed to load detected loras:", e);
-    detectedLoras.value = [];
-  }
+    const loras = await invoke<DetectedLora[]>("get_image_detected_loras", { fileId: snapshot.id });
+    if (request === lorasRequest && isCurrent(snapshot)) detectedLoras.value = loras;
+  } catch { if (request === lorasRequest && isCurrent(snapshot)) detectedLoras.value = []; }
 }
-
 async function loadTags() {
-  if (!props.file?.id) {
-    fileTags.value = [];
-    return;
-  }
+  const snapshot = props.file;
+  const request = ++tagsRequest;
+  if (snapshot?.id == null) { fileTags.value = []; return; }
   try {
-    fileTags.value = await invoke<Tag[]>("get_file_tags", { fileId: props.file.id });
-  } catch (e) {
-    console.error("Failed to load file tags:", e);
-    fileTags.value = [];
-  }
+    const tags = await invoke<Tag[]>("get_file_tags", { fileId: snapshot.id });
+    if (request === tagsRequest && isCurrent(snapshot)) fileTags.value = tags;
+  } catch { if (request === tagsRequest && isCurrent(snapshot)) fileTags.value = []; }
 }
 
 const notification = useNotification();
 
 async function removeTag(tagId: number) {
-  if (!props.file?.id) return;
+  const fileId = props.file?.id;
+  if (fileId == null) return;
   try {
-    await invoke("untag_file", { fileId: props.file.id, tagId });
+    await invoke("untag_file", { fileId, tagId });
     await loadTags();
+    emit("tagsChanged", fileId);
   } catch (e) {
     console.error("Failed to remove tag:", e);
     notification.showError(String(e), "Failed to remove tag");
   }
 }
 
-async function setRating(rating: number) {
-  if (!props.file) return;
-  const newRating = props.file.rating === rating ? 0 : rating;
-  try {
-    await invoke("update_file_rating", { path: props.file.path, rating: newRating });
-    emit("updateFile", { ...props.file, rating: newRating });
-  } catch (e) {
-    console.error("Failed to update rating:", e);
-    notification.showError(String(e), "Failed to update rating");
-  }
+const { busy: curationBusy, error: curationError, run: curate } = useFileCuration(() => props.file, change => emit("curated", change));
+function setRating(rating: number) {
+  return curate({ kind: "rating", value: rating === 0 || props.file?.rating === rating ? null : rating });
 }
-
-async function toggleFavorite() {
-  if (!props.file) return;
-  const isFavorite = !props.file.is_favorite;
-  try {
-    await invoke("update_file_favorite", { path: props.file.path, isFavorite });
-    emit("updateFile", { ...props.file, is_favorite: isFavorite });
-  } catch (e) {
-    console.error("Failed to toggle favorite:", e);
-    notification.showError(String(e), "Failed to update favorite");
-  }
-}
-
-async function toggleNsfw() {
-  if (!props.file) return;
-  const isNsfw = !props.file.is_nsfw;
-  try {
-    await invoke("update_file_nsfw", { path: props.file.path, isNsfw });
-    emit("updateFile", { ...props.file, is_nsfw: isNsfw });
-  } catch (e) {
-    console.error("Failed to toggle nsfw:", e);
-    notification.showError(String(e), "Failed to update NSFW status");
-  }
-}
+function toggleFavorite() { return curate({ kind: "favorite", value: !props.file?.is_favorite }); }
+function toggleNsfw() { return curate({ kind: "sensitive", value: !props.file?.is_nsfw }); }
 
 async function copyText(text: string, type: "prompt" | "negative" | "seed" | "raw") {
   try {
@@ -265,7 +257,7 @@ function onWorkflowDragStart(e: DragEvent) {
 </script>
 
 <template>
-  <aside class="inspector-eagle">
+  <aside class="inspector-eagle" :class="{ embedded }" :aria-label="t.workbench.details">
     <!-- Header -->
     <div class="inspector-header">
       <div class="header-left">
@@ -278,6 +270,7 @@ function onWorkflowDragStart(e: DragEvent) {
         type="button"
         class="close-btn"
         :title="`${t.preview.close} (I)`"
+        :aria-label="t.preview.close"
         @click="emit('close')"
       >
         <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
@@ -296,8 +289,8 @@ function onWorkflowDragStart(e: DragEvent) {
     <!-- Content when file selected -->
     <div v-else class="inspector-scrollable">
       <!-- Thumbnail & Quick Lightbox Trigger (Eagle Style) -->
-      <div class="preview-card" @click="emit('openLightbox', file)">
-        <div class="img-wrapper">
+      <div class="preview-card" role="button" tabindex="0" @keydown.enter.prevent="file && emit('openLightbox', file)" @keydown.space.prevent="file && emit('openLightbox', file)" @click="emit('openLightbox', file)">
+        <div v-if="!embedded" class="img-wrapper">
           <img
             :src="thumbUrl || assetUrl(file.path)"
             :alt="getFileName(file.path)"
@@ -351,7 +344,8 @@ function onWorkflowDragStart(e: DragEvent) {
             type="button"
             class="star-btn"
             :class="{ active: (file.rating ?? 0) >= star }"
-            @click="setRating(star)"
+            :aria-label="file.rating === star ? t.workbench.clearRating : t.workbench.rate.replace('{rating}', String(star))"
+            :disabled="curationBusy || file.id == null" @click="setRating(star)"
           >
             ★
           </button>
@@ -364,7 +358,7 @@ function onWorkflowDragStart(e: DragEvent) {
             class="action-btn"
             :class="{ active: file.is_favorite }"
             :title="file.is_favorite ? t.preview.removeFavorite : t.preview.addFavorite"
-            @click="toggleFavorite"
+            :disabled="curationBusy || file.id == null" @click="toggleFavorite"
           >
             {{ file.is_favorite ? '❤️' : '🤍' }}
           </button>
@@ -375,7 +369,7 @@ function onWorkflowDragStart(e: DragEvent) {
             class="action-btn"
             :class="{ active: file.is_nsfw }"
             :title="file.is_nsfw ? t.preview.markSfw : t.preview.markNsfw"
-            @click="toggleNsfw"
+            :disabled="curationBusy || file.id == null" @click="toggleNsfw"
           >
             🔞
           </button>
@@ -422,12 +416,21 @@ function onWorkflowDragStart(e: DragEvent) {
         </div>
       </div>
 
+      <p v-if="curationError" class="curation-error" role="alert">{{ curationError }}</p>
+
+      <div ref="tabsElement" class="inspector-tabs" role="tablist" :aria-label="t.workbench.details" @keydown="onTabKeydown">
+        <button v-for="tab in tabs" :key="tab" role="tab" :id="`${tabId}-${tab}-tab`" :aria-controls="`${tabId}-${tab}-panel`"
+          :aria-selected="activeTab === tab" :tabindex="activeTab === tab ? 0 : -1" :class="{ active: activeTab === tab }" @click="activeTab = tab">{{ t.workbench[tab] }}</button>
+      </div>
+      <div v-if="activeTab === 'overview'" class="inspector-tab-panel" role="tabpanel" :id="`${tabId}-overview-panel`" :aria-labelledby="`${tabId}-overview-tab`" tabindex="0">
       <!-- Tags Section -->
-      <div v-if="fileTags.length > 0" class="section tags-section">
+      <div class="section tags-section">
         <div class="section-header">
           <span class="section-title">{{ t.nav.tags }}</span>
+          <button class="copy-btn" :disabled="file.id == null" @click="file.id != null && emit('openTagModal', file.id)">{{ t.preview.addTag }}</button>
         </div>
-        <div class="tag-chips">
+        <p v-if="!fileTags.length" class="empty-field">{{ t.workbench.noTags }}</p>
+        <div v-else class="tag-chips">
           <span
             v-for="tag in fileTags"
             :key="tag.id"
@@ -439,7 +442,7 @@ function onWorkflowDragStart(e: DragEvent) {
             <button
               type="button"
               class="tag-del-btn"
-              @click="removeTag(tag.id)"
+              :aria-label="`${t.nav.remove} ${tag.name}`" @click="removeTag(tag.id)"
             >
               ×
             </button>
@@ -447,6 +450,19 @@ function onWorkflowDragStart(e: DragEvent) {
         </div>
       </div>
 
+        <div class="section"><div class="section-header"><span class="section-title">{{ t.workbench.organization }}</span></div>
+          <button class="organize-button" :disabled="file.id == null" @click="file.id != null && emit('openAlbumModal', file.id)">{{ t.workbench.addAlbum }}</button>
+        </div>
+        <dl class="basic-details">
+          <div><dt>{{ t.workbench.fileType }}</dt><dd>{{ file.container.toUpperCase() }}</dd></div>
+          <div v-if="file.metadata?.width && file.metadata?.height"><dt>{{ t.workbench.dimensions }}</dt><dd>{{ file.metadata.width }} × {{ file.metadata.height }}</dd></div>
+          <div><dt>{{ t.workbench.fileSize }}</dt><dd>{{ formatBytes(file.size_bytes) }}</dd></div>
+          <div><dt>{{ t.workbench.modified }}</dt><dd>{{ modifiedDate }}</dd></div>
+        </dl>
+        <div class="section"><span class="section-title">{{ t.workbench.path }}</span><p class="file-path-text">{{ normalizePath(file.path) }}</p></div>
+      </div>
+      <div v-else-if="activeTab === 'generation'" class="inspector-tab-panel" role="tabpanel" :id="`${tabId}-generation-panel`" :aria-labelledby="`${tabId}-generation-tab`" tabindex="0">
+        <div v-if="file.metadata?.format" class="section"><span class="section-title">{{ t.workbench.generator }}</span><p>{{ formatPlatformName(file.metadata.format) }}</p></div>
       <!-- Generation Interop Section -->
       <div v-if="hasComfyWorkflow(file) || hasPromptData(file)" class="section interop-section">
         <div class="section-header">
@@ -502,7 +518,7 @@ function onWorkflowDragStart(e: DragEvent) {
       </div>
 
       <!-- Prompts Section -->
-      <div class="section">
+      <div v-if="file.metadata?.prompt" class="section">
         <div class="section-header">
           <span class="section-title">{{ t.preview.prompt }}</span>
           <button
@@ -529,7 +545,7 @@ function onWorkflowDragStart(e: DragEvent) {
       </div>
 
       <!-- Negative Prompt Section -->
-      <div class="section">
+      <div v-if="file.metadata?.negative_prompt" class="section">
         <div class="section-header">
           <span class="section-title">{{ t.preview.negativePrompt }}</span>
           <button
@@ -603,7 +619,7 @@ function onWorkflowDragStart(e: DragEvent) {
       </div>
 
       <!-- Generation Parameters Section -->
-      <div class="section">
+      <div v-if="file.metadata?.model_name || file.metadata?.model_hash || file.metadata?.sampler || file.metadata?.seed != null || file.metadata?.steps != null || file.metadata?.cfg_scale != null" class="section">
         <div class="section-header">
           <span class="section-title">{{ t.preview.generationParams }}</span>
         </div>
@@ -678,30 +694,10 @@ function onWorkflowDragStart(e: DragEvent) {
         </div>
       </div>
 
-      <!-- File Path & Location -->
-      <div class="section">
-        <div class="section-header">
-          <span class="section-title">{{ t.view.files }}</span>
-        </div>
-        <p class="file-path-text" :title="file.path">{{ normalizePath(file.path) }}</p>
       </div>
-
-      <!-- Raw Metadata / Workflow JSON -->
-      <div v-if="file.metadata?.raw" class="section">
-        <div class="section-header cursor-pointer" @click="showRaw = !showRaw">
-          <span class="section-title">{{ t.preview.copyAll }}</span>
-          <div class="header-right-actions">
-            <button
-              type="button"
-              class="copy-btn"
-              @click.stop="copyText(file.metadata!.raw!, 'raw')"
-            >
-              {{ rawCopied ? t.preview.copied : 'Raw' }}
-            </button>
-            <span class="collapse-icon">{{ showRaw ? '▲' : '▼' }}</span>
-          </div>
-        </div>
-        <pre v-if="showRaw" class="raw-box">{{ file.metadata.raw }}</pre>
+      <div v-else-if="activeTab === 'rawData'" class="inspector-tab-panel" role="tabpanel" :id="`${tabId}-rawData-panel`" :aria-labelledby="`${tabId}-rawData-tab`" tabindex="0">
+        <div class="section-header"><span class="section-title">{{ t.workbench.rawData }}</span><button class="copy-btn" @click="copyText(rawData, 'raw')">{{ rawCopied ? t.preview.copied : t.preview.copyAll }}</button></div>
+        <pre class="raw-box">{{ rawData }}</pre>
       </div>
     </div>
   </aside>
@@ -1489,4 +1485,17 @@ function onWorkflowDragStart(e: DragEvent) {
   border-color: rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
+.inspector-eagle.embedded { width: 320px; min-width: 320px; max-width: 320px; }
+.inspector-tabs { display: flex; border-bottom: 1px solid var(--border-color); gap: 4px; }
+.inspector-tabs button { flex: 1; min-width: 0; padding: 10px 4px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--color-text-secondary); cursor: pointer; font-size: 0.75rem; }
+.inspector-tabs button.active { color: var(--color-text-primary); border-bottom-color: var(--color-accent); }
+.inspector-tab-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.basic-details { margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 0.76rem; }
+.basic-details > div { display: flex; justify-content: space-between; gap: 12px; }
+.basic-details dt { color: var(--color-text-secondary); }
+.basic-details dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.organize-button { width: 100%; border: 1px solid var(--border-color); padding: 9px; border-radius: 6px; color: var(--color-text-primary); background: var(--color-bg-secondary); cursor: pointer; }
+button:focus-visible, .preview-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+button:disabled { opacity: 0.45; cursor: default; }
+.curation-error { color: var(--color-danger, #ef4444); font-size: 0.8rem; overflow-wrap: anywhere; }
 </style>

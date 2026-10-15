@@ -336,14 +336,12 @@ const navigation = useGalleryNavigation({
     return cardHeight.value;
   },
   firstVisible: () => {
+    const currentTop = containerRef.value?.scrollTop ?? scrollTop.value;
     if (props.layout === "masonry") {
-      return (
-        visibleMasonryItems.value.find(
-          (item) => item.top + item.height >= scrollTop.value,
-        )?.index ?? 0
-      );
+      return visibleWaterfallItems(masonryColumns.value, currentTop, currentTop + containerHeight.value)
+        .find(item => item.top + item.height > currentTop)?.index ?? 0;
     }
-    return Math.floor(scrollTop.value / rowHeight.value) * cols.value;
+    return Math.floor(currentTop / rowHeight.value) * cols.value;
   },
   loadMore: () => emit("loadMore"),
   onRestore: (top) => {

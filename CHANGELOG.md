@@ -5,6 +5,51 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2026-10-15
+
+### Added
+
+- Preview images in the center workspace while keeping library navigation and
+  a shared Inspector available. Fit, physical-pixel 100% zoom, panning, optional
+  full screen and bounded next-page navigation are available from the viewer.
+- Inspector tabs separate image facts and organization, generation parameters,
+  and raw metadata. Ordinary photos show technical details and organization
+  without empty generation sections.
+- Search translated settings descriptions and jump to the matching control.
+  Theme choices edit a draft and apply only after preferences save successfully.
+
+### Fixed
+
+- Inspector ratings, favorites and sensitive classifications use the registered
+  commands and publish confirmed field changes without replacing newer metadata.
+  Marking a revealed image as sensitive masks it again while retaining its tab.
+- Returning from preview restores the latest gallery scroll anchor. Late page
+  replies cannot navigate after a selection round trip or source replacement.
+- Embedded preview keeps application preferences, help, folder and sidebar
+  shortcuts available while isolating hidden-gallery actions and nested dialogs.
+- Tag and album dialogs close and refresh organization through their actual
+  emitted events. Video navigation and source revisions reset the old timeline
+  and replace the video element.
+
+### Changed
+
+- Load non-English translation catalogs only when needed. The main JavaScript
+  asset decreases from 695 kB to 374 kB, with all seven languages still packaged.
+  Saved-language startup, legacy language preferences and the English fallback
+  remain supported; failed catalog loads retain the active interface language.
+
+### Release testing
+
+Native installed WebView, real-media/video, gallery/reduced-motion and complete
+Windows x64, macOS Apple Silicon and Linux x64 installed-update acceptance remain
+incomplete ([#256](https://github.com/BerryUIKI/Omera/issues/256)). Automated
+regressions, synthetic browser checks and signed package verification do not
+establish native acceptance. Legacy discovery and supported import remain
+available throughout the pre-1.0 series; cleanup still requires a separate
+explicit in-application decision after destination validation.
+
+---
+
 ## [0.4.6] - 2026-10-14
 
 ### Added

@@ -12,7 +12,7 @@ function setup() {
   const writes=[];
   const state=vm.createContext({setSensitiveMasking,blurNsfw:ref(true),revealedNsfw:ref(new Set(['/sensitive.png'])),
     document:{activeElement:null},isEditableTarget:target=>!!target?.editable,hasActiveDialog:()=>false,
-    viewMode:ref('grid'),setStorageItem:(...args)=>writes.push(args),showCardBadges:ref(true),
+    lightboxFile:ref(null),viewMode:ref('grid'),setStorageItem:(...args)=>writes.push(args),showCardBadges:ref(true),
     invoke:()=>assert.fail('session masking must not invoke IPC'),saveAppConfig:()=>assert.fail('session masking must not save config'),
   });
   for(const name of ['onToggleGlobalMasking','handleWindowKeyDown','setViewMode','onSettingsSaved']) {
@@ -51,11 +51,13 @@ test("production Shift+M respects editable focus, dialogs, modifiers and handled
     preventDefault(){this.defaultPrevented=true;}});
   const enabled=event(); state.handleWindowKeyDown(enabled);
   assert.equal(state.blurNsfw.value,false); assert.equal(enabled.defaultPrevented,true);
-  for(const block of ['target','focus','dialog','handled','ctrl','meta','alt']) {
+  for(const block of ['target','focus','dialog','viewer','handled','ctrl','meta','alt']) {
     const e=event();
+    state.lightboxFile.value=null;
     state.document.activeElement=null; state.hasActiveDialog=()=>false;
     if(block==='target') e.target={editable:true};
     if(block==='focus') state.document.activeElement={editable:true};
+    if(block==='viewer') state.lightboxFile.value={path:'/preview.png'};
     if(block==='dialog') state.hasActiveDialog=()=>true;
     if(block==='handled') e.defaultPrevented=true;
     if(['ctrl','meta','alt'].includes(block)) e[block+'Key']=true;
