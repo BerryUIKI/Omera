@@ -13,6 +13,7 @@ import {
   sendWorkflowToComfyUI,
 } from "../utils/generation";
 import { loadAppConfig } from "../utils/config";
+import { useFileCuration, type CurationChange } from "../utils/file-curation";
 import { useNotification } from "../utils/notification";
 
 const props = defineProps<{
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   openTagModal: [fileId: number];
   openAlbumModal: [fileId: number];
   updateFile: [file: ImageFile];
+  curated: [change: CurationChange];
   filterByModel: [model: string];
   filterByHash: [hash: string];
   findSimilar: [file: ImageFile];
@@ -125,41 +127,12 @@ async function removeTag(tagId: number) {
   }
 }
 
-async function setRating(rating: number) {
-  if (!props.file) return;
-  const newRating = props.file.rating === rating ? 0 : rating;
-  try {
-    await invoke("update_file_rating", { path: props.file.path, rating: newRating });
-    emit("updateFile", { ...props.file, rating: newRating });
-  } catch (e) {
-    console.error("Failed to update rating:", e);
-    notification.showError(String(e), "Failed to update rating");
-  }
+const { busy: curationBusy, error: curationError, run: curate } = useFileCuration(() => props.file, change => emit("curated", change));
+function setRating(rating: number) {
+  return curate({ kind: "rating", value: rating === 0 || props.file?.rating === rating ? null : rating });
 }
-
-async function toggleFavorite() {
-  if (!props.file) return;
-  const isFavorite = !props.file.is_favorite;
-  try {
-    await invoke("update_file_favorite", { path: props.file.path, isFavorite });
-    emit("updateFile", { ...props.file, is_favorite: isFavorite });
-  } catch (e) {
-    console.error("Failed to toggle favorite:", e);
-    notification.showError(String(e), "Failed to update favorite");
-  }
-}
-
-async function toggleNsfw() {
-  if (!props.file) return;
-  const isNsfw = !props.file.is_nsfw;
-  try {
-    await invoke("update_file_nsfw", { path: props.file.path, isNsfw });
-    emit("updateFile", { ...props.file, is_nsfw: isNsfw });
-  } catch (e) {
-    console.error("Failed to toggle nsfw:", e);
-    notification.showError(String(e), "Failed to update NSFW status");
-  }
-}
+function toggleFavorite() { return curate({ kind: "favorite", value: !props.file?.is_favorite }); }
+function toggleNsfw() { return curate({ kind: "sensitive", value: !props.file?.is_nsfw }); }
 
 async function copyText(text: string, type: "prompt" | "negative" | "seed" | "raw") {
   try {
@@ -351,7 +324,7 @@ function onWorkflowDragStart(e: DragEvent) {
             type="button"
             class="star-btn"
             :class="{ active: (file.rating ?? 0) >= star }"
-            @click="setRating(star)"
+            :disabled="curationBusy || file.id == null" @click="setRating(star)"
           >
             ★
           </button>
@@ -364,7 +337,7 @@ function onWorkflowDragStart(e: DragEvent) {
             class="action-btn"
             :class="{ active: file.is_favorite }"
             :title="file.is_favorite ? t.preview.removeFavorite : t.preview.addFavorite"
-            @click="toggleFavorite"
+            :disabled="curationBusy || file.id == null" @click="toggleFavorite"
           >
             {{ file.is_favorite ? '❤️' : '🤍' }}
           </button>
@@ -375,7 +348,7 @@ function onWorkflowDragStart(e: DragEvent) {
             class="action-btn"
             :class="{ active: file.is_nsfw }"
             :title="file.is_nsfw ? t.preview.markSfw : t.preview.markNsfw"
-            @click="toggleNsfw"
+            :disabled="curationBusy || file.id == null" @click="toggleNsfw"
           >
             🔞
           </button>
@@ -421,6 +394,8 @@ function onWorkflowDragStart(e: DragEvent) {
           </button>
         </div>
       </div>
+
+      <p v-if="curationError" class="curation-error" role="alert">{{ curationError }}</p>
 
       <!-- Tags Section -->
       <div v-if="fileTags.length > 0" class="section tags-section">
