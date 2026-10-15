@@ -379,3 +379,19 @@ Require automated regressions, actual Windows installer compilation, baseline
 CRT import/inference qualification and the existing production signing,
 notarization and downloaded-asset verification gates. Release notes disclose
 the pending native acceptance. Do not overwrite the published 0.4.4 packages.
+
+### v0.4.7 release preparation — 2026-10-15
+
+The owner requested work on releasing v0.4.7 after the workbench and language
+bundle changes merged into `dev`. Prepare synchronized version manifests,
+release notes and the release integration PR while preserving small commits.
+The pinned update trust, installer identity, runtime floor and legacy import
+contract are unchanged. Keep the v0.4.6 assets immutable.
+
+Run candidate CI and the non-publishing signed installer and production macOS
+qualification workflows. Record their exact source revision and results before
+publication; prior-version package checks do not qualify this candidate. The
+native installed WebView/media/gallery and complete installed-update acceptance
+remain incomplete and are disclosed in the release notes. No new installed
+acceptance or issue closure is implied by this preparation. `main` requires one
+approving review before the release PR can merge.
