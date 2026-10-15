@@ -71,6 +71,7 @@ async function onTabKeydown(event: KeyboardEvent) {
   await nextTick(); tabsElement.value?.querySelectorAll<HTMLButtonElement>("[role=tab]")[next]?.focus();
 }
 const revealedNsfw = ref(false);
+watch(() => props.file?.is_nsfw, sensitive => { if (sensitive) revealedNsfw.value = false; });
 const thumbUrl = ref("");
 const sendingComfy = ref(false);
 const sendingWebui = ref(false);
