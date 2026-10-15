@@ -626,6 +626,7 @@ export const zhCN: typeof en = {
     language: "界面显示语言",
     languageDesc: "选择软件界面的展示语言 (Auto 自动跟随系统)",
     languageAuto: "自动（跟随系统）",
+    languageLoadFailed: "无法加载此语言，已保留原来的界面语言。请重试。",
     defaultView: "默认画廊视图",
     defaultViewDesc: "选择启动软件时默认使用的图片展示方式",
     viewGrid: "网格瀑布流 (Grid)",

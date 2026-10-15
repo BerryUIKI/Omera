@@ -1,14 +1,7 @@
-import { ref, computed } from "vue";
 import { en } from "./locales/en";
-import { zhCN } from "./locales/zh-CN";
-import { zhTW } from "./locales/zh-TW";
-import { ja } from "./locales/ja";
-import { de } from "./locales/de";
-import { fr } from "./locales/fr";
-import { es } from "./locales/es";
-
-export type LocaleKey = "en" | "zh-CN" | "zh-TW" | "ja" | "de" | "fr" | "es";
-export type LocaleSetting = "auto" | LocaleKey;
+import { createCatalogState, type LocaleKey, type LocaleSetting } from "./catalog-state";
+import { useNotification } from "../utils/notification";
+export type { LocaleKey, LocaleSetting } from "./catalog-state";
 
 export interface LocaleOption {
   key: LocaleSetting;
@@ -25,16 +18,6 @@ export const SUPPORTED_LOCALES: LocaleOption[] = [
   { key: "fr", label: "Français" },
   { key: "es", label: "Español" },
 ];
-
-const messages: Record<LocaleKey, typeof en> = {
-  en,
-  "zh-CN": zhCN,
-  "zh-TW": zhTW,
-  ja,
-  de,
-  fr,
-  es,
-};
 
 export function getSystemLocale(): LocaleKey {
   try {
@@ -60,7 +43,7 @@ function getInitialSetting(): LocaleSetting {
         localStorage.setItem("omera_locale", saved);
       }
     }
-    if (saved && (saved === "auto" || saved in messages)) {
+    if (saved && SUPPORTED_LOCALES.some(option => option.key === saved)) {
       return saved;
     }
   } catch {
@@ -69,22 +52,38 @@ function getInitialSetting(): LocaleSetting {
   return "auto";
 }
 
-export const currentLocaleSetting = ref<LocaleSetting>(getInitialSetting());
-
-export const currentLocale = computed<LocaleKey>(() => {
-  if (currentLocaleSetting.value === "auto") {
-    return getSystemLocale();
-  }
-  return currentLocaleSetting.value;
+const catalogs = createCatalogState({
+  initialSetting: getInitialSetting(), fallback: en,
+  resolve: setting => setting === "auto" ? getSystemLocale() : setting,
+  loaders: {
+    en: async () => en,
+    "zh-CN": () => import("./locales/zh-CN").then(module => module.zhCN),
+    "zh-TW": () => import("./locales/zh-TW").then(module => module.zhTW),
+    ja: () => import("./locales/ja").then(module => module.ja),
+    de: () => import("./locales/de").then(module => module.de),
+    fr: () => import("./locales/fr").then(module => module.fr),
+    es: () => import("./locales/es").then(module => module.es),
+  },
+  persist: setting => {
+    try { localStorage.setItem("omera_locale", setting); } catch { /* Storage may be unavailable. */ }
+  },
 });
+export const currentLocaleSetting = catalogs.setting;
+export const currentLocale = catalogs.locale;
+export const t = catalogs.messages;
 
-export function setLocale(setting: LocaleSetting) {
-  currentLocaleSetting.value = setting;
-  try {
-    localStorage.setItem("omera_locale", setting);
-  } catch {
-    // ignore
-  }
+// Prepare before saving preferences, without publishing a draft language.
+export async function prepareLocale(setting: LocaleSetting) {
+  try { await catalogs.prepare(setting); }
+  catch { throw new Error(t.value.settings.languageLoadFailed); }
 }
 
-export const t = computed(() => messages[currentLocale.value] || messages.en);
+export async function setLocale(setting: LocaleSetting) {
+  try { await catalogs.select(setting); }
+  catch { useNotification().showError(t.value.settings.languageLoadFailed); }
+}
+
+export async function initializeLocale() {
+  try { await catalogs.select(currentLocaleSetting.value, false); }
+  catch { useNotification().showError(t.value.settings.languageLoadFailed); }
+}

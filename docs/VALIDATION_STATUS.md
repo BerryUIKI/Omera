@@ -199,3 +199,29 @@ continues to apply to the identical frontend source.
 - The existing Vite bundle-size advisory remains a performance follow-up.
   This audit introduces no Rust, IPC, schema, or configuration changes and
   makes no release-readiness claim.
+
+## Language bundle follow-up (2026-10-15)
+
+- #400's [post-merge CI](https://github.com/BerryUIKI/Omera/actions/runs/38707586218)
+  passed on Windows, macOS, and Linux.
+- The language catalog follow-up loads only the requested non-English catalog,
+  preserves the English fallback and legacy preference lookup, fences late
+  language changes, and prepares settings drafts before persistence. No Rust,
+  IPC, schema, configuration field, or dependency changed.
+- `pnpm run build` passed without the previous Vite chunk-size advisory. The
+  main JavaScript asset fell from 695.21 kB to 373.77 kB (gzip 230.46 to
+  118.39 kB). Deferred catalogs remain packaged; this is not an installer-size
+  or startup-time measurement. See [PERFORMANCE.md](PERFORMANCE.md).
+- All 301 frontend tests passed, including production settings save failure,
+  seven-locale search, legacy saved-language startup, shared catalog requests,
+  stale selection/failure handling, preparation isolation, and retry behavior.
+- The production build ran in an isolated browser with an empty synthetic
+  library and mocked native IPC. English startup requested no extra catalog;
+  French startup requested only French. Actual menu selections rendered all
+  seven languages. A deliberate French chunk HTTP failure retained English
+  and displayed the localized error; a new document then loaded French.
+  Preferences did not request a catalog while editing the language draft and
+  applied French after a successful mocked save. No real user data changed.
+- Native WebView, real-media, gallery/reduced-motion and installed-update
+  acceptance remain open as recorded above; this frontend change does not
+  qualify them.

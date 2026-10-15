@@ -58,7 +58,7 @@ async function controlsFor(name, props, invoke, run) {
 }
 
 test('welcome detects legacy libraries, saves language, and retains failed setup for retry', async () => {
-  setLocale('en');
+  await setLocale('en');
   let failSave = true;
   let failLocation = true;
   const calls = [];

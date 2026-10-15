@@ -626,6 +626,7 @@ export const de: typeof en = {
     language: "Anzeigesprache",
     languageDesc: "Wählen Sie die Sprache der Benutzeroberfläche (Auto folgt dem System)",
     languageAuto: "Automatisch (Systemsprache)",
+    languageLoadFailed: "Diese Sprache konnte nicht geladen werden. Die bisherige Sprache bleibt aktiv. Bitte versuchen Sie es erneut.",
     defaultView: "Standard-Galerieansicht",
     defaultViewDesc: "Wählen Sie den standardmäßigen Anzeigemodus beim Start",
     viewGrid: "Rasteransicht (Grid)",

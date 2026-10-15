@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { t, SUPPORTED_LOCALES, currentLocaleSetting, setLocale, type LocaleSetting } from "../i18n";
+import { t, SUPPORTED_LOCALES, currentLocaleSetting, setLocale, prepareLocale, type LocaleSetting } from "../i18n";
 import { saveAppConfig, type AppConfig, type StoragePaths } from "../utils/config";
 import { databaseDirectory, migrationMessage } from "../utils/legacy-migration";
 import type { Folder, PipelineDetectedPath, LegacyMigrationStatus } from "../types";
@@ -49,9 +49,11 @@ async function checkLegacyMigration() {
 async function changeLanguage() {
   submitting.value = true; error.value = "";
   try {
+    const selected = locale.value;
+    await prepareLocale(selected);
     const config = await invoke<AppConfig>("get_app_config");
-    await saveAppConfig({ ...config, locale: locale.value });
-    setLocale(locale.value);
+    await saveAppConfig({ ...config, locale: selected });
+    await setLocale(selected);
   } catch (e) { locale.value = currentLocaleSetting.value; error.value = String(e); }
   finally { submitting.value = false; }
 }
