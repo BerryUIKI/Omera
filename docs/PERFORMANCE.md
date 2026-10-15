@@ -263,11 +263,13 @@ the existing column index and the visible window.
 The viewer decodes the current media and preloads at most two adjacent still
 images. Navigation releases those preloads and unmount releases observers and
 window listeners. Moving past the loaded extent requests the existing bounded
-page API, fences late replies against navigation, and never loads a complete
-library. Fit uses the measured canvas and display density; 100% maps one image
+page API, fences late replies by media selection revision (including selection
+round trips and same-path replacements), and never loads a complete library. Fit uses the measured canvas and display density; 100% maps one image
 pixel to one physical display pixel. Panning and zoom affect only the current
 media transform. Optional full screen enables modal focus isolation; embedded
-preview leaves library navigation accessible.
+preview leaves library navigation accessible. Application preferences, help,
+folder creation, and sidebar shortcuts remain available in embedded preview;
+hidden-gallery mutation shortcuts still yield to the viewer.
 
 One Inspector is active per preview. Its embedded mode avoids an additional
 thumbnail request. Tag, thumbnail, and LoRA replies are fenced by selection
