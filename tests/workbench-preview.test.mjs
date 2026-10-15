@@ -32,3 +32,18 @@ test('late page navigation cannot change an image the user has already left', as
     assert.deepEqual(events, []);
   }, stubInspector);
 });
+
+test('pending next-page navigation is cancelled by a selection round trip or a new media revision', async () => {
+  for (const change of ['round-trip', 'revision']) {
+    let release;
+    await withProductionComponent('LightboxModal', { file: first, files: [first], embedded: true, hasMore: true,
+      loadMore: () => new Promise(resolve => release = resolve) }, async () => null, async ({ controls, props, events }) => {
+      const pending = controls.next();
+      if (change === 'round-trip') { props.file = second; await nextTick(); props.file = first; }
+      else props.file = { ...first, modified_at: 2 };
+      await nextTick(); props.files = [first, second]; release(); await pending;
+      assert.deepEqual(events, [], change);
+      assert.equal(controls.navigationBusy.value, false);
+    }, stubInspector);
+  }
+});
