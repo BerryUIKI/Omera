@@ -5,6 +5,28 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8] - 2026-10-16
+
+### Fixed
+
+- Check for updates through the native backend so WebView CSP and cross-origin
+  restrictions cannot block the GitHub API or latest-release redirect fallback.
+- Use the current Windows manual system proxy for update checks and signed
+  downloads, with explicit proxy environment variables taking precedence. Proxy
+  changes take effect on the next request without restarting the application.
+- Bound update metadata requests and preserve useful network diagnostics while
+  retaining HTTPS enforcement and installer signature verification.
+
+### Release testing
+
+The updater fix passed the frontend build, 306 frontend regressions, workspace
+Rust checks and live GitHub API/fallback requests using Windows proxy settings.
+The existing native installed-update acceptance limitations from 0.4.7 remain;
+this patch does not claim completion of the installed-platform matrix (#256).
+PAC/WPAD and proxy bypass lists are not supported by the native update client.
+
+---
+
 ## [0.4.7] - 2026-10-15
 
 ### Added

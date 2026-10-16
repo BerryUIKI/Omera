@@ -412,3 +412,14 @@ native installed WebView/media/gallery and complete installed-update acceptance
 remain incomplete and are disclosed in the release notes. No new installed
 acceptance or issue closure is implied by this preparation. `main` requires one
 approving review before the release PR can merge.
+
+### Owner-approved v0.4.8 updater patch — 2026-10-16
+
+The owner authorized a patch-version increment and publication of the native
+update/proxy fix, with integration and compilation directly on `main`. Preserve
+the three tested fix commits and reuse their completed regression evidence.
+Run the existing production release build, signing, notarization and downloaded
+asset verification gates once; no separate qualification rerun is requested.
+Existing published releases stay immutable and installed-platform acceptance
+remains incomplete. This approval is specific to this patch release and does not
+change the general `dev` integration policy.
