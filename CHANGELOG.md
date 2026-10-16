@@ -5,6 +5,24 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2026-10-16
+
+### Changed
+
+- Merge Inspector tabs into one continuous detail flow, with the generation
+  summary, model, prompt, and parameters before organization and file details.
+- Use expandable long prompts and collapsible negative prompts, LoRA details,
+  and raw metadata. Preserve the current view during curation and reset it when
+  selecting another image or file revision.
+
+### Fixed
+
+- Wrap Inspector quick actions at narrow widths and improve generation button
+  contrast in light themes. Workflow and LoRA trigger actions support keyboard
+  activation, and Inspector animations respect reduced-motion preferences.
+
+---
+
 ## [0.4.8] - 2026-10-16
 
 ### Fixed
