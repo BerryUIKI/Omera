@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch, useId, nextTick, onBeforeUnmount } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { DetectedLora, ImageFile, Tag } from "../types";
 import { assetUrl, formatBytes, formatDuration, formatPlatformName, getFileName, normalizePath } from "../utils/image";
 import { getThumbnailUrl } from "../utils/thumbnail";
-import { inspectorTabs, rawMetadata, type InspectorTab } from "../utils/inspector";
+import { rawMetadata } from "../utils/inspector";
 import { t, currentLocale } from "../i18n";
 import {
   extractWorkflowJson,
@@ -51,25 +51,10 @@ const promptCopied = ref(false);
 const negativePromptCopied = ref(false);
 const seedCopied = ref(false);
 const rawCopied = ref(false);
-const activeTab = ref<InspectorTab>("overview");
-const tabId = useId();
-const tabsElement = ref<HTMLElement | null>(null);
-const tabs = computed(() => inspectorTabs(props.file, detectedLoras.value.length > 0));
+const rawExpanded = ref(false);
+const promptExpanded = ref(false);
 const rawData = computed(() => rawMetadata(props.file));
 const modifiedDate = computed(() => props.file?.modified_at ? new Date(props.file.modified_at * 1000).toLocaleString(currentLocale.value) : "—");
-watch(tabs, available => { if (!available.includes(activeTab.value)) activeTab.value = "overview"; });
-async function onTabKeydown(event: KeyboardEvent) {
-  const available = tabs.value;
-  const index = available.indexOf(activeTab.value);
-  let next = index;
-  if (event.key === "ArrowRight") next = (index + 1) % available.length;
-  else if (event.key === "ArrowLeft") next = (index + available.length - 1) % available.length;
-  else if (event.key === "Home") next = 0;
-  else if (event.key === "End") next = available.length - 1;
-  else return;
-  event.preventDefault(); activeTab.value = available[next];
-  await nextTick(); tabsElement.value?.querySelectorAll<HTMLButtonElement>("[role=tab]")[next]?.focus();
-}
 const revealedNsfw = ref(false);
 watch(() => props.file?.is_nsfw, sensitive => { if (sensitive) revealedNsfw.value = false; });
 const thumbUrl = ref("");
@@ -87,7 +72,8 @@ const isCurrent = (file: ImageFile) => props.file?.id === file.id && props.file?
 watch([() => props.file?.id, () => props.file?.path, () => props.file?.modified_at], () => {
   const snapshot = props.file;
   const request = ++thumbnailRequest;
-  activeTab.value = "overview";
+  rawExpanded.value = false;
+  promptExpanded.value = false;
   revealedNsfw.value = false;
   thumbUrl.value = ""; fileTags.value = []; detectedLoras.value = [];
   if (snapshot && !props.embedded) {
@@ -174,13 +160,9 @@ async function copyText(text: string, type: "prompt" | "negative" | "seed" | "ra
   }
 }
 
-const promptTokens = computed(() => {
-  const p = props.file?.metadata?.prompt;
-  if (!p) return [];
-  return p
-    .split(/[,|\n]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+const promptPreview = computed(() => {
+  const prompt = props.file?.metadata?.prompt || "";
+  return !promptExpanded.value && prompt.length > 320 ? `${prompt.slice(0, 320).trimEnd()}…` : prompt;
 });
 
 async function handleSendToComfyUI() {
@@ -287,7 +269,7 @@ function onWorkflowDragStart(e: DragEvent) {
     </div>
 
     <!-- Content when file selected -->
-    <div v-else class="inspector-scrollable">
+    <div v-else :key="`${file.id}:${file.path}:${file.modified_at}`" class="inspector-scrollable">
       <!-- Thumbnail & Quick Lightbox Trigger (Eagle Style) -->
       <div class="preview-card" role="button" tabindex="0" @keydown.enter.prevent="file && emit('openLightbox', file)" @keydown.space.prevent="file && emit('openLightbox', file)" @click="emit('openLightbox', file)">
         <div v-if="!embedded" class="img-wrapper">
@@ -314,7 +296,7 @@ function onWorkflowDragStart(e: DragEvent) {
             {{ getFileName(file.path) }}
           </h4>
           <div class="file-meta-tags">
-            <span class="meta-tag uppercase">{{ formatPlatformName(file.metadata?.format) || file.container }}</span>
+            <span class="meta-tag uppercase">{{ file.container.toUpperCase() }}</span>
             <span v-if="file.metadata?.width && file.metadata?.height" class="meta-tag">
               {{ file.metadata.width }} × {{ file.metadata.height }}
             </span>
@@ -418,58 +400,30 @@ function onWorkflowDragStart(e: DragEvent) {
 
       <p v-if="curationError" class="curation-error" role="alert">{{ curationError }}</p>
 
-      <div ref="tabsElement" class="inspector-tabs" role="tablist" :aria-label="t.workbench.details" @keydown="onTabKeydown">
-        <button v-for="tab in tabs" :key="tab" role="tab" :id="`${tabId}-${tab}-tab`" :aria-controls="`${tabId}-${tab}-panel`"
-          :aria-selected="activeTab === tab" :tabindex="activeTab === tab ? 0 : -1" :class="{ active: activeTab === tab }" @click="activeTab = tab">{{ t.workbench[tab] }}</button>
-      </div>
-      <div v-if="activeTab === 'overview'" class="inspector-tab-panel" role="tabpanel" :id="`${tabId}-overview-panel`" :aria-labelledby="`${tabId}-overview-tab`" tabindex="0">
-      <!-- Tags Section -->
-      <div class="section tags-section">
+      <!-- Generation summary and reuse actions -->
+      <div v-if="file.metadata?.format || file.metadata?.model_name || hasComfyWorkflow(file) || hasPromptData(file)" class="section generation-summary">
         <div class="section-header">
-          <span class="section-title">{{ t.nav.tags }}</span>
-          <button class="copy-btn" :disabled="file.id == null" @click="file.id != null && emit('openTagModal', file.id)">{{ t.preview.addTag }}</button>
+          <span class="section-title">{{ t.workbench.generation }}</span>
+          <span v-if="file.metadata?.format" class="meta-tag">{{ formatPlatformName(file.metadata.format) }}</span>
         </div>
-        <p v-if="!fileTags.length" class="empty-field">{{ t.workbench.noTags }}</p>
-        <div v-else class="tag-chips">
-          <span
-            v-for="tag in fileTags"
-            :key="tag.id"
-            class="tag-pill"
-            :style="{ borderColor: tag.color || '#8b5cf6' }"
-          >
-            <span class="tag-dot" :style="{ backgroundColor: tag.color || '#8b5cf6' }"></span>
-            {{ tag.name }}
+        <!-- Model -->
+        <div v-if="file.metadata?.model_name" class="param-row full-width">
+          <span class="param-label">{{ t.preview.modelName }}</span>
+          <div class="param-value-box">
+            <span class="param-val truncate" :title="file.metadata.model_name">
+              {{ file.metadata.model_name }}
+            </span>
             <button
               type="button"
-              class="tag-del-btn"
-              :aria-label="`${t.nav.remove} ${tag.name}`" @click="removeTag(tag.id)"
+              class="filter-icon-btn"
+              :title="t.modelsModal.filterModel"
+              @click="emit('filterByModel', file.metadata!.model_name!)"
             >
-              ×
+              🔍
             </button>
-          </span>
+          </div>
         </div>
-      </div>
-
-        <div class="section"><div class="section-header"><span class="section-title">{{ t.workbench.organization }}</span></div>
-          <button class="organize-button" :disabled="file.id == null" @click="file.id != null && emit('openAlbumModal', file.id)">{{ t.workbench.addAlbum }}</button>
-        </div>
-        <dl class="basic-details">
-          <div><dt>{{ t.workbench.fileType }}</dt><dd>{{ file.container.toUpperCase() }}</dd></div>
-          <div v-if="file.metadata?.width && file.metadata?.height"><dt>{{ t.workbench.dimensions }}</dt><dd>{{ file.metadata.width }} × {{ file.metadata.height }}</dd></div>
-          <div><dt>{{ t.workbench.fileSize }}</dt><dd>{{ formatBytes(file.size_bytes) }}</dd></div>
-          <div><dt>{{ t.workbench.modified }}</dt><dd>{{ modifiedDate }}</dd></div>
-        </dl>
-        <div class="section"><span class="section-title">{{ t.workbench.path }}</span><p class="file-path-text">{{ normalizePath(file.path) }}</p></div>
-      </div>
-      <div v-else-if="activeTab === 'generation'" class="inspector-tab-panel" role="tabpanel" :id="`${tabId}-generation-panel`" :aria-labelledby="`${tabId}-generation-tab`" tabindex="0">
-        <div v-if="file.metadata?.format" class="section"><span class="section-title">{{ t.workbench.generator }}</span><p>{{ formatPlatformName(file.metadata.format) }}</p></div>
-      <!-- Generation Interop Section -->
-      <div v-if="hasComfyWorkflow(file) || hasPromptData(file)" class="section interop-section">
-        <div class="section-header">
-          <span class="section-title">🔌 {{ t.interop.title }}</span>
-        </div>
-
-        <div class="interop-button-group">
+        <div v-if="hasComfyWorkflow(file) || hasPromptData(file)" class="interop-button-group">
           <!-- Send to ComfyUI -->
           <button
             v-if="hasComfyWorkflow(file)"
@@ -496,8 +450,9 @@ function onWorkflowDragStart(e: DragEvent) {
         </div>
 
         <!-- Draggable Workflow Chip -->
-        <div
+        <button
           v-if="hasComfyWorkflow(file)"
+          type="button"
           class="workflow-drag-pill"
           draggable="true"
           :title="t.interop.dragWorkflow"
@@ -506,7 +461,7 @@ function onWorkflowDragStart(e: DragEvent) {
         >
           <span>🧩 {{ workflowCopied ? t.preview.copied : t.interop.dragWorkflow }}</span>
           <span class="drag-hint">⋮⋮</span>
-        </div>
+        </button>
 
         <!-- Feedback message -->
         <div v-if="comfyStatusMsg" class="interop-feedback" :class="{ error: comfyStatusMsg.includes('Failed') }">
@@ -531,118 +486,20 @@ function onWorkflowDragStart(e: DragEvent) {
           </button>
         </div>
         <div v-if="file.metadata?.prompt" class="prompt-box">
-          <p class="prompt-text">{{ file.metadata.prompt }}</p>
-          <div v-if="promptTokens.length > 0" class="token-chips">
-            <span v-for="(token, i) in promptTokens.slice(0, 16)" :key="i" class="token-chip">
-              {{ token }}
-            </span>
-            <span v-if="promptTokens.length > 16" class="token-more">
-              +{{ promptTokens.length - 16 }}
-            </span>
-          </div>
-        </div>
-        <p v-else class="empty-field">—</p>
-      </div>
-
-      <!-- Negative Prompt Section -->
-      <div v-if="file.metadata?.negative_prompt" class="section">
-        <div class="section-header">
-          <span class="section-title">{{ t.preview.negativePrompt }}</span>
-          <button
-            v-if="file.metadata?.negative_prompt"
-            type="button"
-            class="copy-btn"
-            @click="copyText(file.metadata.negative_prompt, 'negative')"
-          >
-            {{ negativePromptCopied ? t.preview.copied : t.preview.copyNegative }}
+          <p class="prompt-text">{{ promptPreview }}</p>
+          <button v-if="file.metadata.prompt.length > 320" type="button" class="copy-btn prompt-expand" :aria-expanded="promptExpanded" @click="promptExpanded = !promptExpanded">
+            {{ promptExpanded ? t.nav.collapse : t.nav.expand }}
           </button>
-        </div>
-        <div v-if="file.metadata?.negative_prompt" class="prompt-box negative">
-          <p class="prompt-text">{{ file.metadata.negative_prompt }}</p>
-        </div>
-        <p v-else class="empty-field">—</p>
-      </div>
-
-      <!-- LoRA Models & Trigger Words Section -->
-      <div v-if="detectedLoras.length > 0" class="section lora-section">
-        <div class="section-header">
-          <div class="section-title-wrap">
-            <span class="lora-header-icon">🎨</span>
-            <span class="section-title">{{ t.loraModal.sectionTitle }}</span>
-            <span class="badge-count-sm">{{ detectedLoras.length }}</span>
-          </div>
-          <button
-            type="button"
-            class="text-action-btn"
-            @click="emit('openLoraManager')"
-          >
-            {{ t.loraModal.manageLibrary }}
-          </button>
-        </div>
-
-        <div class="detected-lora-list">
-          <div v-for="(lora, idx) in detectedLoras" :key="idx" class="detected-lora-item">
-            <div class="detected-lora-header">
-              <span class="detected-name" :title="lora.name">{{ lora.name }}</span>
-              <div class="detected-badges">
-                <span v-if="lora.hash" class="detected-hash" :title="lora.hash">#{{ lora.hash }}</span>
-                <span class="detected-weight">×{{ lora.weight }}</span>
-              </div>
-            </div>
-
-            <!-- Trigger words if known in model catalog -->
-            <div v-if="lora.model?.trigger_words && lora.model.trigger_words.length > 0" class="detected-triggers">
-              <span
-                v-for="(tw, twIdx) in lora.model.trigger_words"
-                :key="twIdx"
-                class="detected-trigger-chip"
-                :class="{ active: triggerCopied === tw }"
-                :title="t.loraModal.clickToCopy"
-                @click="copyTriggerText(tw)"
-              >
-                {{ tw }}
-                <span class="copy-hint">📋</span>
-              </span>
-            </div>
-            <div v-else class="detected-unknown">
-              <span class="unregistered-text">{{ t.loraModal.notInLibrary }}</span>
-              <button
-                type="button"
-                class="quick-register-btn"
-                @click="emit('registerLora', lora.name, lora.weight)"
-              >
-                + {{ t.loraModal.quickAdd }}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
       <!-- Generation Parameters Section -->
-      <div v-if="file.metadata?.model_name || file.metadata?.model_hash || file.metadata?.sampler || file.metadata?.seed != null || file.metadata?.steps != null || file.metadata?.cfg_scale != null" class="section">
+      <div v-if="file.metadata?.model_hash || file.metadata?.sampler || file.metadata?.seed != null || file.metadata?.steps != null || file.metadata?.cfg_scale != null" class="section">
         <div class="section-header">
           <span class="section-title">{{ t.preview.generationParams }}</span>
         </div>
 
         <div class="params-grid">
-          <!-- Model -->
-          <div v-if="file.metadata?.model_name" class="param-row full-width">
-            <span class="param-label">{{ t.preview.modelName }}</span>
-            <div class="param-value-box">
-              <span class="param-val truncate" :title="file.metadata.model_name">
-                {{ file.metadata.model_name }}
-              </span>
-              <button
-                type="button"
-                class="filter-icon-btn"
-                :title="t.modelsModal.filterModel"
-                @click="emit('filterByModel', file.metadata!.model_name!)"
-              >
-                🔍
-              </button>
-            </div>
-          </div>
-
           <!-- Model Hash -->
           <div v-if="file.metadata?.model_hash" class="param-row">
             <span class="param-label">{{ t.preview.modelHash }}</span>
@@ -694,11 +551,115 @@ function onWorkflowDragStart(e: DragEvent) {
         </div>
       </div>
 
+      <!-- Negative Prompt Section -->
+      <details v-if="file.metadata?.negative_prompt" class="section disclosure-section">
+        <summary class="section-title">{{ t.preview.negativePrompt }}<span class="disclosure-preview">{{ file.metadata.negative_prompt }}</span></summary>
+        <div class="section">
+          <div class="section-header">
+            <button type="button" class="copy-btn" @click="copyText(file.metadata.negative_prompt, 'negative')">
+              {{ negativePromptCopied ? t.preview.copied : t.preview.copyNegative }}
+            </button>
+          </div>
+          <div class="prompt-box negative"><p class="prompt-text">{{ file.metadata.negative_prompt }}</p></div>
+        </div>
+      </details>
+
+      <!-- LoRA Models & Trigger Words Section -->
+      <details v-if="detectedLoras.length > 0" class="section lora-section disclosure-section">
+        <summary class="section-title">{{ t.loraModal.sectionTitle }} <span class="badge-count-sm">{{ detectedLoras.length }}</span></summary>
+        <div class="section-header">
+          <button
+            type="button"
+            class="text-action-btn"
+            @click="emit('openLoraManager')"
+          >
+            {{ t.loraModal.manageLibrary }}
+          </button>
+        </div>
+
+        <div class="detected-lora-list">
+          <div v-for="(lora, idx) in detectedLoras" :key="idx" class="detected-lora-item">
+            <div class="detected-lora-header">
+              <span class="detected-name" :title="lora.name">{{ lora.name }}</span>
+              <div class="detected-badges">
+                <span v-if="lora.hash" class="detected-hash" :title="lora.hash">#{{ lora.hash }}</span>
+                <span class="detected-weight">×{{ lora.weight }}</span>
+              </div>
+            </div>
+
+            <!-- Trigger words if known in model catalog -->
+            <div v-if="lora.model?.trigger_words && lora.model.trigger_words.length > 0" class="detected-triggers">
+              <button
+                v-for="(tw, twIdx) in lora.model.trigger_words"
+                :key="twIdx"
+                type="button"
+                class="detected-trigger-chip"
+                :class="{ active: triggerCopied === tw }"
+                :title="t.loraModal.clickToCopy"
+                @click="copyTriggerText(tw)"
+              >
+                {{ tw }}
+                <span class="copy-hint">📋</span>
+              </button>
+            </div>
+            <div v-else class="detected-unknown">
+              <span class="unregistered-text">{{ t.loraModal.notInLibrary }}</span>
+              <button
+                type="button"
+                class="quick-register-btn"
+                @click="emit('registerLora', lora.name, lora.weight)"
+              >
+                + {{ t.loraModal.quickAdd }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Tags Section -->
+      <div class="section tags-section">
+        <div class="section-header">
+          <span class="section-title">{{ t.nav.tags }}</span>
+          <button class="copy-btn" :disabled="file.id == null" @click="file.id != null && emit('openTagModal', file.id)">{{ t.preview.addTag }}</button>
+        </div>
+        <p v-if="!fileTags.length" class="empty-field">{{ t.workbench.noTags }}</p>
+        <div v-else class="tag-chips">
+          <span
+            v-for="tag in fileTags"
+            :key="tag.id"
+            class="tag-pill"
+            :style="{ borderColor: tag.color || '#8b5cf6' }"
+          >
+            <span class="tag-dot" :style="{ backgroundColor: tag.color || '#8b5cf6' }"></span>
+            {{ tag.name }}
+            <button
+              type="button"
+              class="tag-del-btn"
+              :aria-label="`${t.nav.remove} ${tag.name}`" @click="removeTag(tag.id)"
+            >
+              ×
+            </button>
+          </span>
+        </div>
       </div>
-      <div v-else-if="activeTab === 'rawData'" class="inspector-tab-panel" role="tabpanel" :id="`${tabId}-rawData-panel`" :aria-labelledby="`${tabId}-rawData-tab`" tabindex="0">
-        <div class="section-header"><span class="section-title">{{ t.workbench.rawData }}</span><button class="copy-btn" @click="copyText(rawData, 'raw')">{{ rawCopied ? t.preview.copied : t.preview.copyAll }}</button></div>
-        <pre class="raw-box">{{ rawData }}</pre>
+
+      <div class="section"><div class="section-header"><span class="section-title">{{ t.workbench.organization }}</span></div>
+        <button class="organize-button" :disabled="file.id == null" @click="file.id != null && emit('openAlbumModal', file.id)">{{ t.workbench.addAlbum }}</button>
       </div>
+      <dl class="basic-details">
+        <div><dt>{{ t.workbench.fileType }}</dt><dd>{{ file.container.toUpperCase() }}</dd></div>
+        <div v-if="file.metadata?.width && file.metadata?.height"><dt>{{ t.workbench.dimensions }}</dt><dd>{{ file.metadata.width }} × {{ file.metadata.height }}</dd></div>
+        <div><dt>{{ t.workbench.fileSize }}</dt><dd>{{ formatBytes(file.size_bytes) }}</dd></div>
+        <div><dt>{{ t.workbench.modified }}</dt><dd>{{ modifiedDate }}</dd></div>
+      </dl>
+      <div class="section"><span class="section-title">{{ t.workbench.path }}</span><p class="file-path-text">{{ normalizePath(file.path) }}</p></div>
+      <details v-if="rawData" class="section disclosure-section" :open="rawExpanded" @toggle="rawExpanded = ($event.target as HTMLDetailsElement).open">
+        <summary class="section-title">{{ t.workbench.rawData }}</summary>
+        <div v-if="rawExpanded" class="section">
+          <div class="section-header"><button type="button" class="copy-btn" @click="copyText(rawData, 'raw')">{{ rawCopied ? t.preview.copied : t.preview.copyAll }}</button></div>
+          <pre class="raw-box">{{ rawData }}</pre>
+        </div>
+      </details>
     </div>
   </aside>
 </template>
@@ -807,6 +768,43 @@ function onWorkflowDragStart(e: DragEvent) {
 
 .inspector-scrollable::-webkit-scrollbar {
   width: 4px;
+}
+.inspector-scrollable > * {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.section.disclosure-section {
+  display: block;
+}
+
+.disclosure-section > summary {
+  cursor: pointer;
+  padding: 5px 0;
+}
+
+.disclosure-section > summary::marker {
+  color: var(--color-text-muted);
+}
+
+.disclosure-section[open] > summary {
+  margin-bottom: 6px;
+}
+
+.disclosure-preview {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.disclosure-section[open] .disclosure-preview {
+  display: none;
 }
 .inspector-scrollable::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
@@ -920,6 +918,8 @@ function onWorkflowDragStart(e: DragEvent) {
 
 .quick-actions-bar {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
   justify-content: space-between;
   background: var(--color-bg-secondary);
@@ -954,6 +954,7 @@ function onWorkflowDragStart(e: DragEvent) {
 
 .action-btn-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 3px;
 }
 
@@ -992,16 +993,12 @@ function onWorkflowDragStart(e: DragEvent) {
   justify-content: space-between;
 }
 
-.section-header.cursor-pointer {
-  cursor: pointer;
-}
-
 .section-title {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 
 .copy-btn {
@@ -1032,7 +1029,7 @@ function onWorkflowDragStart(e: DragEvent) {
 }
 
 .prompt-box.negative {
-  color: #fca5a5;
+  color: var(--color-danger);
   border-color: rgba(239, 68, 68, 0.2);
 }
 
@@ -1041,26 +1038,8 @@ function onWorkflowDragStart(e: DragEvent) {
   word-break: break-word;
 }
 
-.token-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
+.prompt-expand {
   margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-color);
-}
-
-.token-chip {
-  font-size: 0.66rem;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: rgba(139, 92, 246, 0.12);
-  color: #c4b5fd;
-}
-
-.token-more {
-  font-size: 0.66rem;
-  color: var(--color-text-muted);
 }
 
 .empty-field {
@@ -1072,7 +1051,7 @@ function onWorkflowDragStart(e: DragEvent) {
 
 .params-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
 }
 
@@ -1102,15 +1081,18 @@ function onWorkflowDragStart(e: DragEvent) {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
+  min-width: 0;
 }
 
 .param-val {
   font-size: 0.76rem;
   color: var(--color-text-primary);
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .param-val.truncate {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1181,17 +1163,6 @@ function onWorkflowDragStart(e: DragEvent) {
   border: 1px solid var(--border-color);
 }
 
-.header-right-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.collapse-icon {
-  font-size: 0.64rem;
-  color: var(--color-text-muted);
-}
-
 .raw-box {
   margin: 0;
   padding: 8px;
@@ -1214,16 +1185,6 @@ function onWorkflowDragStart(e: DragEvent) {
   border: 1px solid rgba(236, 72, 153, 0.15);
   border-radius: 8px;
   padding: 10px;
-}
-
-.section-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.lora-header-icon {
-  font-size: 0.85rem;
 }
 
 .badge-count-sm {
@@ -1378,12 +1339,8 @@ function onWorkflowDragStart(e: DragEvent) {
   background: rgba(236, 72, 153, 0.25);
 }
 
-.interop-section {
-  background: var(--color-bg-hover);
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-  border: 1px solid var(--border-color);
+.generation-summary {
+  gap: 8px;
 }
 
 .interop-button-group {
@@ -1420,7 +1377,7 @@ function onWorkflowDragStart(e: DragEvent) {
 .comfy-style {
   background: rgba(59, 130, 246, 0.15);
   border: 1px solid rgba(59, 130, 246, 0.35);
-  color: #93c5fd;
+  color: var(--color-text-primary);
 }
 
 .comfy-style:hover:not(:disabled) {
@@ -1431,7 +1388,7 @@ function onWorkflowDragStart(e: DragEvent) {
 .webui-style {
   background: rgba(168, 85, 247, 0.15);
   border: 1px solid rgba(168, 85, 247, 0.35);
-  color: #d8b4fe;
+  color: var(--color-text-primary);
 }
 
 .webui-style:hover:not(:disabled) {
@@ -1486,16 +1443,15 @@ function onWorkflowDragStart(e: DragEvent) {
   color: #fca5a5;
 }
 .inspector-eagle.embedded { width: 320px; min-width: 320px; max-width: 320px; }
-.inspector-tabs { display: flex; border-bottom: 1px solid var(--border-color); gap: 4px; }
-.inspector-tabs button { flex: 1; min-width: 0; padding: 10px 4px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--color-text-secondary); cursor: pointer; font-size: 0.75rem; }
-.inspector-tabs button.active { color: var(--color-text-primary); border-bottom-color: var(--color-accent); }
-.inspector-tab-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .basic-details { margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 0.76rem; }
 .basic-details > div { display: flex; justify-content: space-between; gap: 12px; }
 .basic-details dt { color: var(--color-text-secondary); }
 .basic-details dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .organize-button { width: 100%; border: 1px solid var(--border-color); padding: 9px; border-radius: 6px; color: var(--color-text-primary); background: var(--color-bg-secondary); cursor: pointer; }
-button:focus-visible, .preview-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+button:focus-visible, summary:focus-visible, .preview-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 button:disabled { opacity: 0.45; cursor: default; }
 .curation-error { color: var(--color-danger, #ef4444); font-size: 0.8rem; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
 </style>
