@@ -3692,10 +3692,7 @@ pub async fn download_update(
     let dest_path_clone = dest_path.clone();
 
     tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
-        let agent = ureq::builder()
-            .redirects(10)
-            .timeout(std::time::Duration::from_secs(600))
-            .build();
+        let agent = crate::update_network::agent(std::time::Duration::from_secs(600))?;
 
         let resp = agent
             .get(&url_clone)

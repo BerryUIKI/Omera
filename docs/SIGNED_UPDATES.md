@@ -11,6 +11,16 @@ text. The app verifies the downloaded bytes and verifies them again before launc
 Missing trust, missing signatures, invalid signatures and changed bytes fail closed.
 The update dialog retains its browser download and official release-page actions.
 
+Update networking uses a shared native HTTPS-only client with bounded connection
+and request timeouts. Explicit `HTTPS_PROXY` / `ALL_PROXY` / `HTTP_PROXY` environment
+settings (including lowercase variants) take precedence over the current-user
+Windows manual proxy. Windows `ProxyEnable` and `ProxyServer` are re-read for each
+operation; both a single server and per-protocol `https=host:port` are supported.
+PAC/WPAD discovery, proxy bypass lists and OS proxy discovery on macOS/Linux are
+not implemented by this client. Those configurations require an explicit proxy
+environment variable or the browser download action. Never log proxy credentials.
+Proxy routing does not weaken HTTPS enforcement or either signature check.
+
 Release builds must embed `OMERA_UPDATE_PUBLIC_KEY`, the raw base64 public-key
 line accepted by `minisign-verify`. `BERRY_UPDATE_PUBLIC_KEY` remains a legacy
 build fallback. Preserve an established key when available; rotation requires a

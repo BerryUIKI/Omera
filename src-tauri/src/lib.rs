@@ -6,6 +6,7 @@ mod config_store;
 pub mod legacy_migration;
 #[cfg(any(target_os = "windows", test))]
 mod update_installation;
+mod update_network;
 pub mod update_verification;
 mod watcher;
 

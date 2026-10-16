@@ -3513,6 +3513,7 @@ dependencies = [
  "trash",
  "ureq 2.12.1",
  "uuid",
+ "winreg",
  "zip",
 ]
 
