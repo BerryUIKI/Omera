@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contrast in light themes. Workflow and LoRA trigger actions support keyboard
   activation, and Inspector animations respect reduced-motion preferences.
 
+### Release testing
+
+Windows x64 NSIS/MSI compilation, all 309 frontend tests, and 406 Rust tests
+passed (one Rust test remains ignored). Synthetic browser checks cover both
+Inspector widths and light/dark themes. Native installed WebView/media/gallery
+and the complete installed-update platform matrix remain incomplete (#256).
+Legacy discovery and supported import remain available throughout pre-1.0;
+cleanup still requires a separate explicit in-application decision.
+
 ---
 
 ## [0.4.8] - 2026-10-16
