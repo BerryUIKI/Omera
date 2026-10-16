@@ -6,6 +6,7 @@ mod config_store;
 pub mod legacy_migration;
 #[cfg(any(target_os = "windows", test))]
 mod update_installation;
+mod update_metadata;
 mod update_network;
 pub mod update_verification;
 mod watcher;
@@ -271,6 +272,7 @@ pub fn run() {
             commands::get_storage_paths,
             commands::set_library_directory,
             commands::open_storage_dir,
+            commands::fetch_update_metadata,
             commands::download_update,
             commands::install_update,
             commands::check_desktop_shortcut_exists,

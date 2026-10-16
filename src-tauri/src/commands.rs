@@ -3663,6 +3663,16 @@ pub struct UpdateDownloadProgress {
     pub target_file: Option<String>,
 }
 
+/// Fetch only the official update metadata, outside WebView CSP/CORS restrictions.
+#[tauri::command]
+pub async fn fetch_update_metadata(
+    fallback: bool,
+) -> Result<crate::update_metadata::UpdateMetadataResponse, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::update_metadata::fetch(fallback))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
 /// Download an update asset directly into updates/ directory, reporting progress via events.
 #[tauri::command]
 pub async fn download_update(
