@@ -11,6 +11,23 @@ text. The app verifies the downloaded bytes and verifies them again before launc
 Missing trust, missing signatures, invalid signatures and changed bytes fail closed.
 The update dialog retains its browser download and official release-page actions.
 
+Update networking uses a shared native HTTPS-only client with bounded connection
+and request timeouts. Explicit `HTTPS_PROXY` / `ALL_PROXY` / `HTTP_PROXY` environment
+settings (including lowercase variants) take precedence over the current-user
+Windows manual proxy. Windows `ProxyEnable` and `ProxyServer` are re-read for each
+operation; both a single server and per-protocol `https=host:port` are supported.
+PAC/WPAD discovery, proxy bypass lists and OS proxy discovery on macOS/Linux are
+not implemented by this client. Those configurations require an explicit proxy
+environment variable or the browser download action. Never log proxy credentials.
+Proxy routing does not weaken HTTPS enforcement or either signature check.
+
+Release discovery runs through `fetch_update_metadata` on a blocking worker, so
+WebView CSP and cross-origin rules cannot block either the GitHub API or latest-tag
+redirect fallback. The command accepts only a fallback flag, never an arbitrary URL.
+For an explicit real-network probe with the current user's proxy configuration,
+run `cargo test -p omera --lib live_official_update_endpoints -- --ignored --nocapture`.
+Normal tests use local response/redirect fixtures and do not contact GitHub.
+
 Release builds must embed `OMERA_UPDATE_PUBLIC_KEY`, the raw base64 public-key
 line accepted by `minisign-verify`. `BERRY_UPDATE_PUBLIC_KEY` remains a legacy
 build fallback. Preserve an established key when available; rotation requires a
