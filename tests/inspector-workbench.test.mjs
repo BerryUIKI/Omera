@@ -57,6 +57,52 @@ test('slow tag/LoRA replies cannot overwrite the newly selected image', async ()
   });
 });
 
+test('long prompts expand without changing metadata and reset for a new file revision', async () => {
+  const prompt = 'A richly detailed forest, '.repeat(30) + 'unique ending';
+  const file = { ...generated, metadata: { ...generated.metadata, prompt, model_name: 'Forest Model' } };
+  await withProductionComponent('InspectorPane', { file, embedded: true }, async () => [], async ({ controls, props, render }) => {
+    let html = await render();
+    assert.ok(html.indexOf('Forest Model') < html.indexOf('A richly detailed forest'));
+    assert.doesNotMatch(html, /unique ending/);
+    assert.match(html, /aria-expanded="false"/);
+    controls.promptExpanded.value = true;
+    html = await render();
+    assert.match(html, /unique ending/); assert.match(html, /aria-expanded="true"/);
+    assert.equal(props.file.metadata.prompt, prompt);
+    props.file = { ...file, is_favorite: true }; await nextTick();
+    assert.equal(controls.promptExpanded.value, true);
+    controls.rawExpanded.value = true;
+    props.file = { ...file, modified_at: 200 }; await nextTick();
+    assert.equal(controls.promptExpanded.value, false);
+    assert.equal(controls.rawExpanded.value, false);
+  });
+});
+
+test('model-only and LoRA-only metadata remain available without a generation tab', async () => {
+  const file = { ...photo, metadata: { ...photo.metadata, model_name: 'Model without prompt' } };
+  await withProductionComponent('InspectorPane', { file, embedded: true }, async command => command === 'get_image_detected_loras' ? [{ name: 'Detected LoRA', weight: 0.8 }] : [], async ({ props, render }) => {
+    let html = await render();
+    assert.match(html, /Model without prompt/);
+    assert.match(html, /<details[^>]*><summary[^>]*>LoRA/);
+    assert.match(html, /Detected LoRA/);
+    assert.doesNotMatch(html, />Generation Parameters<|role="tab/);
+    props.file = photo; await nextTick(); await nextTick();
+    html = await render(); assert.match(html, /Detected LoRA/);
+    assert.doesNotMatch(html, /Model without prompt|class="section generation-summary"/);
+  });
+});
+
+test('ComfyUI workflow reuse remains accessible before prompts without opening raw data', async () => {
+  const file = { ...generated, metadata: { ...generated.metadata, format: 'ComfyUi', raw: '{"workflow":{"nodes":[]}}' } };
+  await withProductionComponent('InspectorPane', { file, embedded: true }, async () => [], async ({ render }) => {
+    const html = await render();
+    assert.match(html, /Send to ComfyUI/);
+    assert.match(html, /<button[^>]*class="workflow-drag-pill"[^>]*draggable="true"/);
+    assert.ok(html.indexOf('workflow-drag-pill') < html.indexOf('A violet forest'));
+    assert.doesNotMatch(html, /class="raw-box"/);
+  });
+});
+
 test('classifying a previously revealed photo as sensitive masks it without collapsing raw data', async () => {
   await setLocale('en');
   await withProductionComponent('InspectorPane', { file: { ...generated, is_nsfw: true } }, async () => [], async ({ controls, props, render }) => {

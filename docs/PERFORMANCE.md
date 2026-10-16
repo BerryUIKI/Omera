@@ -275,8 +275,10 @@ One Inspector is active per preview. Its embedded mode avoids an additional
 thumbnail request. Tag, thumbnail, and LoRA replies are fenced by selection
 revision. Curation publishes only confirmed field patches and preserves fresh
 metadata. The Inspector uses one detail flow: generation information precedes
-organization and file facts. Raw Data appears only when available, remains
-collapsed initially, and mounts its text only on expansion. Selecting another
+organization and file facts. Long prompts have an expandable excerpt; negative
+prompts and LoRA details use native keyboard-accessible disclosures. Raw Data
+appears only when available, remains collapsed initially, and mounts its text
+only on expansion. Selecting another
 file or revision resets the detail scroll and disclosures; curation patches
 preserve the current view. Nonessential viewer transitions are disabled by
 reduced-motion rules.
