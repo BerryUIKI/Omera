@@ -1,6 +1,72 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compareSemver, findMatchingAsset, buildSyntheticRelease } from '../src/utils/updater.ts';
+import { compareSemver, findMatchingAsset, buildSyntheticRelease, checkForUpdates, fetchReleaseViaHtmlFallback } from '../src/utils/updater.ts';
+
+test('update check uses native IPC without a WebView fetch', async () => {
+  const previousWindow = globalThis.window;
+  const calls = [];
+  globalThis.window = { __TAURI_INTERNALS__: {
+    invoke: async (command, args) => {
+      calls.push([command, args]);
+      return { status: 200, url: '', body: JSON.stringify(buildSyntheticRelease('v0.4.7')) };
+    },
+  } };
+  try {
+    const result = await checkForUpdates('0.4.6');
+    assert.equal(result.status, 'update_available');
+    assert.equal(result.latestVersion, '0.4.7');
+    assert.deepEqual(calls, [['fetch_update_metadata', { fallback: false }]]);
+  } finally {
+    globalThis.window = previousWindow;
+  }
+});
+
+test('native update check handles equal, ahead and unpublished versions', async () => {
+  for (const [current, expected] of [['0.4.7', 'up_to_date'], ['0.4.8', 'ahead_of_release']]) {
+    const result = await checkForUpdates(current, async () => ({
+      status: 200, url: '', body: JSON.stringify(buildSyntheticRelease('v0.4.7')),
+    }));
+    assert.equal(result.status, expected);
+  }
+  const result = await checkForUpdates('0.4.7', async (fallback) => {
+    assert.equal(fallback, false);
+    return { status: 404, url: '', body: '' };
+  });
+  assert.equal(result.status, 'ahead_of_release');
+  assert.equal(result.latestVersion, null);
+});
+
+test('native fallback recovers rate limits, transport errors and malformed metadata', async () => {
+  for (const apiResult of [403, 429, 'transport', 'invalid-json', 'invalid-release']) {
+    const calls = [];
+    const result = await checkForUpdates('0.4.6', async (fallback) => {
+      calls.push(fallback);
+      if (fallback) return { status: 200, url: 'https://github.com/BerryUIKI/Omera/releases/tag/v0.4.7', body: '' };
+      if (apiResult === 'transport') throw 'GitHub update request failed: timed out';
+      return { status: typeof apiResult === 'number' ? apiResult : 200, url: '', body: apiResult === 'invalid-release' ? '{}' : 'bad json' };
+    });
+    assert.equal(result.status, 'update_available');
+    assert.equal(result.latestVersion, '0.4.7');
+    assert.deepEqual(calls, [false, true]);
+  }
+});
+
+test('failed native requests preserve the actual error instead of claiming no updates', async () => {
+  const result = await checkForUpdates('0.4.7', async () => { throw 'GitHub update request failed: connection refused'; });
+  assert.equal(result.status, 'error');
+  assert.match(result.errorMessage, /connection refused/);
+  assert.equal(result.release, null);
+});
+
+test('fallback rejects nonofficial redirects and unsuccessful responses', async () => {
+  for (const response of [
+    { status: 200, url: 'https://example.com/releases/tag/v9.0.0', body: '' },
+    { status: 200, url: 'https://github.com/other/repo/releases/tag/v9.0.0', body: '' },
+    { status: 404, url: 'https://github.com/BerryUIKI/Omera/releases/tag/v9.0.0', body: '' },
+  ]) {
+    assert.equal(await fetchReleaseViaHtmlFallback(async () => response), null);
+  }
+});
 
 test('compareSemver: compares exact versions and prefixes', () => {
   assert.equal(compareSemver('0.3.0', '0.3.0'), 0);
