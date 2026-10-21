@@ -3485,7 +3485,7 @@ dependencies = [
 
 [[package]]
 name = "omera"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "base64 0.22.1",
  "hex",
@@ -3513,12 +3513,13 @@ dependencies = [
  "trash",
  "ureq 2.12.1",
  "uuid",
+ "winreg",
  "zip",
 ]
 
 [[package]]
 name = "omera-clip"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "image",
  "omera-domain",
@@ -3532,7 +3533,7 @@ dependencies = [
 
 [[package]]
 name = "omera-domain"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "serde",
  "serde_json",
@@ -3540,7 +3541,7 @@ dependencies = [
 
 [[package]]
 name = "omera-metadata"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "kamadak-exif",
  "omera-domain",
@@ -3550,7 +3551,7 @@ dependencies = [
 
 [[package]]
 name = "omera-scan"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "hex",
  "image",
@@ -3572,7 +3573,7 @@ dependencies = [
 
 [[package]]
 name = "omera-storage"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "omera-domain",
  "rusqlite",
@@ -3586,7 +3587,7 @@ dependencies = [
 
 [[package]]
 name = "omera-tagger"
-version = "0.4.7"
+version = "0.4.9"
 dependencies = [
  "csv",
  "image",

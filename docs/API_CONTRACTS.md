@@ -23,10 +23,10 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 | Domain DTOs | `crates/omera-domain/src/` Serde definitions | `src/types.ts` |
 | Configuration DTO/defaults | Rust `AppConfig` in commands; config persistence service | `src/utils/config.ts` |
 | Thumbnail DTOs | `crates/omera-scan/src/thumbnail.rs` | `src/utils/thumbnail.ts` |
-| Update DTOs | Rust `UpdateDownloadProgress` | `src/utils/updater.ts` |
+| Update DTOs | Rust `UpdateDownloadProgress` and `update_metadata::UpdateMetadataResponse` | `src/utils/updater.ts` |
 | Watcher events | `src-tauri/src/watcher.rs` | App refresh scheduling |
 
-[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 161 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 162 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
 
 Current commands are local Tauri IPC, not HTTP endpoints. Do not invent REST routes or expose these commands through a network server. Commands are restricted to the configured application WebView; IPC arguments still require backend validation.
 
@@ -120,6 +120,20 @@ shared application database mutex. Startup has no automatic legacy import:
 discovery and source/location decisions belong to the welcome flow.
 `has_completed_omera_setup` defaults to false in old configuration; the older
 `has_completed_onboarding` flag does not bypass first-Omera setup.
+
+## Update metadata transport
+
+`fetch_update_metadata({ fallback })` runs native HTTP on a blocking worker, with
+no shared database locks. `fallback: false` requests the fixed official Omera
+GitHub latest-release API; `true` follows the official latest-release page redirect.
+There is no caller-provided URL. It resolves `{ status: number, url: string,
+body: string }`, matching Rust `UpdateMetadataResponse`. HTTP errors retain their
+status for the existing 404/rate-limit behavior; transport errors reject with a
+diagnostic string. API bodies are capped at 2 MiB; fallback returns an empty body
+and the final URL. The frontend accepts only official Omera tag redirects.
+Requests enforce HTTPS, a 15-second connection timeout and a 25-second total
+timeout, sharing proxy selection with signed update downloads as documented in
+[SIGNED_UPDATES.md](SIGNED_UPDATES.md). No WebView fetch or CSP expansion is needed.
 
 ## File operations, backup and restore
 

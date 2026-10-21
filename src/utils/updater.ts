@@ -25,6 +25,19 @@ export interface GitHubRelease {
   assets: ReleaseAsset[];
 }
 
+// Mirrors Rust UpdateMetadataResponse; only the backend chooses request URLs.
+export interface UpdateMetadataResponse {
+  status: number;
+  url: string;
+  body: string;
+}
+
+type MetadataRequest = (fallback: boolean) => Promise<UpdateMetadataResponse>;
+
+function fetchUpdateMetadata(fallback: boolean): Promise<UpdateMetadataResponse> {
+  return invoke<UpdateMetadataResponse>("fetch_update_metadata", { fallback });
+}
+
 export type UpdateStatus =
   | "idle"
   | "checking"
@@ -221,19 +234,16 @@ export function buildSyntheticRelease(tag: string, repo = "BerryUIKI/Omera"): Gi
 /**
  * Fallback resolver querying the GitHub releases/latest redirect URL to bypass API rate limits.
  */
-export async function fetchReleaseViaHtmlFallback(repo = "BerryUIKI/Omera"): Promise<GitHubRelease | null> {
+export async function fetchReleaseViaHtmlFallback(
+  requestMetadata: MetadataRequest = fetchUpdateMetadata
+): Promise<GitHubRelease | null> {
   try {
-    const htmlUrl = `https://github.com/${repo}/releases/latest`;
-    const resp = await fetch(htmlUrl, {
-      method: "GET",
-      headers: {
-        "User-Agent": "Omera-Updater",
-      },
-    });
+    const resp = await requestMetadata(true);
+    if (resp.status !== 200) return null;
     const finalUrl = resp.url || "";
-    const match = finalUrl.match(/\/releases\/tag\/(v?[0-9]+\.[0-9]+\.[0-9]+[^\/\s]*)/);
+    const match = finalUrl.match(/^https:\/\/github\.com\/BerryUIKI\/Omera\/releases\/tag\/(v?[0-9]+\.[0-9]+\.[0-9]+[^\/?#\s]*)$/);
     if (match && match[1]) {
-      return buildSyntheticRelease(match[1], repo);
+      return buildSyntheticRelease(match[1]);
     }
   } catch {
     // Ignore fallback errors
@@ -244,25 +254,25 @@ export async function fetchReleaseViaHtmlFallback(repo = "BerryUIKI/Omera"): Pro
 /**
  * Check for updates against GitHub Releases API with transparent fallback.
  */
-export async function checkForUpdates(currentAppVersion: string): Promise<UpdateCheckResult> {
+export async function checkForUpdates(
+  currentAppVersion: string,
+  requestMetadata: MetadataRequest = fetchUpdateMetadata
+): Promise<UpdateCheckResult> {
   const currentClean = currentAppVersion.replace(/^v/, "").trim();
-  const repo = "BerryUIKI/Omera";
-  const url = `https://api.github.com/repos/${repo}/releases/latest`;
 
   try {
     let data: GitHubRelease | null = null;
     let apiError: string | null = null;
 
     try {
-      const resp = await fetch(url, {
-        headers: {
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "Omera-Updater",
-        },
-      });
+      const resp = await requestMetadata(false);
 
-      if (resp.ok) {
-        data = await resp.json();
+      if (resp.status === 200) {
+        data = JSON.parse(resp.body);
+        if (!data || typeof data.tag_name !== "string" || !data.tag_name.trim() || !Array.isArray(data.assets)) {
+          data = null;
+          throw new Error("Invalid GitHub release metadata");
+        }
       } else if (resp.status === 404) {
         // No release published yet on this repository
         return {
@@ -274,7 +284,7 @@ export async function checkForUpdates(currentAppVersion: string): Promise<Update
           matchedAsset: null,
         };
       } else {
-        apiError = `GitHub API returned status ${resp.status} (${resp.statusText})`;
+        apiError = `GitHub API returned status ${resp.status}`;
       }
     } catch (e: any) {
       apiError = e?.message || String(e);
@@ -282,7 +292,7 @@ export async function checkForUpdates(currentAppVersion: string): Promise<Update
 
     // If REST API fails (e.g. rate limit 403 or network restriction), use transparent redirect fallback
     if (!data) {
-      data = await fetchReleaseViaHtmlFallback(repo);
+      data = await fetchReleaseViaHtmlFallback(requestMetadata);
     }
 
     if (!data) {
