@@ -7,6 +7,7 @@
 mod album;
 mod backup_schedule;
 mod checkpoint;
+mod civitai;
 mod cloud_backup;
 mod cloud_sync;
 mod collaboration;
@@ -33,6 +34,7 @@ pub mod transform;
 pub use album::Album;
 pub use backup_schedule::{AutomaticBackupStatus, BackupSchedule};
 pub use checkpoint::{CheckpointModelStat, ModelCacheEntry};
+pub use civitai::CivitaiModelInfo;
 pub use cloud_backup::{
     CloudBackupConfig, CloudBackupResult, CloudPingResult, CloudRestoreResult, CloudSnapshotMeta,
     CloudStorageProvider,

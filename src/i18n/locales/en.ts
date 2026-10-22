@@ -1175,4 +1175,13 @@ export const en = {
     "noResults": "No matching settings",
     "themePreview": "Theme preview"
 },
+  civitai: {
+    "lookup": "Look up on Civitai",
+    "refresh": "Refresh Civitai",
+    "notFound": "No matching model found on Civitai",
+    "failed": "Civitai lookup failed",
+    "updateAvailable": "Update available",
+    "apply": "Apply Civitai metadata",
+    "applied": "Civitai metadata applied"
+},
 };

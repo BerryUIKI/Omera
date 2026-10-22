@@ -101,6 +101,11 @@ The frontend is built with **Vue 3 Composition API** + **TypeScript** + **Vite**
   `src-tauri/src/update_verification.rs`. Release tooling shares that verifier,
   pins the public build input and verifies final draft installers before publication.
   See [SIGNED_UPDATES.md](SIGNED_UPDATES.md) for key custody and qualification gates.
+- **Civitai lookups (`src-tauri/src/civitai.rs`)**: By-hash model lookups are
+  cached in the `civitai_cache` table (schema v18) and previews are downloaded
+  into the app-data `civitai/` directory, served through the asset protocol.
+  Lookups share the HTTPS-only proxy transport, throttle requests and never let
+  the WebView load Civitai images directly.
 - **Async Feature Surfaces**: Infrequent modals, drawers, managers, onboarding, and comparison views use dynamic component imports and are mounted only while open, keeping their JavaScript and scoped CSS out of the initial bundle.
 
 ### 3. Startup and Thumbnail Scheduling

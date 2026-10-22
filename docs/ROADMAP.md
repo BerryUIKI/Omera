@@ -152,7 +152,7 @@ Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [E
 
 ### 🎯 Milestone 16: Next-Gen Model Architectures & Ecosystem (Flux, SD3.5 & Civitai API)
 - [x] **Flux.1 & SD3.5 Parameter Parsers**: Parse Guidance Scale, Distilled CFG Scale, Shift, schedule type, and dual CLIP-L / T5-XXL text-encoder prompts (ComfyUI). A1111 `Size` continues to supply the resolution bucket dimensions.
-- [ ] **Civitai Direct API Integration**: Remote model reverse lookups, automatic thumbnail preview card fetching, model version update notifications, and one-click trigger word copy/injection.
+- [x] **Civitai Direct API Integration**: Remote model reverse lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click merge of trained trigger words into the local LoRA catalog.
 - [ ] **ComfyUI Workflow Visualizer Enhancements**: Interactive workflow graph viewer highlighting prompt input nodes, KSamplers, ControlNet chains, and LoRA loaders.
 
 ### 🎯 Milestone 17: Bi-Directional ComfyUI Studio, Live Queue & Prompt Diff

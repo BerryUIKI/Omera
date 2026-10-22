@@ -90,7 +90,7 @@ restores use staged snapshots (`VACUUM INTO`) rather than replacing live files.
 
 **IPC contract:** [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) documents wire
 conventions; [docs/IPC_REFERENCE.md](docs/IPC_REFERENCE.md) is generated from
-`generate_handler!` (currently 162 commands). Top-level invoke args are
+`generate_handler!` (currently 167 commands). Top-level invoke args are
 camelCase; nested DTO fields are snake_case. After adding/removing commands, run
 `node scripts/generate-ipc-reference.mjs` and validate TypeScript DTO parity in
 `src/types.ts`. Registered commands do not all imply a working backend (remote

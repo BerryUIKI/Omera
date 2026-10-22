@@ -1,9 +1,11 @@
 pub mod backup_scheduler;
+pub mod civitai;
 pub mod cloud_backup;
 pub mod cloud_sync;
 mod commands;
 mod config_store;
 pub mod legacy_migration;
+mod net;
 #[cfg(any(target_os = "windows", test))]
 mod update_installation;
 mod update_metadata;
@@ -66,6 +68,7 @@ pub fn run() {
             let _ = std::fs::create_dir_all(data_dir.join("updates"));
             let _ = std::fs::create_dir_all(data_dir.join("thumbnails"));
             let _ = std::fs::create_dir_all(data_dir.join("models"));
+            let _ = std::fs::create_dir_all(data_dir.join("civitai"));
             omera_storage::legacy_activation::prepare_startup(&data_dir)
                 .map_err(std::io::Error::other)?;
             let database_path =
@@ -86,6 +89,9 @@ pub fn run() {
             let _ = app
                 .asset_protocol_scope()
                 .allow_directory(data_dir.join("thumbnails"), true);
+            let _ = app
+                .asset_protocol_scope()
+                .allow_directory(data_dir.join("civitai"), true);
             let filesystem_watcher =
                 match watcher::LibraryWatcher::new(app.handle().clone(), database_path.clone()) {
                     Ok(watcher) => Some(watcher),
@@ -204,6 +210,11 @@ pub fn run() {
             commands::import_model_cache_file,
             commands::resolve_model_hash,
             commands::list_model_cache,
+            commands::lookup_civitai_model,
+            commands::get_civitai_cache,
+            commands::list_civitai_cache,
+            commands::fetch_civitai_preview,
+            commands::apply_civitai_to_lora,
             commands::move_files,
             commands::copy_files,
             commands::trash_files,
