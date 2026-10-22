@@ -82,6 +82,7 @@ pub fn parse_invokeai(json_str: &str) -> Option<ExtractedMetadata> {
         duration_seconds: None,
         fps: None,
         video_codec: None,
+        ..Default::default()
     })
 }
 

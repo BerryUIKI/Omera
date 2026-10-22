@@ -68,6 +68,7 @@ pub fn parse_novelai(json_str: &str, description: Option<&str>) -> Option<Extrac
         duration_seconds: None,
         fps: None,
         video_codec: None,
+        ..Default::default()
     })
 }
 

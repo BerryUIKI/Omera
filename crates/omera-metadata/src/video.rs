@@ -59,6 +59,7 @@ pub fn extract_mp4_metadata(path: &Path) -> Option<ExtractedMetadata> {
             duration_seconds: stream_info.duration_seconds,
             fps: stream_info.fps,
             video_codec: stream_info.codec.clone(),
+            ..Default::default()
         });
     }
 
@@ -113,6 +114,7 @@ pub fn extract_webm_metadata(path: &Path) -> Option<ExtractedMetadata> {
             duration_seconds: stream_info.duration_seconds,
             fps: stream_info.fps,
             video_codec: stream_info.codec.clone(),
+            ..Default::default()
         });
     }
 

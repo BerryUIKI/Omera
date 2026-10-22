@@ -17,14 +17,26 @@
 //! malformed keys are skipped rather than failing the whole parse.
 
 /// Parameter keys understood by the parser (as they appear in the settings line).
+///
+/// Kept lowercase: settings lines are matched case-insensitively so Forge,
+/// A1111 and compatible tools can vary capitalization (`Guidance` vs
+/// `guidance`, `Schedule type` vs `Schedule Type`).
 const PARAM_PREFIXES: &[&str] = &[
-    "Steps:",
-    "Sampler:",
-    "CFG scale:",
-    "Seed:",
-    "Size:",
-    "Model hash:",
-    "Model:",
+    "steps:",
+    "sampler:",
+    "cfg scale:",
+    "seed:",
+    "size:",
+    "model hash:",
+    "model:",
+    "guidance:",
+    "guidance scale:",
+    "distilled cfg scale:",
+    "distilled cfg:",
+    "shift:",
+    "shift scale:",
+    "schedule type:",
+    "scheduler:",
 ];
 
 /// The parsed result of an A1111 `parameters` string. Optional fields are
@@ -41,6 +53,14 @@ pub struct ParsedParameters {
     pub sampler: Option<String>,
     /// CFG scale.
     pub cfg_scale: Option<f64>,
+    /// Flux guidance scale (`Guidance` / `Guidance Scale`).
+    pub guidance_scale: Option<f64>,
+    /// Flux distilled CFG scale (`Distilled CFG Scale`).
+    pub distilled_cfg_scale: Option<f64>,
+    /// SD3/Flux sampling shift (`Shift`).
+    pub shift: Option<f64>,
+    /// Scheduler or schedule type (`Schedule type`, `Scheduler`).
+    pub schedule_type: Option<String>,
     /// Seed, kept as a string (seeds can exceed 32 bits).
     pub seed: Option<String>,
     /// Image width in pixels.
@@ -59,9 +79,7 @@ pub fn parse_parameters(text: &str) -> ParsedParameters {
     let lines: Vec<&str> = normalized.split('\n').collect();
 
     // The settings line is the last line containing a known parameter key.
-    let settings_index = lines
-        .iter()
-        .rposition(|line| PARAM_PREFIXES.iter().any(|p| line.contains(p)));
+    let settings_index = lines.iter().rposition(|line| contains_param_key(line));
 
     match settings_index {
         Some(index) => {
@@ -87,9 +105,16 @@ pub fn parse_parameters(text: &str) -> ParsedParameters {
     }
 }
 
+/// Whether `line` contains any recognized parameter key, case-insensitively.
+fn contains_param_key(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    PARAM_PREFIXES.iter().any(|p| lower.contains(p))
+}
+
 /// Index of the first parameter key in `line`, if any.
 fn first_param_key_pos(line: &str) -> Option<usize> {
-    PARAM_PREFIXES.iter().filter_map(|p| line.find(p)).min()
+    let lower = line.to_ascii_lowercase();
+    PARAM_PREFIXES.iter().filter_map(|p| lower.find(p)).min()
 }
 
 /// Find the start and length of a negative prompt marker in `text`.
@@ -134,24 +159,30 @@ fn parse_settings(settings: &str) -> ParsedParameters {
         let Some((key, value)) = segment.split_once(':') else {
             continue;
         };
-        let key = key.trim();
+        let key = key.trim().to_ascii_lowercase();
         let value = value.trim();
         if value.is_empty() {
             continue;
         }
-        match key {
-            "Steps" => parsed.steps = value.parse().ok(),
-            "Sampler" => parsed.sampler = Some(value.to_string()),
-            "CFG scale" => parsed.cfg_scale = value.parse().ok(),
-            "Seed" => parsed.seed = Some(value.to_string()),
-            "Size" => {
+        match key.as_str() {
+            "steps" => parsed.steps = value.parse().ok(),
+            "sampler" => parsed.sampler = Some(value.to_string()),
+            "cfg scale" => parsed.cfg_scale = value.parse().ok(),
+            "guidance" | "guidance scale" => parsed.guidance_scale = value.parse().ok(),
+            "distilled cfg scale" | "distilled cfg" => {
+                parsed.distilled_cfg_scale = value.parse().ok()
+            }
+            "shift" | "shift scale" => parsed.shift = value.parse().ok(),
+            "schedule type" | "scheduler" => parsed.schedule_type = Some(value.to_string()),
+            "seed" => parsed.seed = Some(value.to_string()),
+            "size" => {
                 if let Some((width, height)) = parse_size(value) {
                     parsed.width = Some(width);
                     parsed.height = Some(height);
                 }
             }
-            "Model hash" => parsed.model_hash = Some(value.to_string()),
-            "Model" => parsed.model_name = Some(value.to_string()),
+            "model hash" => parsed.model_hash = Some(value.to_string()),
+            "model" => parsed.model_name = Some(value.to_string()),
             _ => {}
         }
     }
@@ -309,5 +340,65 @@ mod tests {
         assert_eq!(p.prompt.as_deref(), Some("a robot"));
         assert_eq!(p.negative_prompt.as_deref(), Some("watermark"));
         assert_eq!(p.steps, Some(10));
+    }
+
+    #[test]
+    fn parses_flux_a1111_parameters() {
+        let text = "a cinematic city at night\n\
+                    Steps: 20, Sampler: Euler, Schedule type: Simple, CFG scale: 1.0, \
+                    Distilled CFG Scale: 3.5, Guidance: 3.5, Shift: 3.0, Seed: 42, \
+                    Size: 1024x1024, Model hash: abc123, Model: flux1-dev.safetensors";
+        let p = parse_parameters(text);
+        assert_eq!(p.prompt.as_deref(), Some("a cinematic city at night"));
+        assert_eq!(p.steps, Some(20));
+        assert_eq!(p.sampler.as_deref(), Some("Euler"));
+        assert_eq!(p.schedule_type.as_deref(), Some("Simple"));
+        assert_eq!(p.cfg_scale, Some(1.0));
+        assert_eq!(p.guidance_scale, Some(3.5));
+        assert_eq!(p.distilled_cfg_scale, Some(3.5));
+        assert_eq!(p.shift, Some(3.0));
+        assert_eq!(p.width, Some(1024));
+        assert_eq!(p.height, Some(1024));
+        assert_eq!(p.model_name.as_deref(), Some("flux1-dev.safetensors"));
+    }
+
+    #[test]
+    fn parses_sd35_a1111_parameters() {
+        let text = "an astronaut on a red planet\n\
+                    Steps: 28, Sampler: DPM++ 2M, Schedule type: Karras, CFG scale: 4.5, \
+                    Shift: 3.0, Seed: 7, Size: 832x1216, Model: sd3.5_large.safetensors";
+        let p = parse_parameters(text);
+        assert_eq!(p.prompt.as_deref(), Some("an astronaut on a red planet"));
+        assert_eq!(p.steps, Some(28));
+        assert_eq!(p.sampler.as_deref(), Some("DPM++ 2M"));
+        assert_eq!(p.schedule_type.as_deref(), Some("Karras"));
+        assert_eq!(p.cfg_scale, Some(4.5));
+        assert_eq!(p.shift, Some(3.0));
+        assert_eq!(p.width, Some(832));
+        assert_eq!(p.height, Some(1216));
+        assert_eq!(p.distilled_cfg_scale, None);
+        assert_eq!(p.guidance_scale, None);
+    }
+
+    #[test]
+    fn detects_settings_line_with_flux_only_keys() {
+        let text = "a simple prompt\nGuidance: 3.5, Shift: 1.5";
+        let p = parse_parameters(text);
+        assert_eq!(p.prompt.as_deref(), Some("a simple prompt"));
+        assert_eq!(p.guidance_scale, Some(3.5));
+        assert_eq!(p.shift, Some(1.5));
+        assert_eq!(p.schedule_type, None);
+    }
+
+    #[test]
+    fn parses_parameter_keys_case_insensitively() {
+        let text = "a prompt\nsteps: 12, sampler: Euler, guidance scale: 2.5, \
+                    distilled cfg scale: 3.5, schedule type: simple";
+        let p = parse_parameters(text);
+        assert_eq!(p.steps, Some(12));
+        assert_eq!(p.sampler.as_deref(), Some("Euler"));
+        assert_eq!(p.guidance_scale, Some(2.5));
+        assert_eq!(p.distilled_cfg_scale, Some(3.5));
+        assert_eq!(p.schedule_type.as_deref(), Some("simple"));
     }
 }

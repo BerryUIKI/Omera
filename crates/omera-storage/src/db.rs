@@ -3943,6 +3943,7 @@ mod tests {
             duration_seconds: None,
             fps: None,
             video_codec: None,
+            ..Default::default()
         };
 
         let mut file = image(folder.id, "/img/a.png");
@@ -4156,6 +4157,7 @@ mod tests {
             duration_seconds: None,
             fps: None,
             video_codec: None,
+            ..Default::default()
         }
     }
 

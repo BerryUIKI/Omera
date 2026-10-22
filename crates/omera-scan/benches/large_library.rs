@@ -68,6 +68,7 @@ fn generate_mock_files(folder_id: i64, start_index: usize, count: usize) -> Vec<
                 duration_seconds: None,
                 fps: None,
                 video_codec: None,
+                ..Default::default()
             };
 
             ImageFile {

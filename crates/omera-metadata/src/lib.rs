@@ -136,6 +136,7 @@ fn extract_png_metadata(path: &Path) -> Option<ExtractedMetadata> {
                 duration_seconds: None,
                 fps: None,
                 video_codec: None,
+                ..Default::default()
             });
         }
     }
@@ -165,6 +166,7 @@ fn extract_exif_metadata(path: &Path) -> Option<ExtractedMetadata> {
         duration_seconds: None,
         fps: None,
         video_codec: None,
+        ..Default::default()
     })
 }
 
@@ -201,6 +203,12 @@ fn from_parameters(parameters: String) -> ExtractedMetadata {
         seed: parsed.seed,
         steps: parsed.steps,
         cfg_scale: parsed.cfg_scale,
+        guidance_scale: parsed.guidance_scale,
+        distilled_cfg_scale: parsed.distilled_cfg_scale,
+        shift: parsed.shift,
+        schedule_type: parsed.schedule_type,
+        clip_l_prompt: None,
+        t5xxl_prompt: None,
         sampler: parsed.sampler,
         model_name: parsed.model_name,
         model_hash: parsed.model_hash,
@@ -652,6 +660,7 @@ mod tests {
             duration_seconds: None,
             fps: None,
             video_codec: None,
+            ..Default::default()
         };
         assert!(detect_nsfw_from_metadata(&meta));
 

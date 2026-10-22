@@ -155,6 +155,7 @@ pub fn parse_fooocus(text: &str) -> Option<ExtractedMetadata> {
         duration_seconds: None,
         fps: None,
         video_codec: None,
+        ..Default::default()
     })
 }
 

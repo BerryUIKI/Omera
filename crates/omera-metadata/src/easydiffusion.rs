@@ -58,6 +58,7 @@ pub fn parse_easydiffusion(json_str: &str) -> Option<ExtractedMetadata> {
         duration_seconds: None,
         fps: None,
         video_codec: None,
+        ..Default::default()
     })
 }
 
@@ -123,6 +124,7 @@ pub fn parse_stableswarm(json_str: &str) -> Option<ExtractedMetadata> {
         duration_seconds: None,
         fps: None,
         video_codec: None,
+        ..Default::default()
     })
 }
 
