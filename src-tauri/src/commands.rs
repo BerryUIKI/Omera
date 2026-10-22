@@ -24,12 +24,12 @@ pub fn invalidate_facet_cache() {
 use omera_clip::{ClipEngine, ClipModelInfo};
 use omera_domain::{
     plan_prompt_stacks, Album, ChangeLogEntry, ChangeLogSyncQuery, CheckpointModelStat,
-    CleanupQueueItem, CursorFilePage, DatabasePingResult, DatabaseStats, DetectedLora,
-    ExportEstimateResult, ExportOptions, ExportSummary, FilePage, FileSortField, Folder, ImageFile,
-    LibraryTransformRequest, LoraModel, MigrationOptions, MigrationSummary, ModelCacheEntry,
-    MutationResult, NormalizedPath, PathResolver, PipelineDetectedPath, PromptInsights,
-    PromptStackCandidate, PromptStat, SearchCriteria, SimilarityMatch, SortDirection, StackSummary,
-    StorageRoot, Tag, TransformJobReceipt, TransformSpec,
+    CivitaiModelInfo, CleanupQueueItem, CursorFilePage, DatabasePingResult, DatabaseStats,
+    DetectedLora, ExportEstimateResult, ExportOptions, ExportSummary, FilePage, FileSortField,
+    Folder, ImageFile, LibraryTransformRequest, LoraModel, MigrationOptions, MigrationSummary,
+    ModelCacheEntry, MutationResult, NormalizedPath, PathResolver, PipelineDetectedPath,
+    PromptInsights, PromptStackCandidate, PromptStat, SearchCriteria, SimilarityMatch,
+    SortDirection, StackSummary, StorageRoot, Tag, TransformJobReceipt, TransformSpec,
 };
 use omera_scan::{
     execute_shared_batch_export, execute_shared_library_batch_transform, ScanStats, Scanner,
@@ -1162,6 +1162,177 @@ pub fn resolve_model_hash(
 #[tauri::command]
 pub fn list_model_cache(state: State<'_, AppState>) -> Result<Vec<ModelCacheEntry>, String> {
     db(&state)?.list_model_cache().map_err(|e| e.to_string())
+}
+
+/// Look up a model hash on Civitai, using the local cache unless `refresh` is set.
+///
+/// Returns `None` when Civitai has no model version for the supplied hash (or
+/// its local SHA256 alias). Network and rate-limit failures are errors so the
+/// UI can distinguish them from a genuine miss.
+#[tauri::command]
+pub async fn lookup_civitai_model(
+    app: AppHandle,
+    hash: String,
+    refresh: bool,
+) -> Result<Option<CivitaiModelInfo>, String> {
+    let normalized = hash.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return Err("Model hash is required for a Civitai lookup".into());
+    }
+    if !normalized
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric())
+    {
+        return Err("Model hash contains unsupported characters".into());
+    }
+
+    if !refresh {
+        let cached = {
+            let state = app.state::<AppState>();
+            let database = db(&state)?;
+            database
+                .get_civitai_cache(&normalized)
+                .map_err(|e| e.to_string())?
+        };
+        if cached.is_some() {
+            return Ok(cached);
+        }
+    }
+
+    let cached_entry = {
+        let state = app.state::<AppState>();
+        let database = db(&state)?;
+        database
+            .resolve_model_hash(&normalized)
+            .map_err(|e| e.to_string())?
+    };
+
+    let mut candidates = vec![normalized.clone()];
+    if let Some(entry) = cached_entry {
+        for candidate in [Some(entry.hash), entry.sha256].into_iter().flatten() {
+            let candidate = candidate.trim().to_ascii_lowercase();
+            if !candidate.is_empty() && !candidates.contains(&candidate) {
+                candidates.push(candidate);
+            }
+        }
+    }
+
+    let info = tauri::async_runtime::spawn_blocking(move || crate::civitai::lookup(&candidates))
+        .await
+        .map_err(|e| format!("Civitai lookup task failed: {e}"))??;
+
+    match info {
+        Some(mut info) => {
+            // Keep the caller's hash as the cache key even when Civitai was
+            // reached through a SHA256 alias from the local model cache.
+            info.hash = normalized.clone();
+            let state = app.state::<AppState>();
+            let database = db(&state)?;
+            database
+                .upsert_civitai_cache(&info)
+                .map_err(|e| e.to_string())?;
+            Ok(Some(info))
+        }
+        None => {
+            let state = app.state::<AppState>();
+            let database = db(&state)?;
+            database
+                .delete_civitai_cache(&normalized)
+                .map_err(|e| e.to_string())?;
+            Ok(None)
+        }
+    }
+}
+
+/// Read a cached Civitai lookup by hash without touching the network.
+#[tauri::command]
+pub fn get_civitai_cache(
+    hash: String,
+    state: State<'_, AppState>,
+) -> Result<Option<CivitaiModelInfo>, String> {
+    db(&state)?
+        .get_civitai_cache(&hash)
+        .map_err(|e| e.to_string())
+}
+
+/// List every cached Civitai lookup.
+#[tauri::command]
+pub fn list_civitai_cache(state: State<'_, AppState>) -> Result<Vec<CivitaiModelInfo>, String> {
+    db(&state)?.list_civitai_cache().map_err(|e| e.to_string())
+}
+
+/// Download and cache the preview image for a previously cached lookup.
+#[tauri::command]
+pub async fn fetch_civitai_preview(app: AppHandle, hash: String) -> Result<Option<String>, String> {
+    let normalized = hash.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return Err("Model hash is required to fetch a Civitai preview".into());
+    }
+    let preview_url = {
+        let state = app.state::<AppState>();
+        let database = db(&state)?;
+        database
+            .get_civitai_cache(&normalized)
+            .map_err(|e| e.to_string())?
+            .and_then(|info| info.preview_url)
+    };
+    let Some(preview_url) = preview_url else {
+        return Ok(None);
+    };
+    let cache_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("civitai");
+    let preview_hash = normalized.clone();
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        crate::civitai::download_preview(&preview_url, &preview_hash, &cache_dir)
+    })
+    .await
+    .map_err(|e| format!("Civitai preview task failed: {e}"))??;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+/// Apply cached Civitai trigger words, description and preview to a LoRA entry.
+#[tauri::command]
+pub fn apply_civitai_to_lora(
+    lora_id: i64,
+    hash: String,
+    state: State<'_, AppState>,
+) -> Result<LoraModel, String> {
+    let database = db(&state)?;
+    let info = database
+        .get_civitai_cache(&hash)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Look up this model on Civitai before applying its metadata".to_string())?;
+    let mut lora = database
+        .get_lora(lora_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("No LoRA with id {lora_id}"))?;
+
+    for word in info.trained_words {
+        if !lora
+            .trigger_words
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case(&word))
+        {
+            lora.trigger_words.push(word);
+        }
+    }
+    if let Some(description) = info.description.filter(|value| !value.trim().is_empty()) {
+        lora.description = Some(description);
+    }
+    if info.preview_url.is_some() {
+        lora.preview_url = info.preview_url;
+    }
+    if lora
+        .hash
+        .as_deref()
+        .is_none_or(|value| value.trim().is_empty())
+    {
+        lora.hash = Some(info.hash);
+    }
+    database.save_lora(&lora).map_err(|e| e.to_string())
 }
 
 // --- File Operations & Drag-and-Drop ---
@@ -3083,7 +3254,7 @@ fn hydrate_similarity_results(
 }
 
 /// Helper to strip basic HTML tags from descriptions (e.g. Civitai info).
-fn strip_html_tags(input: &str) -> String {
+pub(crate) fn strip_html_tags(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut inside = false;
     for c in input.chars() {
