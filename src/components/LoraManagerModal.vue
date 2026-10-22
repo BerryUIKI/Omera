@@ -3,7 +3,8 @@ import { ref, computed, watch, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { t } from "../i18n";
-import type { LoraModel } from "../types";
+import { assetUrl } from "../utils/image";
+import type { CivitaiModelInfo, LoraModel } from "../types";
 
 const props = defineProps<{
   show: boolean;
@@ -18,6 +19,100 @@ const loras = ref<LoraModel[]>([]);
 const searchQuery = ref("");
 const loading = ref(false);
 const message = ref<{ type: "success" | "error"; text: string } | null>(null);
+const civitaiByHash = ref<Record<string, CivitaiModelInfo>>({});
+const previewPaths = ref<Record<string, string>>({});
+const lookupBusy = ref<string | null>(null);
+const applyingLora = ref<number | null>(null);
+
+function hashKey(hash: string | null | undefined): string {
+  return (hash ?? "").trim().toLowerCase();
+}
+
+function civitaiInfo(lora: LoraModel): CivitaiModelInfo | null {
+  const key = hashKey(lora.hash);
+  return key ? civitaiByHash.value[key] ?? null : null;
+}
+
+function previewUrl(lora: LoraModel): string {
+  const key = hashKey(lora.hash);
+  const path = key ? previewPaths.value[key] : "";
+  return path ? assetUrl(path) : "";
+}
+
+async function cachePreview(hash: string) {
+  const key = hashKey(hash);
+  if (!key || previewPaths.value[key]) return;
+  try {
+    const path = await invoke<string | null>("fetch_civitai_preview", { hash: key });
+    if (path) previewPaths.value = { ...previewPaths.value, [key]: path };
+  } catch {
+    // Previews are optional; keep the card usable when the CDN is unavailable.
+  }
+}
+
+async function hydratePreviews() {
+  const hashes = Object.keys(civitaiByHash.value).slice(0, 24);
+  for (const hash of hashes) {
+    await cachePreview(hash);
+  }
+}
+
+async function loadCivitaiCache() {
+  try {
+    const entries = await invoke<CivitaiModelInfo[]>("list_civitai_cache");
+    const map: Record<string, CivitaiModelInfo> = {};
+    for (const info of entries) map[hashKey(info.hash)] = info;
+    civitaiByHash.value = map;
+    void hydratePreviews();
+  } catch {
+    civitaiByHash.value = {};
+  }
+}
+
+async function lookupLora(lora: LoraModel) {
+  const hash = hashKey(lora.hash);
+  if (!hash || lookupBusy.value) return;
+  lookupBusy.value = hash;
+  message.value = null;
+  try {
+    const info = await invoke<CivitaiModelInfo | null>("lookup_civitai_model", {
+      hash,
+      refresh: Boolean(civitaiByHash.value[hash]),
+    });
+    if (!info) {
+      const next = { ...civitaiByHash.value };
+      delete next[hash];
+      civitaiByHash.value = next;
+      const nextPreview = { ...previewPaths.value };
+      delete nextPreview[hash];
+      previewPaths.value = nextPreview;
+      message.value = { type: "error", text: t.value.civitai.notFound };
+      return;
+    }
+    civitaiByHash.value = { ...civitaiByHash.value, [hash]: info };
+    await cachePreview(hash);
+    message.value = { type: "success", text: `${info.model_name} ${info.version_name}`.trim() };
+  } catch (err: any) {
+    message.value = { type: "error", text: `${t.value.civitai.failed}: ${err}` };
+  } finally {
+    lookupBusy.value = null;
+  }
+}
+
+async function applyCivitai(lora: LoraModel) {
+  const hash = hashKey(lora.hash);
+  if (!hash || applyingLora.value !== null) return;
+  applyingLora.value = lora.id;
+  try {
+    await invoke<LoraModel>("apply_civitai_to_lora", { loraId: lora.id, hash });
+    await loadLoras();
+    message.value = { type: "success", text: t.value.civitai.applied };
+  } catch (err: any) {
+    message.value = { type: "error", text: String(err) };
+  } finally {
+    applyingLora.value = null;
+  }
+}
 
 // Editing state
 const isEditing = ref(false);
@@ -43,7 +138,11 @@ async function loadLoras() {
   loading.value = true;
   message.value = null;
   try {
-    loras.value = await invoke<LoraModel[]>("list_loras");
+    const [fetched] = await Promise.all([
+      invoke<LoraModel[]>("list_loras"),
+      loadCivitaiCache(),
+    ]);
+    loras.value = fetched;
   } catch (err: any) {
     message.value = { type: "error", text: String(err) };
   } finally {
@@ -122,12 +221,13 @@ async function saveEdit() {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const existing = loras.value.find((l) => l.id === editForm.value.id);
   const payload: LoraModel = {
     id: editForm.value.id,
     name: editForm.value.name.trim(),
     hash: editForm.value.hash.trim() || null,
     trigger_words: triggers,
-    preview_url: null,
+    preview_url: existing?.preview_url ?? null,
     description: editForm.value.description.trim() || null,
     weight_default: editForm.value.weight_default,
     created_at: "",
@@ -404,6 +504,33 @@ function injectPrompt(lora: LoraModel) {
               </div>
             </div>
 
+            <!-- Civitai preview and metadata -->
+            <div v-if="previewUrl(lora)" class="lora-preview">
+              <img
+                :src="previewUrl(lora)"
+                :alt="civitaiInfo(lora)?.model_name || lora.name"
+                loading="lazy"
+              />
+            </div>
+            <div v-if="civitaiInfo(lora)" class="civitai-card">
+              <div class="civitai-card-head">
+                <span class="civitai-card-name">{{ civitaiInfo(lora)?.model_name }}</span>
+                <span v-if="civitaiInfo(lora)?.version_name" class="version-chip">
+                  v{{ civitaiInfo(lora)?.version_name }}
+                </span>
+              </div>
+              <div class="civitai-card-meta">
+                <span v-if="civitaiInfo(lora)?.model_type">{{ civitaiInfo(lora)?.model_type }}</span>
+                <span v-if="civitaiInfo(lora)?.base_model">{{ civitaiInfo(lora)?.base_model }}</span>
+              </div>
+              <span v-if="civitaiInfo(lora)?.update_available" class="update-badge">
+                {{ t.civitai.updateAvailable }}
+                <template v-if="civitaiInfo(lora)?.latest_version_name">
+                  · v{{ civitaiInfo(lora)?.latest_version_name }}
+                </template>
+              </span>
+            </div>
+
             <!-- Hash & Notes -->
             <div v-if="lora.hash || lora.description" class="lora-meta-row">
               <span v-if="lora.hash" class="hash-chip">#{{ lora.hash }}</span>
@@ -434,6 +561,28 @@ function injectPrompt(lora: LoraModel) {
 
             <!-- Card Action Footer -->
             <div class="card-footer">
+              <button
+                v-if="lora.hash"
+                class="footer-action-btn"
+                :disabled="lookupBusy === hashKey(lora.hash) || applyingLora !== null"
+                @click="lookupLora(lora)"
+              >
+                {{
+                  lookupBusy === hashKey(lora.hash)
+                    ? "..."
+                    : civitaiInfo(lora)
+                      ? t.civitai.refresh
+                      : t.civitai.lookup
+                }}
+              </button>
+              <button
+                v-if="civitaiInfo(lora)"
+                class="footer-action-btn"
+                :disabled="applyingLora === lora.id"
+                @click="applyCivitai(lora)"
+              >
+                {{ applyingLora === lora.id ? "..." : t.civitai.apply }}
+              </button>
               <button
                 v-if="lora.trigger_words.length > 0"
                 class="footer-action-btn"
@@ -927,10 +1076,81 @@ function injectPrompt(lora: LoraModel) {
 
 .card-footer {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 2px;
   padding-top: 8px;
   border-top: 1px solid var(--border-color);
+}
+
+.footer-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lora-preview {
+  width: 100%;
+  max-height: 160px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+.lora-preview img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.civitai-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.civitai-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.civitai-card-name {
+  font-size: 0.82rem;
+  color: #60a5fa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.version-chip {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.civitai-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.update-badge {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 4px;
+  padding: 2px 6px;
 }
 
 .footer-action-btn {

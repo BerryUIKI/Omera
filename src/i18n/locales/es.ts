@@ -1177,4 +1177,13 @@ export const es: typeof en = {
     "noResults": "No hay ajustes coincidentes",
     "themePreview": "Vista previa del tema"
 },
+  civitai: {
+    "lookup": "Buscar en Civitai",
+    "refresh": "Actualizar datos de Civitai",
+    "notFound": "No se encontró un modelo coincidente en Civitai",
+    "failed": "La búsqueda en Civitai falló",
+    "updateAvailable": "Actualización disponible",
+    "apply": "Aplicar metadatos de Civitai",
+    "applied": "Metadatos de Civitai aplicados"
+},
 };

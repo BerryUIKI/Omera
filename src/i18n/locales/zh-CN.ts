@@ -1177,4 +1177,13 @@ export const zhCN: typeof en = {
     "noResults": "没有匹配的设置",
     "themePreview": "主题预览"
 },
+  civitai: {
+    "lookup": "在 Civitai 查询",
+    "refresh": "刷新 Civitai 数据",
+    "notFound": "Civitai 未找到匹配的模型",
+    "failed": "Civitai 查询失败",
+    "updateAvailable": "有新版本",
+    "apply": "应用 Civitai 元数据",
+    "applied": "已应用 Civitai 元数据"
+},
 };

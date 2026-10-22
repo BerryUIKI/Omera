@@ -555,6 +555,24 @@ export interface ModelCacheEntry {
   sha256?: string | null;
 }
 
+export interface CivitaiModelInfo {
+  hash: string;
+  model_id: number;
+  model_name: string;
+  model_type: string;
+  version_id: number;
+  version_name: string;
+  base_model?: string | null;
+  trained_words: string[];
+  description?: string | null;
+  preview_url?: string | null;
+  download_url?: string | null;
+  latest_version_id?: number | null;
+  latest_version_name?: string | null;
+  latest_version_created_at?: string | null;
+  update_available: boolean;
+}
+
 export interface DatabaseStats {
   file_count: number;
   folder_count: number;
