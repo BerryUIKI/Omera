@@ -151,7 +151,7 @@ Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [E
 - [ ] **Video-Specific Search Facets**: Filter by duration range, resolution, frame rate (fps), container codec, and motion score.
 
 ### 🎯 Milestone 16: Next-Gen Model Architectures & Ecosystem (Flux, SD3.5 & Civitai API)
-- [ ] **Flux.1 & SD3.5 Parameter Parsers**: Parse specialized generative parameters including Guidance Scale, Dual Text Encoder prompts (CLIP-L & T5-XXL), distilled sampling steps, and resolution bucket bins.
+- [x] **Flux.1 & SD3.5 Parameter Parsers**: Parse Guidance Scale, Distilled CFG Scale, Shift, schedule type, and dual CLIP-L / T5-XXL text-encoder prompts (ComfyUI). A1111 `Size` continues to supply the resolution bucket dimensions.
 - [ ] **Civitai Direct API Integration**: Remote model reverse lookups, automatic thumbnail preview card fetching, model version update notifications, and one-click trigger word copy/injection.
 - [ ] **ComfyUI Workflow Visualizer Enhancements**: Interactive workflow graph viewer highlighting prompt input nodes, KSamplers, ControlNet chains, and LoRA loaders.
 
