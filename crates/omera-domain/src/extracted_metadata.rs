@@ -33,6 +33,25 @@ pub struct ExtractedMetadata {
     pub steps: Option<u32>,
     /// CFG scale.
     pub cfg_scale: Option<f64>,
+    /// Guidance scale used by Flux-style models (A1111 `Guidance`, ComfyUI
+    /// Flux guidance).
+    #[serde(default)]
+    pub guidance_scale: Option<f64>,
+    /// Distilled CFG scale emitted by Flux WebUI/Forge implementations.
+    #[serde(default)]
+    pub distilled_cfg_scale: Option<f64>,
+    /// Sampling shift used by SD3/Flux schedulers.
+    #[serde(default)]
+    pub shift: Option<f64>,
+    /// Scheduler or schedule type (A1111 `Schedule type`, ComfyUI `scheduler`).
+    #[serde(default)]
+    pub schedule_type: Option<String>,
+    /// CLIP-L text-encoder prompt from a dual-encoder Flux workflow.
+    #[serde(default)]
+    pub clip_l_prompt: Option<String>,
+    /// T5-XXL text-encoder prompt from a dual-encoder Flux workflow.
+    #[serde(default)]
+    pub t5xxl_prompt: Option<String>,
     /// Sampler name.
     pub sampler: Option<String>,
     /// Checkpoint model name.

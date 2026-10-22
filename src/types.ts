@@ -37,6 +37,12 @@ export interface ExtractedMetadata {
   seed: string | null;
   steps: number | null;
   cfg_scale: number | null;
+  guidance_scale?: number | null;
+  distilled_cfg_scale?: number | null;
+  shift?: number | null;
+  schedule_type?: string | null;
+  clip_l_prompt?: string | null;
+  t5xxl_prompt?: string | null;
   sampler: string | null;
   model_name: string | null;
   model_hash: string | null;
