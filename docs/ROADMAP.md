@@ -2,6 +2,12 @@
 
 This roadmap documents completed milestones and future engineering goals for **Omera**.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/roadmap_status_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/roadmap_status_light.svg">
+  <img alt="Omera roadmap status at v0.5.0: twelve milestones complete, video and model-ecosystem milestones partially complete, and milestones 17–20 planned" src="screenshots/roadmap_status_dark.svg" width="100%">
+</picture>
+
 ---
 
 ## 🏆 Completed Milestones (v0.1.0 & v0.1.1)
@@ -133,24 +139,31 @@ This roadmap documents completed milestones and future engineering goals for **O
 
 ---
 
-## 🔮 Upcoming Milestones (v0.4.0+)
+## 🚀 Current & Upcoming Milestones (post-0.5.0)
 
 ### Priority: Omera identity and review fixes
 
 Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md). High-impact migration, persistence and release work stays with the lead; ordinary UI, parser and bounded performance tasks are prepared for general implementation engineers.
 
 - [ ] Complete [OMERA_MIGRATION.md](OMERA_MIGRATION.md): full identity rename, pre-1.0 legacy discovery, staged migration, and separately confirmed cleanup.
-- [ ] Validate signed updates and platform installer transitions, including skipped bridge releases.
+- [ ] Validate signed updates and platform installer transitions, including skipped bridge releases. v0.5.0 is published with signed assets; the native installed-update matrix remains open in [#256](https://github.com/BerryUIKI/Omera/issues/256).
 - [ ] Complete review issues #98–#117 with regression coverage.
 - [ ] Measure and implement [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md) without rewriting applied migrations.
 
-### 🎯 Milestone 15: Video & Animation AIGC Ingestion & Playback
-- [ ] **AIGC Video Metadata Extraction**: Parse embedded generation workflows and prompts from MP4 and WebM video containers (ComfyUI AnimateDiff, Wan2.1, HunyuanVideo, CogVideoX, LTX-Video, and Stable Video Diffusion).
-- [ ] **Video Thumbnail Generation & Hover Scrubbing**: Extract initial frame thumbnails and implement dynamic hover scrubbing (scrub through video frames smoothly as cursor moves across card) in Grid and Waterfall gallery views.
-- [ ] **Fullscreen Lightbox Video Player**: Lightbox player with seamless loop toggle, playback speed selector (0.25x - 2x), frame-by-frame stepping controls (`.` / `,`), audio toggle, and sidecar prompt/workflow inspector.
-- [ ] **Video-Specific Search Facets**: Filter by duration range, resolution, frame rate (fps), container codec, and motion score.
+### 🟡 Milestone 15: Video & Animation AIGC Ingestion & Playback (core features complete; extended facets pending)
 
-### 🎯 Milestone 16: Next-Gen Model Architectures & Ecosystem (Flux, SD3.5 & Civitai API)
+Delivered in the v0.4.x line. The remaining facet work is limited to resolution, container codec and motion score.
+
+- [x] **AIGC Video Metadata Extraction**: Parse embedded generation workflows and prompts from MP4 and WebM video containers (ComfyUI AnimateDiff, Wan2.1, HunyuanVideo, CogVideoX, LTX-Video, and Stable Video Diffusion).
+- [x] **Video Thumbnail Generation & Hover Scrubbing**: Capture frame thumbnails and scrub through video frames while hovering cards in Grid and Waterfall views.
+- [x] **Fullscreen Lightbox Video Player**: Seamless loop toggle, playback speed selector (0.25x–2x), frame-by-frame stepping (`.` / `,`), audio toggle, and sidecar prompt/workflow inspection.
+- [x] **Duration & Frame-Rate Facets**: Filter videos by duration range and frame rate, with an Images/Videos media-type filter.
+- [ ] **Remaining Video Facets**: Resolution, container-codec and motion-score filters are not implemented yet.
+
+### 🟡 Milestone 16: Next-Gen Model Architectures & Ecosystem (2 of 3 complete)
+
+Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactive workflow graph remains.
+
 - [x] **Flux.1 & SD3.5 Parameter Parsers**: Parse Guidance Scale, Distilled CFG Scale, Shift, schedule type, and dual CLIP-L / T5-XXL text-encoder prompts (ComfyUI). A1111 `Size` continues to supply the resolution bucket dimensions.
 - [x] **Civitai Direct API Integration**: Remote model reverse lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click merge of trained trigger words into the local LoRA catalog.
 - [ ] **ComfyUI Workflow Visualizer Enhancements**: Interactive workflow graph viewer highlighting prompt input nodes, KSamplers, ControlNet chains, and LoRA loaders.
