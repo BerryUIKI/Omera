@@ -436,8 +436,7 @@ mod tests {
         let preview_url = info.preview_url.as_deref().expect("preview URL");
         assert!(is_civitai_https(preview_url));
         let directory = tempfile::tempdir().unwrap();
-        let path =
-            download_preview(preview_url, hash, directory.path()).expect("preview download");
+        let path = download_preview(preview_url, hash, directory.path()).expect("preview download");
         assert!(path.is_file());
         assert!(std::fs::metadata(&path).unwrap().len() > 0);
     }
