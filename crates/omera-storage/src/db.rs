@@ -4,11 +4,11 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use omera_domain::{
-    Album, ChangeLogEntry, ChangeLogSyncQuery, CheckpointModelStat, CleanupQueueItem, Container,
-    CursorFilePage, DatabaseStats, ExtractedMetadata, FilePage, FileSortField, FilesystemChange,
-    Folder, ImageFile, LoraModel, ModelCacheEntry, MutationResult, PageCursor, PromptInsights,
-    PromptKeywordStat, PromptStat, SearchCriteria, SimilarityMatch, SortDirection, StackSummary,
-    StorageRoot, Tag,
+    Album, ChangeLogEntry, ChangeLogSyncQuery, CheckpointModelStat, CivitaiModelInfo,
+    CleanupQueueItem, Container, CursorFilePage, DatabaseStats, ExtractedMetadata, FilePage,
+    FileSortField, FilesystemChange, Folder, ImageFile, LoraModel, ModelCacheEntry, MutationResult,
+    PageCursor, PromptInsights, PromptKeywordStat, PromptStat, SearchCriteria, SimilarityMatch,
+    SortDirection, StackSummary, StorageRoot, Tag,
 };
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use uuid::Uuid;
@@ -2169,6 +2169,75 @@ impl Database {
             results.push(r?);
         }
         Ok(results)
+    }
+
+    /// Insert or replace a cached Civitai lookup.
+    pub fn upsert_civitai_cache(&self, info: &CivitaiModelInfo) -> Result<(), DatabaseError> {
+        let hash = info.hash.trim().to_ascii_lowercase();
+        let payload = serde_json::to_string(info)?;
+        self.conn.execute(
+            "INSERT INTO civitai_cache (hash, model_id, version_id, model_name, payload, checked_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+             ON CONFLICT(hash) DO UPDATE SET
+                 model_id = excluded.model_id,
+                 version_id = excluded.version_id,
+                 model_name = excluded.model_name,
+                 payload = excluded.payload,
+                 checked_at = excluded.checked_at",
+            params![
+                hash,
+                info.model_id,
+                info.version_id,
+                info.model_name.trim(),
+                payload
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Read a cached Civitai lookup by model hash.
+    pub fn get_civitai_cache(&self, hash: &str) -> Result<Option<CivitaiModelInfo>, DatabaseError> {
+        let clean = hash.trim().to_ascii_lowercase();
+        if clean.is_empty() {
+            return Ok(None);
+        }
+        let payload = self
+            .conn
+            .query_row(
+                "SELECT payload FROM civitai_cache WHERE hash = ?1",
+                [clean],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        match payload {
+            Some(payload) => Ok(Some(serde_json::from_str(&payload)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List every cached Civitai lookup ordered by model name.
+    pub fn list_civitai_cache(&self) -> Result<Vec<CivitaiModelInfo>, DatabaseError> {
+        let mut stmt = self
+            .conn
+            .prepare_cached("SELECT payload FROM civitai_cache ORDER BY model_name ASC")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(serde_json::from_str(&row?)?);
+        }
+        Ok(results)
+    }
+
+    /// Remove a cached Civitai lookup after a confirmed miss.
+    pub fn delete_civitai_cache(&self, hash: &str) -> Result<bool, DatabaseError> {
+        let clean = hash.trim().to_ascii_lowercase();
+        if clean.is_empty() {
+            return Ok(false);
+        }
+        let affected = self
+            .conn
+            .execute("DELETE FROM civitai_cache WHERE hash = ?1", [clean])?;
+        Ok(affected > 0)
     }
 
     /// List all saved LoRAs ordered alphabetically by name.
@@ -4798,6 +4867,47 @@ mod tests {
         // 4. List cache
         let list = db.list_model_cache().unwrap();
         assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn civitai_cache_round_trips_by_normalized_hash() {
+        let db = Database::connect_in_memory().unwrap();
+        let info = CivitaiModelInfo {
+            hash: "ABC123".to_string(),
+            model_id: 42,
+            model_name: "Flux Model".to_string(),
+            model_type: "Checkpoint".to_string(),
+            version_id: 100,
+            version_name: "v1.0".to_string(),
+            base_model: Some("Flux.1 D".to_string()),
+            trained_words: vec!["trigger".to_string()],
+            description: Some("A generated model".to_string()),
+            preview_url: Some("https://image.civitai.com/model.jpeg".to_string()),
+            download_url: None,
+            latest_version_id: Some(101),
+            latest_version_name: Some("v1.1".to_string()),
+            latest_version_created_at: Some("2025-02-01T00:00:00Z".to_string()),
+            update_available: true,
+        };
+        db.upsert_civitai_cache(&info).unwrap();
+
+        let cached = db.get_civitai_cache("abc123").unwrap().expect("cached");
+        assert_eq!(cached.model_name, "Flux Model");
+        assert!(cached.update_available);
+        assert_eq!(db.list_civitai_cache().unwrap().len(), 1);
+
+        let mut updated = info.clone();
+        updated.version_id = 101;
+        updated.version_name = "v1.1".to_string();
+        updated.update_available = false;
+        db.upsert_civitai_cache(&updated).unwrap();
+        let cached = db.get_civitai_cache("ABC123").unwrap().expect("updated");
+        assert_eq!(cached.version_id, 101);
+        assert_eq!(db.list_civitai_cache().unwrap().len(), 1);
+
+        assert!(db.delete_civitai_cache("ABC123").unwrap());
+        assert!(db.get_civitai_cache("abc123").unwrap().is_none());
+        assert!(db.list_civitai_cache().unwrap().is_empty());
     }
 
     #[test]

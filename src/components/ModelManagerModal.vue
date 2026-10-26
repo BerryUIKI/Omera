@@ -2,7 +2,8 @@
 import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../i18n";
-import type { CheckpointModelStat, ModelCacheEntry } from "../types";
+import { assetUrl } from "../utils/image";
+import type { CheckpointModelStat, CivitaiModelInfo, ModelCacheEntry } from "../types";
 
 const props = defineProps<{
   show: boolean;
@@ -21,17 +22,93 @@ const loading = ref(false);
 const importPath = ref("");
 const isImporting = ref(false);
 const message = ref<{ type: "success" | "error"; text: string } | null>(null);
+const civitaiByHash = ref<Record<string, CivitaiModelInfo>>({});
+const previewPaths = ref<Record<string, string>>({});
+const lookupBusy = ref<string | null>(null);
+
+function hashKey(hash: string | null | undefined): string {
+  return (hash ?? "").trim().toLowerCase();
+}
+
+function civitaiInfo(model: CheckpointModelStat): CivitaiModelInfo | null {
+  const key = hashKey(model.model_hash);
+  return key ? civitaiByHash.value[key] ?? null : null;
+}
+
+function previewUrl(model: CheckpointModelStat): string {
+  const key = hashKey(model.model_hash);
+  const path = key ? previewPaths.value[key] : "";
+  return path ? assetUrl(path) : "";
+}
+
+async function cachePreview(hash: string) {
+  const key = hashKey(hash);
+  if (!key || previewPaths.value[key]) return;
+  try {
+    const path = await invoke<string | null>("fetch_civitai_preview", { hash: key });
+    if (path) previewPaths.value = { ...previewPaths.value, [key]: path };
+  } catch {
+    // Previews are optional; keep the card usable when the CDN is unavailable.
+  }
+}
+
+async function hydratePreviews() {
+  const hashes = Object.keys(civitaiByHash.value).slice(0, 24);
+  for (const hash of hashes) {
+    await cachePreview(hash);
+  }
+}
+
+async function lookupModel(model: CheckpointModelStat) {
+  const hash = hashKey(model.model_hash);
+  if (!hash || lookupBusy.value) return;
+  lookupBusy.value = hash;
+  message.value = null;
+  try {
+    const info = await invoke<CivitaiModelInfo | null>("lookup_civitai_model", {
+      hash,
+      refresh: Boolean(civitaiByHash.value[hash]),
+    });
+    if (!info) {
+      const next = { ...civitaiByHash.value };
+      delete next[hash];
+      civitaiByHash.value = next;
+      const nextPreview = { ...previewPaths.value };
+      delete nextPreview[hash];
+      previewPaths.value = nextPreview;
+      message.value = { type: "error", text: t.value.civitai.notFound };
+      return;
+    }
+    civitaiByHash.value = { ...civitaiByHash.value, [hash]: info };
+    await cachePreview(hash);
+    message.value = {
+      type: "success",
+      text: `${info.model_name} ${info.version_name}`.trim(),
+    };
+  } catch (err: any) {
+    message.value = { type: "error", text: `${t.value.civitai.failed}: ${err}` };
+  } finally {
+    lookupBusy.value = null;
+  }
+}
 
 async function loadData() {
   loading.value = true;
   message.value = null;
   try {
-    const [fetchedModels, fetchedCache] = await Promise.all([
+    const [fetchedModels, fetchedCache, fetchedCivitai] = await Promise.all([
       invoke<CheckpointModelStat[]>("get_checkpoint_models"),
       invoke<ModelCacheEntry[]>("list_model_cache"),
+      invoke<CivitaiModelInfo[]>("list_civitai_cache"),
     ]);
     models.value = fetchedModels;
     cachedEntries.value = fetchedCache;
+    const civitai: Record<string, CivitaiModelInfo> = {};
+    for (const info of fetchedCivitai) {
+      civitai[hashKey(info.hash)] = info;
+    }
+    civitaiByHash.value = civitai;
+    void hydratePreviews();
   } catch (err: any) {
     message.value = { type: "error", text: String(err) };
   } finally {
@@ -59,7 +136,13 @@ const filteredModels = computed(() => {
     const titleMatch = m.model_hash
       ? cacheMap.value.get(m.model_hash.toLowerCase())?.title?.toLowerCase().includes(q)
       : false;
-    return nameMatch || hashMatch || titleMatch;
+    const info = civitaiInfo(m);
+    const civitaiMatch = info
+      ? [info.model_name, info.model_type, info.base_model, info.version_name]
+          .filter((value): value is string => Boolean(value))
+          .some((value) => value.toLowerCase().includes(q))
+      : false;
+    return nameMatch || hashMatch || titleMatch || civitaiMatch;
   });
 });
 
@@ -164,6 +247,13 @@ onMounted(() => {
             :key="model.model_name + (model.model_hash || '')"
             class="model-card"
           >
+            <div v-if="previewUrl(model)" class="model-preview">
+              <img
+                :src="previewUrl(model)"
+                :alt="civitaiInfo(model)?.model_name || model.model_name"
+                loading="lazy"
+              />
+            </div>
             <div class="model-info">
               <div class="model-header-row">
                 <span class="model-name" :title="model.model_name">
@@ -182,6 +272,22 @@ onMounted(() => {
                 {{ cacheMap.get(model.model_hash.toLowerCase())?.title }}
               </div>
 
+              <!-- Cached Civitai metadata -->
+              <div v-if="civitaiInfo(model)" class="civitai-info">
+                <div class="civitai-title">{{ civitaiInfo(model)?.model_name }}</div>
+                <div class="civitai-meta">
+                  <span v-if="civitaiInfo(model)?.model_type">{{ civitaiInfo(model)?.model_type }}</span>
+                  <span v-if="civitaiInfo(model)?.base_model">{{ civitaiInfo(model)?.base_model }}</span>
+                  <span v-if="civitaiInfo(model)?.version_name">v{{ civitaiInfo(model)?.version_name }}</span>
+                </div>
+                <span v-if="civitaiInfo(model)?.update_available" class="update-badge">
+                  {{ t.civitai.updateAvailable }}
+                  <template v-if="civitaiInfo(model)?.latest_version_name">
+                    · v{{ civitaiInfo(model)?.latest_version_name }}
+                  </template>
+                </span>
+              </div>
+
               <div class="model-meta-row">
                 <span
                   v-if="model.model_hash"
@@ -196,6 +302,20 @@ onMounted(() => {
             </div>
 
             <div class="model-actions">
+              <button
+                class="action-btn"
+                :disabled="!model.model_hash || lookupBusy === hashKey(model.model_hash)"
+                :title="civitaiInfo(model) ? t.civitai.refresh : t.civitai.lookup"
+                @click="lookupModel(model)"
+              >
+                {{
+                  lookupBusy === hashKey(model.model_hash)
+                    ? "..."
+                    : civitaiInfo(model)
+                      ? t.civitai.refresh
+                      : t.civitai.lookup
+                }}
+              </button>
               <button
                 class="action-btn"
                 :title="t.modelsModal.filterModel"
@@ -490,5 +610,65 @@ onMounted(() => {
   background: #3b82f6;
   border-color: #3b82f6;
   color: #fff;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.model-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.model-preview {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-bg-hover);
+}
+
+.model-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.civitai-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.civitai-title {
+  font-size: 0.82rem;
+  color: #60a5fa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.civitai-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.update-badge {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 4px;
+  padding: 2px 6px;
 }
 </style>

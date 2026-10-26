@@ -1177,4 +1177,13 @@ export const zhTW: typeof en = {
     "noResults": "沒有符合的設定",
     "themePreview": "佈景主題預覽"
 },
+  civitai: {
+    "lookup": "在 Civitai 查詢",
+    "refresh": "重新整理 Civitai 資料",
+    "notFound": "Civitai 找不到相符的模型",
+    "failed": "Civitai 查詢失敗",
+    "updateAvailable": "有新版本",
+    "apply": "套用 Civitai 中繼資料",
+    "applied": "已套用 Civitai 中繼資料"
+},
 };

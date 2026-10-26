@@ -1177,4 +1177,13 @@ export const ja: typeof en = {
     "noResults": "一致する設定はありません",
     "themePreview": "テーマのプレビュー"
 },
+  civitai: {
+    "lookup": "Civitai で検索",
+    "refresh": "Civitai データを更新",
+    "notFound": "Civitai に一致するモデルがありません",
+    "failed": "Civitai の検索に失敗しました",
+    "updateAvailable": "更新があります",
+    "apply": "Civitai メタデータを適用",
+    "applied": "Civitai メタデータを適用しました"
+},
 };

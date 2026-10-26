@@ -26,7 +26,7 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 | Update DTOs | Rust `UpdateDownloadProgress` and `update_metadata::UpdateMetadataResponse` | `src/utils/updater.ts` |
 | Watcher events | `src-tauri/src/watcher.rs` | App refresh scheduling |
 
-[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 162 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 167 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
 
 Current commands are local Tauri IPC, not HTTP endpoints. Do not invent REST routes or expose these commands through a network server. Commands are restricted to the configured application WebView; IPC arguments still require backend validation.
 
@@ -120,6 +120,28 @@ shared application database mutex. Startup has no automatic legacy import:
 discovery and source/location decisions belong to the welcome flow.
 `has_completed_omera_setup` defaults to false in old configuration; the older
 `has_completed_onboarding` flag does not bypass first-Omera setup.
+
+## Civitai model lookups
+
+`lookup_civitai_model({ hash, refresh })` contacts the public Civitai API on a
+blocking worker and caches the result in SQLite (`civitai_cache`, schema v18).
+It first tries the supplied hash, then the `model_cache` SHA256/hash alias, so
+AutoV2 image metadata and full SHA256 both resolve. `refresh: false` returns a
+cached lookup without network access; `refresh: true` revalidates. A hash that
+Civitai does not know resolves `null`; transport, HTTP and rate-limit failures
+reject with a diagnostic string. Lookups send only the local model hash to
+Civitai. They require HTTPS, use the shared proxy transport with a 25-second
+timeout, throttle requests to at least 250 ms apart, and cap response bodies at
+4 MiB.
+
+`get_civitai_cache({ hash })` and `list_civitai_cache()` read the cache without
+network access. `fetch_civitai_preview({ hash })` downloads the first safe
+preview image for a cached lookup into the application `civitai/` cache and
+returns a local path (or `null` when the lookup has no preview). Only HTTPS URLs
+on `civitai.com` or its subdomains are accepted; the WebView keeps its existing
+CSP and never loads third-party images directly. `apply_civitai_to_lora`
+merges cached trained words, description, preview URL and a missing hash into a
+local LoRA entry; it never deletes existing trigger words.
 
 ## Update metadata transport
 
