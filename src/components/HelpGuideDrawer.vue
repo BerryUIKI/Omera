@@ -114,7 +114,7 @@ const TOPICS: HelpTopic[] = [
     content: [
       "Search supports structured key-value queries: prompt:cat, model:sdxl, steps:>=30, cfg:>7, rating:>=4.",
       "Negation & Exclusion: Use -tag:draft or -model:pony to exclude specific attributes.",
-      "Video Facets: Filter video creations with container:mp4, fps:>=24, or duration:>=5s.",
+      "Video Facets: Use fps:>=24 and duration:>=5s in search, or the Images/Videos media filter in the filter drawer.",
       "Sensitive Media: Toggle the 18+ filter or search is:nsfw / is:sfw to quickly locate sensitive artworks."
     ]
   },
