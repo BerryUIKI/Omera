@@ -49,16 +49,14 @@
 
 ---
 
-## 🆕 v0.3.0 重大更新
+## 🆕 v0.5.0 重大更新
 
-> **云端同步与导出、游标深度分页与多数据库团队协作工作室（规划中）** — [阅读完整更新日志 →](CHANGELOG.md)
+> **Flux.1 / SD3.5 参数解析、Civitai 直连集成与 0.5.0 签名安装包** — [阅读完整更新日志 →](CHANGELOG.md)
 
-- ☁️ **S3 / WebDAV 快照备份与恢复** — 自动化热 `VACUUM INTO` 备份，原生支持 AWS S3、Cloudflare R2、MinIO、Backblaze B2 与 WebDAV（群晖 / Nextcloud）。
-- 📤 **独立单文件 HTML Showcase 导出** — 零外部依赖单 HTML 文件，内嵌自适应暗色画廊、全屏缩放灯箱、提示词分词检查器与即时关键词过滤器。
-- 🔄 **增量式远程媒体镜像上传** — 本地到远程单向媒体上传镜像，支持文件大小与 SHA-256 差异检测、令牌桶带宽限速与多线程并发（双向同步规划中）。
-- ⚡ **O(1) 键集游标深度分页** — 彻底告别 SQLite `OFFSET` 慢查询，在 50 万级资产下实现 < 1ms 的超快翻页（性能提升 84 倍）。
-- 👥 **多数据库团队协作工作室（规划中）** — 抽象 `StorageEngine` 特性与跨平台存储根路径映射，支持乐观并发版本控制与实时同步日志。当前运行时采用 SQLite；MySQL 8.0+ 与 PostgreSQL 14+ 支持为实验性/规划中功能。
-- 📦 **多线程批量格式转码与隐私脱敏** — 基于 Rayon 的 WebP/JPEG/PNG 并行转码，内置 4 级元数据脱敏策略（`KeepAll` → `StripAll`）。
+- 🧬 **Flux.1 / SD3.5 参数解析** — 从 A1111/Forge 与 ComfyUI 元数据中提取 Guidance、Distilled CFG Scale、Shift、调度类型以及 CLIP-L / T5-XXL 双文本编码器提示词。
+- 🔎 **Civitai 直连查询** — 通过 AutoV2/SHA256 反查 Checkpoint 与 LoRA、本地缓存预览卡、标记新版本，并将训练触发词合并到本地 LoRA 词库。
+- 🛡️ **签名发布** — v0.5.0 提供 Windows、macOS 与 Linux 签名安装包及对应 `.minisig` 文件。
+- 🎨 **更清晰的生成参数** — 检查器在全部 7 种语言中展示新增的 Flux/SD3.5 字段与双文本编码器提示词。
 
 ---
 
@@ -84,9 +82,17 @@
 | **NovelAI** | Comment 与 Description 签名格式解码 |
 | **Fooocus / Fooocus-MRE** | 专有参数解析与基底模型提取 |
 | **InvokeAI & EasyDiffusion** | 内嵌元数据与 JSON Sidecar 伴生文件 |
+| **Flux.1 / SD3.5** | A1111/Forge Guidance 字段、ComfyUI 双文本编码器提示词 |
 | **Sidecar 伴生文本** | `.txt` 伴生同名元数据文本 |
 
-**支持的文件容器：** PNG · JPG/JPEG · WebP · MP4 视频
+**支持的文件容器：** PNG · JPG/JPEG · WebP · AVIF · MP4 视频 · WebM 视频
+
+### 🎬 视频与动画支持
+
+- **AIGC 视频元数据** — 解析 MP4/WebM 容器中的 ComfyUI AnimateDiff、Wan2.1、HunyuanVideo、CogVideoX、LTX-Video 与 SVD 工作流。
+- **悬浮擦洗** — 在网格与瀑布流卡片上直接拖动浏览视频帧。
+- **全屏播放器** — 循环、0.25x–2x 倍速、逐帧步进（`.` / `,`）、静音，并复用共享检查器。
+- **视频筛选** — 按时长、帧率（FPS）与媒体类型筛选；分辨率、容器编码与 motion score 筛选仍在规划中。
 
 ### 🗃️ 多模式导入与智能连拍堆叠
 
@@ -101,14 +107,14 @@
 - **本地 CLIP / SigLIP 语义搜索** — 纯本地 ONNX 模型驱动，无需联网即可用自然语言搜图。
 - **WD14 / Danbooru 动漫自动打标** — 自动反推动漫及写实风格标签，支持置信度阈值调谐。
 - **以图搜图视觉相似度检索** — 快速寻找风格、构图相似的画面。
-- **LoRA 触发词库与 Civitai 同步** — 一键扫描 LoRA 模型目录、匹配 Civitai 元数据，触发词一键复制注入。
+- **LoRA 触发词库与 Civitai 同步** — 扫描 LoRA 模型目录、合并 Civitai 训练触发词/描述/预览，并一键复制注入触发词。
 - **提示词词频与表现洞察** — 正负提示词关键词频次统计，关联平均评分表现。
-- **模型库管理与哈希反查** — Civitai SHA256 缓存自动同步、模型哈希反查与一键模型筛选。
+- **模型库管理与哈希反查** — 通过 AutoV2/SHA256 直连 Civitai 查询、缓存预览卡、显示版本更新徽章，并支持一键模型筛选。
 
 ### ☁️ 云端同步与导出工具
 
 - **S3 / WebDAV 快照备份** — 热 `VACUUM INTO` 备份到 AWS S3、Cloudflare R2、MinIO、Backblaze B2 与各类 WebDAV 服务器，具备架构校验与安全回滚保障。
-- **增量式远程媒体镜像（单向上传）** — 支持向 S3、WebDAV 及本地/NAS 目录单向镜像上传媒体资产，具备文件大小与 SHA-256 变动侦测、令牌桶带宽限制、Dry-Run 演练与原子任务取消；远端拉取对齐、ETag 缓存核验与双向同步属于规划中功能。
+- **增量式远程媒体镜像（单向上传）** — 支持单向媒体上传至 S3、WebDAV 及本地/NAS 目录，具备文件大小与 SHA-256 变动侦测、令牌桶带宽限制、Dry-Run 演练与原子任务取消；远端拉取对齐、ETag 缓存核验与双向同步规划中。
 - **多线程批量格式转码** — 快速将图片并行转码为 WebP/JPEG/PNG，提供 4 级隐私脱敏与自定义文件命名模板。
 - **单文件 HTML Showcase 生成器** — 导出独立运行的 `index.html`，无需任何 Web 服务即可向客户展示带暗色主题、灯箱与提示词面板的作品集。
 
@@ -241,13 +247,13 @@ pnpm run tauri build
 
 ## 🗺️ 开发路线图
 
-| 规划里程碑 | 目标版本 |
-|:---|:---|
-| 🎬 视频与动态 AIGC 支持 (ComfyUI AnimateDiff, Wan2.1, HunyuanVideo 逐帧预览与灯箱播放) | v0.4.0 |
-| 🧬 新一代模型架构适配 (Flux.1, SD3.5 Guidance 与双文本编码器提取, Civitai API) | v0.5.0 |
-| 🔗 双向 ComfyUI 深度集成 (WebSocket 遥测监控, 零延迟入库, 提示词 Diff 对比) | v0.6.0 |
-| 📱 局域网 Web 伴侣 ("Omera Remote" 平板与手机端无线浏览) | v0.7.0 |
-| 🎨 主导色彩提取与多维 SQL 分析仪表盘 | v0.8.0 |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/roadmap_status_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/roadmap_status_light.svg">
+  <img alt="Omera v0.5.0 路线图状态：12 个里程碑已完成，视频与模型生态里程碑部分完成，里程碑 17–20 已规划" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
+</picture>
+
+**Milestone 15（视频）** 与 **Milestone 16（Flux.1 / SD3.5 + Civitai）** 已部分完成；剩余项为分辨率/编码/motion score 筛选与 ComfyUI 工作流可视化。Milestone 17–20 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣、色彩分析与图片压缩。
 
 📖 查阅完整开发计划：[docs/ROADMAP.md](docs/ROADMAP.md)。
 
