@@ -210,6 +210,8 @@ pub fn transform_file_staged(
                 stripped.negative_prompt = None;
                 stripped.parameters = None;
                 stripped.raw = None;
+                stripped.clip_l_prompt = None;
+                stripped.t5xxl_prompt = None;
                 stripped
             })
         }
@@ -859,6 +861,8 @@ fn publish_managed_import_item_with_sidecars(
                     m.negative_prompt = None;
                     m.parameters = None;
                     m.raw = None;
+                    m.clip_l_prompt = None;
+                    m.t5xxl_prompt = None;
                 }
             }
             TransformMetadataPolicy::KeepSupported => {}

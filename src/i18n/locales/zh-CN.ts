@@ -160,6 +160,13 @@ export const zhCN: typeof en = {
     scheduler: "调度器 (Scheduler)",
     steps: "采样步数 (Steps)",
     cfgScale: "提示词引导系数 (CFG)",
+    guidanceScale: "引导系数 (Guidance)",
+    distilledCfgScale: "蒸馏 CFG (Distilled CFG)",
+    shift: "偏移量 (Shift)",
+    scheduleType: "调度类型",
+    textEncoders: "文本编码器",
+    clipLPrompt: "CLIP-L 提示词",
+    t5xxlPrompt: "T5-XXL 提示词",
     seed: "随机种子 (Seed)",
     dimensions: "图像分辨率",
     format: "元数据格式",
@@ -1169,5 +1176,14 @@ export const zhCN: typeof en = {
     "results": "找到 {count} 项设置",
     "noResults": "没有匹配的设置",
     "themePreview": "主题预览"
+},
+  civitai: {
+    "lookup": "在 Civitai 查询",
+    "refresh": "刷新 Civitai 数据",
+    "notFound": "Civitai 未找到匹配的模型",
+    "failed": "Civitai 查询失败",
+    "updateAvailable": "有新版本",
+    "apply": "应用 Civitai 元数据",
+    "applied": "已应用 Civitai 元数据"
 },
 };

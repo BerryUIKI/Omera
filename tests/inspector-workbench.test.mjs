@@ -114,3 +114,21 @@ test('classifying a previously revealed photo as sensitive masks it without coll
     assert.match(await render(), /class="blurred"/);
   });
 });
+
+test('Inspector shows Flux and SD3.5 metadata plus dual text-encoder prompts', async () => {
+  await setLocale('en');
+  const flux = { ...generated, metadata: { ...generated.metadata,
+    format: 'StableDiffusion', prompt: 'a cinematic city', model_name: 'flux1-dev',
+    cfg_scale: 1, guidance_scale: 3.5, distilled_cfg_scale: 2.5, shift: 1.5,
+    schedule_type: 'Simple', clip_l_prompt: 'clip-l prompt', t5xxl_prompt: 't5xxl prompt' } };
+  await withProductionComponent('InspectorPane', { file: flux, embedded: true }, async () => [], async ({ render }) => {
+    const html = await render();
+    assert.match(html, /Schedule Type/); assert.match(html, /Simple/);
+    assert.match(html, /Guidance Scale/); assert.match(html, /3\.5/);
+    assert.match(html, /Distilled CFG Scale/); assert.match(html, /2\.5/);
+    assert.match(html, /Shift/); assert.match(html, /1\.5/);
+    assert.match(html, /Text Encoders/);
+    assert.match(html, /CLIP-L Prompt/); assert.match(html, /clip-l prompt/);
+    assert.match(html, /T5-XXL Prompt/); assert.match(html, /t5xxl prompt/);
+  });
+});

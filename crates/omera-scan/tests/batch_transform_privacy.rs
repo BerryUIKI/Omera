@@ -13,7 +13,7 @@ fn fixture() -> (TempDir, Database, i64) {
     let mut encoder = png::Encoder::new(fs::File::create(&source).unwrap(), 16, 8);
     encoder.set_color(png::ColorType::Rgb);
     encoder.set_depth(png::BitDepth::Eight);
-    encoder.add_text_chunk("parameters".into(), "private source prompt\nNegative prompt: private exclusion\nSteps: 20, Seed: 42, Model: private-model".into()).unwrap();
+    encoder.add_text_chunk("parameters".into(), "private source prompt\nNegative prompt: private exclusion\nSteps: 20, Seed: 42, Model: private-model, Guidance: 3.5, Distilled CFG Scale: 2.5, Shift: 1.5, Schedule type: Simple".into()).unwrap();
     encoder
         .write_header()
         .unwrap()
@@ -112,6 +112,12 @@ fn batch_transform_privacy_matches_bytes_without_losing_curation() {
                 "model_hash",
                 "steps",
                 "cfg_scale",
+                "guidance_scale",
+                "distilled_cfg_scale",
+                "shift",
+                "schedule_type",
+                "clip_l_prompt",
+                "t5xxl_prompt",
                 "sampler",
             ] {
                 assert!(fields[field].is_null(), "{policy:?}: {field}");

@@ -5,6 +5,49 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-26
+
+### Added
+
+- Parse Flux.1 and SD3.5 A1111/Forge generation parameters, including Guidance,
+  Guidance Scale, Distilled CFG Scale, Shift, and Schedule type. Parameter keys
+  are matched case-insensitively.
+- Extract ComfyUI Flux guidance, SD3 sampling shift, scheduler names, and
+  separate CLIP-L / T5-XXL text-encoder prompts. The Inspector shows the new
+  fields and a collapsible dual-prompt section in all seven locales.
+- Add direct Civitai integration: checkpoint and LoRA hashes can be looked up,
+  results are cached in SQLite (schema v18), preview cards are downloaded
+  through the app-data cache and asset protocol, newer published versions are
+  flagged, and cached trained words, descriptions and previews can be merged
+  into a local LoRA entry.
+- Add `lookup_civitai_model`, `get_civitai_cache`, `list_civitai_cache`,
+  `fetch_civitai_preview`, and `apply_civitai_to_lora` IPC commands.
+
+### Changed
+
+- Share the HTTPS-only, proxy-aware transport between signed updates and
+  Civitai requests. Civitai lookups are throttled, bounded, restricted to
+  Civitai HTTPS hosts, and the WebView never loads third-party images directly.
+
+### Fixed
+
+- Stabilize the background backup worker test on slow Windows runners by
+  waiting for both the published completion and the cleared running flag.
+
+### Release testing
+
+Windows x64 frontend build, 312 frontend regressions, workspace Rust tests,
+strict formatting, all-target linting, and the generated 167-command IPC
+inventory passed. A live Civitai lookup and preview download passed, and a dev
+build verified the v18 migration plus a real Model Manager lookup, cached
+preview, and update badge against a copied library; the active database was
+restored unchanged. Native installed WebView/media/gallery checks and the
+complete installed-update platform matrix remain incomplete (#256). Legacy
+discovery and supported import remain available throughout pre-1.0; cleanup
+still requires a separate explicit in-application decision.
+
+---
+
 ## [0.4.9] - 2026-10-16
 
 ### Changed

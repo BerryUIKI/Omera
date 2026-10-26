@@ -160,6 +160,13 @@ export const ja: typeof en = {
     scheduler: "スケジューラー",
     steps: "ステップ数",
     cfgScale: "CFGスケール",
+    guidanceScale: "ガイダンススケール",
+    distilledCfgScale: "蒸留CFGスケール",
+    shift: "シフト",
+    scheduleType: "スケジュールタイプ",
+    textEncoders: "テキストエンコーダー",
+    clipLPrompt: "CLIP-Lプロンプト",
+    t5xxlPrompt: "T5-XXLプロンプト",
     seed: "シード値",
     dimensions: "解像度",
     format: "メタデータ形式",
@@ -1169,5 +1176,14 @@ export const ja: typeof en = {
     "results": "{count} 件の設定",
     "noResults": "一致する設定はありません",
     "themePreview": "テーマのプレビュー"
+},
+  civitai: {
+    "lookup": "Civitai で検索",
+    "refresh": "Civitai データを更新",
+    "notFound": "Civitai に一致するモデルがありません",
+    "failed": "Civitai の検索に失敗しました",
+    "updateAvailable": "更新があります",
+    "apply": "Civitai メタデータを適用",
+    "applied": "Civitai メタデータを適用しました"
 },
 };

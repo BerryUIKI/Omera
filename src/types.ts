@@ -37,6 +37,12 @@ export interface ExtractedMetadata {
   seed: string | null;
   steps: number | null;
   cfg_scale: number | null;
+  guidance_scale?: number | null;
+  distilled_cfg_scale?: number | null;
+  shift?: number | null;
+  schedule_type?: string | null;
+  clip_l_prompt?: string | null;
+  t5xxl_prompt?: string | null;
   sampler: string | null;
   model_name: string | null;
   model_hash: string | null;
@@ -547,6 +553,24 @@ export interface ModelCacheEntry {
   name: string;
   title?: string | null;
   sha256?: string | null;
+}
+
+export interface CivitaiModelInfo {
+  hash: string;
+  model_id: number;
+  model_name: string;
+  model_type: string;
+  version_id: number;
+  version_name: string;
+  base_model?: string | null;
+  trained_words: string[];
+  description?: string | null;
+  preview_url?: string | null;
+  download_url?: string | null;
+  latest_version_id?: number | null;
+  latest_version_name?: string | null;
+  latest_version_created_at?: string | null;
+  update_available: boolean;
 }
 
 export interface DatabaseStats {

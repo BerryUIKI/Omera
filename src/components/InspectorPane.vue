@@ -493,8 +493,23 @@ function onWorkflowDragStart(e: DragEvent) {
         </div>
       </div>
 
+      <!-- Dual Text Encoder Prompts (Flux CLIP-L / T5-XXL) -->
+      <details v-if="file.metadata?.clip_l_prompt || file.metadata?.t5xxl_prompt" class="section disclosure-section">
+        <summary class="section-title">{{ t.preview.textEncoders }}</summary>
+        <div class="section">
+          <div v-if="file.metadata?.clip_l_prompt">
+            <span class="param-label">{{ t.preview.clipLPrompt }}</span>
+            <div class="prompt-box"><p class="prompt-text">{{ file.metadata.clip_l_prompt }}</p></div>
+          </div>
+          <div v-if="file.metadata?.t5xxl_prompt">
+            <span class="param-label">{{ t.preview.t5xxlPrompt }}</span>
+            <div class="prompt-box"><p class="prompt-text">{{ file.metadata.t5xxl_prompt }}</p></div>
+          </div>
+        </div>
+      </details>
+
       <!-- Generation Parameters Section -->
-      <div v-if="file.metadata?.model_hash || file.metadata?.sampler || file.metadata?.seed != null || file.metadata?.steps != null || file.metadata?.cfg_scale != null" class="section">
+      <div v-if="file.metadata?.model_hash || file.metadata?.sampler || file.metadata?.seed != null || file.metadata?.steps != null || file.metadata?.cfg_scale != null || file.metadata?.guidance_scale != null || file.metadata?.distilled_cfg_scale != null || file.metadata?.shift != null || file.metadata?.schedule_type" class="section">
         <div class="section-header">
           <span class="section-title">{{ t.preview.generationParams }}</span>
         </div>
@@ -522,6 +537,12 @@ function onWorkflowDragStart(e: DragEvent) {
             <span class="param-val">{{ file.metadata.sampler }}</span>
           </div>
 
+          <!-- Schedule Type -->
+          <div v-if="file.metadata?.schedule_type" class="param-row">
+            <span class="param-label">{{ t.preview.scheduleType }}</span>
+            <span class="param-val">{{ file.metadata.schedule_type }}</span>
+          </div>
+
           <!-- Steps -->
           <div v-if="file.metadata?.steps != null" class="param-row">
             <span class="param-label">{{ t.preview.steps }}</span>
@@ -532,6 +553,24 @@ function onWorkflowDragStart(e: DragEvent) {
           <div v-if="file.metadata?.cfg_scale != null" class="param-row">
             <span class="param-label">{{ t.preview.cfgScale }}</span>
             <span class="param-val">{{ file.metadata.cfg_scale }}</span>
+          </div>
+
+          <!-- Guidance Scale (Flux) -->
+          <div v-if="file.metadata?.guidance_scale != null" class="param-row">
+            <span class="param-label">{{ t.preview.guidanceScale }}</span>
+            <span class="param-val">{{ file.metadata.guidance_scale }}</span>
+          </div>
+
+          <!-- Distilled CFG Scale (Flux) -->
+          <div v-if="file.metadata?.distilled_cfg_scale != null" class="param-row">
+            <span class="param-label">{{ t.preview.distilledCfgScale }}</span>
+            <span class="param-val">{{ file.metadata.distilled_cfg_scale }}</span>
+          </div>
+
+          <!-- Sampling Shift (SD3 / Flux) -->
+          <div v-if="file.metadata?.shift != null" class="param-row">
+            <span class="param-label">{{ t.preview.shift }}</span>
+            <span class="param-val">{{ file.metadata.shift }}</span>
           </div>
 
           <!-- Seed -->

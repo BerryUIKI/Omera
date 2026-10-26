@@ -25,6 +25,11 @@ pub fn parse_comfyui(json_str: &str) -> Option<ExtractedMetadata> {
     let mut negative_prompt = None;
     let mut steps = None;
     let mut cfg_scale = None;
+    let mut guidance_scale = None;
+    let mut shift = None;
+    let mut schedule_type = None;
+    let mut clip_l_prompt = None;
+    let mut t5xxl_prompt = None;
     let mut seed = None;
     let mut sampler = None;
     let mut model_name = None;
@@ -85,6 +90,13 @@ pub fn parse_comfyui(json_str: &str) -> Option<ExtractedMetadata> {
                         _ => None,
                     };
                 }
+                if schedule_type.is_none() {
+                    schedule_type = inputs
+                        .get("scheduler")
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                }
 
                 // Resolve positive prompt link
                 if prompt.is_none() {
@@ -114,6 +126,38 @@ pub fn parse_comfyui(json_str: &str) -> Option<ExtractedMetadata> {
                             negative_prompt = extract_clip_text(nodes_map, target_id);
                         }
                     }
+                }
+            }
+        }
+
+        // Flux guidance / SD3 shift and dual text-encoder prompts
+        if let Some(inputs) = node.get("inputs") {
+            if guidance_scale.is_none() {
+                guidance_scale = inputs.get("guidance").and_then(|v| v.as_f64()).or_else(|| {
+                    inputs
+                        .get("guidance")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse().ok())
+                });
+            }
+            if shift.is_none() {
+                shift = inputs.get("shift").and_then(|v| v.as_f64()).or_else(|| {
+                    inputs
+                        .get("shift")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse().ok())
+                });
+            }
+            if clip_l_prompt.is_none() {
+                if let Some(value) = inputs.get("clip_l") {
+                    let mut visited = HashSet::new();
+                    clip_l_prompt = resolve_value_or_link(nodes_map, value, &mut visited, 0);
+                }
+            }
+            if t5xxl_prompt.is_none() {
+                if let Some(value) = inputs.get("t5xxl") {
+                    let mut visited = HashSet::new();
+                    t5xxl_prompt = resolve_value_or_link(nodes_map, value, &mut visited, 0);
                 }
             }
         }
@@ -207,6 +251,12 @@ pub fn parse_comfyui(json_str: &str) -> Option<ExtractedMetadata> {
         seed,
         steps,
         cfg_scale,
+        guidance_scale,
+        distilled_cfg_scale: None,
+        shift,
+        schedule_type,
+        clip_l_prompt,
+        t5xxl_prompt,
         sampler,
         model_name,
         model_hash: None,
@@ -418,6 +468,11 @@ fn parse_comfyui_workflow(root: &Value, json_str: &str) -> Option<ExtractedMetad
     let mut negative_prompt = None;
     let mut steps = None;
     let mut cfg_scale = None;
+    let guidance_scale = None;
+    let shift = None;
+    let mut schedule_type = None;
+    let clip_l_prompt = None;
+    let t5xxl_prompt = None;
     let mut seed = None;
     let mut sampler = None;
     let mut model_name = None;
@@ -452,6 +507,13 @@ fn parse_comfyui_workflow(root: &Value, json_str: &str) -> Option<ExtractedMetad
                         (Some(s), _) => Some(s.to_string()),
                         _ => None,
                     };
+                }
+                if schedule_type.is_none() {
+                    schedule_type = widgets
+                        .get(5)
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
                 }
             }
         }
@@ -513,6 +575,12 @@ fn parse_comfyui_workflow(root: &Value, json_str: &str) -> Option<ExtractedMetad
         seed,
         steps,
         cfg_scale,
+        guidance_scale,
+        distilled_cfg_scale: None,
+        shift,
+        schedule_type,
+        clip_l_prompt,
+        t5xxl_prompt,
         sampler,
         model_name,
         model_hash: None,
@@ -655,6 +723,60 @@ mod tests {
         assert_eq!(meta.negative_prompt.as_deref(), Some("ugly, watermark"));
         assert_eq!(meta.model_name.as_deref(), Some("flux1-dev.sft"));
         assert_eq!(meta.steps, Some(20));
+    }
+
+    #[test]
+    fn parses_comfyui_flux_dual_encoder_and_shift() {
+        let json = r#"{
+            "3": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "seed": 1,
+                    "steps": 20,
+                    "cfg": 1.0,
+                    "sampler_name": "euler",
+                    "scheduler": "simple",
+                    "positive": ["5", 0],
+                    "negative": ["8", 0]
+                }
+            },
+            "4": {
+                "class_type": "UNETLoader",
+                "inputs": {
+                    "unet_name": "flux1-dev.sft"
+                }
+            },
+            "5": {
+                "class_type": "CLIPTextEncodeFlux",
+                "inputs": {
+                    "clip_l": "clip-l prompt",
+                    "t5xxl": "t5xxl prompt",
+                    "guidance": 3.5
+                }
+            },
+            "6": {
+                "class_type": "ModelSamplingSD3",
+                "inputs": {
+                    "shift": 3.0
+                }
+            },
+            "8": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": "ugly, watermark"
+                }
+            }
+        }"#;
+
+        let meta = parse_comfyui(json).expect("parsed flux dual-encoder workflow");
+        assert_eq!(meta.prompt.as_deref(), Some("clip-l prompt, t5xxl prompt"));
+        assert_eq!(meta.clip_l_prompt.as_deref(), Some("clip-l prompt"));
+        assert_eq!(meta.t5xxl_prompt.as_deref(), Some("t5xxl prompt"));
+        assert_eq!(meta.guidance_scale, Some(3.5));
+        assert_eq!(meta.shift, Some(3.0));
+        assert_eq!(meta.schedule_type.as_deref(), Some("simple"));
+        assert_eq!(meta.cfg_scale, Some(1.0));
+        assert_eq!(meta.negative_prompt.as_deref(), Some("ugly, watermark"));
     }
 
     #[test]

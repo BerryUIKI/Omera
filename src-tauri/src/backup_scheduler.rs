@@ -457,12 +457,14 @@ mod tests {
         omera_storage::Database::connect(&database).unwrap();
         save_preferences(root.path(), true, &destination);
         let worker = BackupWorker::start(root.path().into(), database);
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        // Windows CI can take well over five seconds to finish the first real
+        // snapshot (filesystem and antivirus latency). Wait for both the
+        // published success and the cleared running flag before asserting.
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
         loop {
             let status = worker.status().unwrap();
-            if status.last_success_at.is_some() {
+            if status.last_success_at.is_some() && !status.running {
                 assert!(status.enabled);
-                assert!(!status.running);
                 assert!(destination.join(status.last_snapshot.unwrap()).is_file());
                 break;
             }

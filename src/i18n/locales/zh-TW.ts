@@ -160,6 +160,13 @@ export const zhTW: typeof en = {
     scheduler: "排程器 (Scheduler)",
     steps: "取樣步數 (Steps)",
     cfgScale: "提示詞引導係數 (CFG)",
+    guidanceScale: "引導係數 (Guidance)",
+    distilledCfgScale: "蒸餾 CFG (Distilled CFG)",
+    shift: "偏移量 (Shift)",
+    scheduleType: "排程類型",
+    textEncoders: "文字編碼器",
+    clipLPrompt: "CLIP-L 提示詞",
+    t5xxlPrompt: "T5-XXL 提示詞",
     seed: "隨機種子 (Seed)",
     dimensions: "圖像解析度",
     format: "元數據格式",
@@ -1169,5 +1176,14 @@ export const zhTW: typeof en = {
     "results": "找到 {count} 項設定",
     "noResults": "沒有符合的設定",
     "themePreview": "佈景主題預覽"
+},
+  civitai: {
+    "lookup": "在 Civitai 查詢",
+    "refresh": "重新整理 Civitai 資料",
+    "notFound": "Civitai 找不到相符的模型",
+    "failed": "Civitai 查詢失敗",
+    "updateAvailable": "有新版本",
+    "apply": "套用 Civitai 中繼資料",
+    "applied": "已套用 Civitai 中繼資料"
 },
 };

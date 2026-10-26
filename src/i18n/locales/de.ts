@@ -160,6 +160,13 @@ export const de: typeof en = {
     scheduler: "Scheduler",
     steps: "Schritte (Steps)",
     cfgScale: "CFG-Skala",
+    guidanceScale: "Guidance-Skala",
+    distilledCfgScale: "Distilled-CFG-Skala",
+    shift: "Shift",
+    scheduleType: "Zeitplan-Typ",
+    textEncoders: "Text-Encoder",
+    clipLPrompt: "CLIP-L-Prompt",
+    t5xxlPrompt: "T5-XXL-Prompt",
     seed: "Seed",
     dimensions: "Dimensionen",
     format: "Format",
@@ -1169,5 +1176,14 @@ export const de: typeof en = {
     "results": "{count} Einstellungen gefunden",
     "noResults": "Keine passenden Einstellungen",
     "themePreview": "Themenvorschau"
+},
+  civitai: {
+    "lookup": "Auf Civitai suchen",
+    "refresh": "Civitai-Daten aktualisieren",
+    "notFound": "Kein passendes Modell auf Civitai gefunden",
+    "failed": "Civitai-Suche fehlgeschlagen",
+    "updateAvailable": "Update verfügbar",
+    "apply": "Civitai-Metadaten übernehmen",
+    "applied": "Civitai-Metadaten übernommen"
 },
 };

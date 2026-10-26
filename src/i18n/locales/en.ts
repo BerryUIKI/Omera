@@ -158,6 +158,13 @@ export const en = {
     scheduler: "Scheduler",
     steps: "Steps",
     cfgScale: "CFG Scale",
+    guidanceScale: "Guidance Scale",
+    distilledCfgScale: "Distilled CFG Scale",
+    shift: "Shift",
+    scheduleType: "Schedule Type",
+    textEncoders: "Text Encoders",
+    clipLPrompt: "CLIP-L Prompt",
+    t5xxlPrompt: "T5-XXL Prompt",
     seed: "Seed",
     dimensions: "Dimensions",
     format: "Format",
@@ -1167,5 +1174,14 @@ export const en = {
     "results": "{count} settings found",
     "noResults": "No matching settings",
     "themePreview": "Theme preview"
+},
+  civitai: {
+    "lookup": "Look up on Civitai",
+    "refresh": "Refresh Civitai",
+    "notFound": "No matching model found on Civitai",
+    "failed": "Civitai lookup failed",
+    "updateAvailable": "Update available",
+    "apply": "Apply Civitai metadata",
+    "applied": "Civitai metadata applied"
 },
 };

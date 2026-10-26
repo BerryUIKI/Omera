@@ -239,6 +239,19 @@ pub const MIGRATIONS: &[&str] = &[
         legacy_basename TEXT NOT NULL
     ) STRICT;
     "#,
+    // v18: cached Civitai model lookups keyed by local model hash.
+    r#"
+    CREATE TABLE civitai_cache (
+        hash        TEXT PRIMARY KEY,
+        model_id    INTEGER NOT NULL,
+        version_id  INTEGER NOT NULL,
+        model_name  TEXT NOT NULL,
+        payload     TEXT NOT NULL,
+        checked_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    ) STRICT;
+
+    CREATE INDEX idx_civitai_cache_model ON civitai_cache(model_id);
+    "#,
 ];
 
 /// The schema version the current code migrates databases to.

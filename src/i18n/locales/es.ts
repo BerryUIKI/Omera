@@ -160,6 +160,13 @@ export const es: typeof en = {
     scheduler: "Scheduler",
     steps: "Pasos (Steps)",
     cfgScale: "Escala CFG",
+    guidanceScale: "Escala de guía",
+    distilledCfgScale: "Escala CFG destilada",
+    shift: "Desplazamiento",
+    scheduleType: "Tipo de programación",
+    textEncoders: "Codificadores de texto",
+    clipLPrompt: "Prompt CLIP-L",
+    t5xxlPrompt: "Prompt T5-XXL",
     seed: "Semilla (Seed)",
     dimensions: "Dimensiones",
     format: "Formato",
@@ -1169,5 +1176,14 @@ export const es: typeof en = {
     "results": "{count} ajustes encontrados",
     "noResults": "No hay ajustes coincidentes",
     "themePreview": "Vista previa del tema"
+},
+  civitai: {
+    "lookup": "Buscar en Civitai",
+    "refresh": "Actualizar datos de Civitai",
+    "notFound": "No se encontró un modelo coincidente en Civitai",
+    "failed": "La búsqueda en Civitai falló",
+    "updateAvailable": "Actualización disponible",
+    "apply": "Aplicar metadatos de Civitai",
+    "applied": "Metadatos de Civitai aplicados"
 },
 };

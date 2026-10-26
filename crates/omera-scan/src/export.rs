@@ -371,6 +371,12 @@ pub fn process_single_image(
                     m.sampler = None;
                     m.seed = None;
                     m.cfg_scale = None;
+                    m.guidance_scale = None;
+                    m.distilled_cfg_scale = None;
+                    m.shift = None;
+                    m.schedule_type = None;
+                    m.clip_l_prompt = None;
+                    m.t5xxl_prompt = None;
                     m.steps = None;
                     serde_json::to_string_pretty(&m).ok()
                 }
@@ -380,6 +386,8 @@ pub fn process_single_image(
                     m.negative_prompt = None;
                     m.parameters = None;
                     m.raw = None;
+                    m.clip_l_prompt = None;
+                    m.t5xxl_prompt = None;
                     serde_json::to_string_pretty(&m).ok()
                 }
                 MetadataPrivacyMode::KeepAll => file
@@ -928,6 +936,7 @@ mod tests {
             duration_seconds: None,
             fps: None,
             video_codec: None,
+            ..Default::default()
         };
 
         let file = ImageFile {
@@ -1379,6 +1388,7 @@ mod tests {
             duration_seconds: None,
             fps: None,
             video_codec: None,
+            ..Default::default()
         };
 
         let file = ImageFile {
