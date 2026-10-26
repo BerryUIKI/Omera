@@ -422,4 +422,22 @@ mod tests {
             Some("https://image.civitai.com/only.jpeg".to_string())
         );
     }
+
+    #[test]
+    #[ignore = "requires live Civitai access"]
+    fn live_lookup_and_preview_download() {
+        let hash = "879db523c30d3b9017143d56705015e15a2cb5628762c11d086fed9538abd7fd";
+        let info = lookup(&[hash.to_string()])
+            .expect("live Civitai lookup")
+            .expect("known DreamShaper version");
+        assert_eq!(info.model_id, 4384);
+        assert!(!info.model_name.is_empty());
+        assert!(info.latest_version_id.is_some());
+        let preview_url = info.preview_url.as_deref().expect("preview URL");
+        assert!(is_civitai_https(preview_url));
+        let directory = tempfile::tempdir().unwrap();
+        let path = download_preview(preview_url, hash, directory.path()).expect("preview download");
+        assert!(path.is_file());
+        assert!(std::fs::metadata(&path).unwrap().len() > 0);
+    }
 }
