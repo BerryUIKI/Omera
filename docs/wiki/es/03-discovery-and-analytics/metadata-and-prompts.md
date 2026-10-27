@@ -16,8 +16,14 @@ Omera reconoce de forma nativa los metadatos incrustados en fragmentos PNG, cabe
 | **Fooocus / Fooocus-MRE** | Modelo base, Refinador, Pesos de LoRA, Nitidez, Modo de rendimiento, Resolución, Prompt | Bloques de texto PNG `parameters` |
 | **InvokeAI** | Nombre de modelo, VAE, Scheduler, Modo de generación (txt2img/img2img), Patrón continuo (seamless) | Bloques JSON PNG `sd-metadata` e `invokeai_metadata` |
 | **EasyDiffusion / Stable Swarm** | Bloques de parámetros JSON estructurados, Semilla, Nombre de modelo | Bloques PNG `sui_image_params` / archivos auxiliares |
+| **Flux.1 / SD3.5** | Guidance, Distilled CFG Scale, Shift, tipo de programación, prompts duales CLIP-L / T5-XXL, tamaño, modelo | Parámetros PNG / grafo de prompt de ComfyUI |
 
 ---
+
+
+### Parámetros de Flux.1 y SD3.5
+
+Los metadatos de Forge/A1111 y ComfyUI pueden incluir `Guidance`, `Distilled CFG Scale`, `Shift`, `Schedule type` y prompts separados de los codificadores CLIP-L / T5-XXL. Omera los guarda como campos opcionales y los muestra en el Inspector. Las filas indexadas antes de v0.5.0 necesitan una reconstrucción de metadatos o un nuevo escaneo para mostrar los campos nuevos.
 
 ## 2. Panel del inspector de propiedades (`InspectorPane.vue`)
 

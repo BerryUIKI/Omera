@@ -20,11 +20,13 @@ The Rust backend is structured as a modular Cargo workspace rooted at `/Cargo.to
 
 | Crate Path | Role & Responsibility | Key Dependencies |
 | :--- | :--- | :--- |
-| **`src-tauri/`** | Thin application shell. Manages window state, frameless window decorations, app lifecycle, and exposes IPC endpoints to the frontend. | `tauri`, `tauri-plugin-dialog`, `trash`, internal crates |
-| **`crates/omera-domain/`** | Pure domain models, value objects, metadata formats (`MetadataFormat`), sort criteria, and error types. Zero I/O dependencies. | `serde`, `serde_json` |
-| **`crates/omera-metadata/`** | Container sniffers (`detect_container`) and metadata extractors for WebUI (A1111/SD.Next), ComfyUI, NovelAI, Fooocus, InvokeAI, EasyDiffusion, and `.txt` sidecars. | `omera-domain`, `kamadak-exif`, `serde_json` |
-| **`crates/omera-scan/`** | Recursive recovery scanner plus path-targeted reconciliation. Uses incremental fingerprinting `(size_bytes, modified_at)`, batches database upserts, and emits progress events. | `omera-domain`, `omera-metadata`, `omera-storage`, `walkdir` |
-| **`crates/omera-storage/`** | SQLite persistence layer. Owns schema migrations (`MIGRATIONS`), structured metadata indexing, multi-term query builder, model hash reverse cache, and live database backup/restore. | `omera-domain`, `rusqlite` |
+| **`src-tauri/`** | Thin application shell. Manages window state, frameless window decorations, app lifecycle, updater, watcher, cloud backup/sync orchestration and legacy migration coordination, and exposes IPC endpoints to the frontend. | `tauri`, `tauri-plugin-dialog`, `tauri-plugin-opener`, `notify`, `keyring`, internal crates |
+| **`crates/omera-domain/`** | Pure domain models, value objects, metadata formats (`MetadataFormat`), sort criteria, search parsing, stacking plans, transform and collaboration types. Zero I/O dependencies. | `serde`, `serde_json` |
+| **`crates/omera-metadata/`** | Container sniffers (`detect_container`) and metadata extractors for WebUI (A1111/SD.Next), ComfyUI, NovelAI, Fooocus, InvokeAI, EasyDiffusion, LoRA, EXIF, MP4/WebM video, and `.txt`/`.json` sidecars. | `omera-domain`, `kamadak-exif`, `serde_json` |
+| **`crates/omera-scan/`** | Recursive recovery scanner plus path-targeted reconciliation, thumbnail generation and manifests, AIGC pipeline, file operations, batch transform/export, and standalone HTML showcase. Uses incremental fingerprinting `(size_bytes, modified_at)`, batches database upserts, and emits progress events. | `omera-domain`, `omera-metadata`, `omera-storage`, `walkdir`, `image`, `rayon`, `trash`, `zip` |
+| **`crates/omera-storage/`** | SQLite persistence layer. Owns schema migrations (`MIGRATIONS`), structured metadata indexing, multi-term query builder, model hash and Civitai caches, storage roots and `StorageEngine` abstraction, recovery/restore, and live database backup. | `omera-domain`, `rusqlite` |
+| **`crates/omera-tagger/`** | Local WD14 / Danbooru ONNX inference and auto-tagging with confidence filtering. | `omera-domain`, `ort`, `csv`, `image` |
+| **`crates/omera-clip/`** | Local CLIP / SigLIP image and text embeddings for semantic search and visual similarity. | `omera-domain`, `ort`, `tokenizers`, `image` |
 
 ---
 
@@ -47,8 +49,10 @@ The frontend is built with **Vue 3 Composition API** + **TypeScript** + **Vite**
 - **Integrated MenuBar (`MenuBar.vue`)**: Desktop dropdown menus (`File`, `Edit`, `View`, `Tools`, `Help`) with clean single-language rendering.
 - **Left Navigation (`Sidebar.vue`)**: Collapsible navigation bar managing library views, recursive folder trees, color tags, and smart albums.
 - **Center Canvas (`VirtualGrid.vue` & `FileList.vue`)**: Virtualized fixed-width Grid and Waterfall layouts. Viewport resizing changes column count without stretching cards; per-column binary search limits scroll-time visibility work to the active window.
-- **Right Property Inspector (`InspectorPane.vue`)**: Tokenized positive/negative prompt chips with one-click copy, model specs table, and collapsible raw JSON viewer.
-- **Quick Look Lightbox (`LightboxModal.vue`)**: Immersive fullscreen viewer with pan, zoom, and keyboard navigation.
+- **Right Property Inspector (`InspectorPane.vue`)**: Tokenized positive/negative prompt chips with one-click copy, model specs table, Flux/SD3.5 guidance, distilled CFG, shift and schedule fields, collapsible dual text-encoder prompts, and raw JSON viewer.
+- **Quick Look Lightbox (`LightboxModal.vue`)**: Immersive fullscreen viewer with pan, zoom, keyboard navigation, and video playback with loop, speed, frame stepping and mute.
+- **Model Manager & Civitai (`ModelManagerModal.vue`)**: Cache import, hash reverse lookup, cached Civitai preview cards, version update badges and model filtering.
+- **Video cards (`VirtualGrid.vue`)**: Frame thumbnails, hover scrubbing, duration badges and stack-aware presentation in Grid and Waterfall.
 
 ### 2. State & Localization
 

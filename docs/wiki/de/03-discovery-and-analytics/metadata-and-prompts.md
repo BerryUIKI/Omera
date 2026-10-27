@@ -16,8 +16,14 @@ Omera versteht nativ Metadaten, die in PNG-Chunks, WebP-EXIF-Headern und MP4-ISO
 | **Fooocus / Fooocus-MRE** | Basis-Modell, Refiner, LoRA-Gewichte, Schärfe, Performance-Modus, Auflösung, Prompt | PNG `parameters`-Textblöcke |
 | **InvokeAI** | Modellname, VAE, Scheduler, Generierungsmodus (txt2img/img2img), Nahtloses Kacheln | PNG `sd-metadata`- & `invokeai_metadata`-JSON |
 | **EasyDiffusion / Stable Swarm** | Formatierte JSON-Parameterblöcke, Seed, Modellname | PNG `sui_image_params` / Sidecars |
+| **Flux.1 / SD3.5** | Guidance, Distilled CFG Scale, Shift, Zeitplan-Typ, duale CLIP-L-/T5-XXL-Prompts, Größe, Modell | PNG-Parameter / ComfyUI-Prompt-Graph |
 
 ---
+
+
+### Flux.1- und SD3.5-Parameter
+
+Forge/A1111- und ComfyUI-Metadaten können `Guidance`, `Distilled CFG Scale`, `Shift`, `Schedule type` sowie getrennte CLIP-L-/T5-XXL-Textencoder-Prompts enthalten. Omera speichert diese als optionale Metadatenfelder und zeigt sie im Inspektor an. Vor v0.5.0 indizierte Zeilen benötigen einen Metadaten-Neuaufbau oder einen erneuten Scan, bevor die neuen Felder erscheinen.
 
 ## 2. Der Eigenschafts-Inspektor (`InspectorPane.vue`)
 

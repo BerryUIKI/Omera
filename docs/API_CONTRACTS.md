@@ -263,9 +263,18 @@ Owner: lead. Database restores (both local `restore_database` and remote `cloud_
 - Activation occurs during startup/restart in `omera_storage::recovery::apply_pending_restore` before application connections or workers start.
 - Prior to applying the restore, a timestamped rollback copy (`pre-restore-<uuid>.db`) is transactionally preserved.
 
-## Planned image transformation contract — NOT IMPLEMENTED
+## Image transformation contract — IMPLEMENTED
 
-The #118 import/batch transformation commands, job receipt, source-disposition authorization and archive/recovery behavior are **proposals**, not registered IPC. See [IMAGE_TRANSFORM_PLAN.md](IMAGE_TRANSFORM_PLAN.md) for the draft shape and gates. `export_files_batch` remains the existing callable command; changes to its DTO, progress event or privacy semantics require a coordinated Rust/TypeScript contract update and [IPC_REFERENCE.md](IPC_REFERENCE.md) update. The lead must approve backend-owned path selection, staged publication, persistent partial results and source cleanup before any UI invokes new commands.
+`transform_library_files_batch({ request: LibraryTransformRequest })` resolves
+`TransformJobReceipt` and is registered in `generate_handler!`. Managed import
+can apply a `TransformSpec` through `import_files_to_managed_vault`, and
+`export_files_batch` remains the existing export path. The shared publication
+service stages, decodes and verifies each derivative before registering it,
+retains external originals by default, and supports keep/archive/system-Trash
+dispositions only after verified publication. AVIF remains export-only per
+#240. DTO, progress, privacy and collision semantics must stay synchronized with
+[IPC_REFERENCE.md](IPC_REFERENCE.md) and the delivered T0–T4 plan in
+[IMAGE_TRANSFORM_PLAN.md](IMAGE_TRANSFORM_PLAN.md).
 
 ## Legacy migration IPC — IMPLEMENTED
 
@@ -342,12 +351,14 @@ Keyboard-accessible checkboxes and numeric width controls provide customization,
 with reset to the compact default. Horizontal scrolling stays inside the Table.
 
 
-## Automatic backup preparation (#246)
+## Automatic backup scheduling (#246) — IMPLEMENTED
 
 Automatic backup remains off by default, with the same seven-day interval in
-Rust default construction, Serde legacy reads and frontend defaults. The future
-scheduler consumes only saved opt-in settings and clamps its interval to 1–365
-days. Scheduling/status IPC is not implemented by this preparation step.
+Rust default construction, Serde legacy reads and frontend defaults. Scheduling
+is driven by the saved opt-in configuration (`auto_backup_enabled`,
+`auto_backup_interval_days`) and clamps the interval to 1–365 days.
+`cloud_backup_get_schedule_status` exposes the worker status, including the last
+attempt/success, next due time, last error and snapshot.
 
 Manual and future scheduled snapshots use independent SQLite backup connections,
 spool database/archive files in private temporary application directories, and

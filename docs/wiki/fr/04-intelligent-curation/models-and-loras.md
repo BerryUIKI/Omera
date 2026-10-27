@@ -20,7 +20,10 @@ Omera suit automatiquement chaque modèle de checkpoint rencontré dans l'ensemb
   3. Omera importe ces correspondances dans sa table locale `model_cache`, résolvant instantanément les hashs cryptiques de toute votre bibliothèque en noms de modèles explicites.
 
 ### Résolution de hash SHA256 avec Civitai :
-- Pour les modèles sans nom local identifié, vous pouvez cliquer sur le bouton de recherche Civitai dans l'Inspecteur pour interroger la base publique de Civitai au moyen du hash du modèle.
+- Pour les modèles sans nom local, utilisez le bouton de recherche Civitai dans le **gestionnaire de modèles** (checkpoints) ou le **gestionnaire de LoRA** (entrées du catalogue).
+- Les résultats sont mis en cache dans SQLite ; les images d'aperçu sont téléchargées dans le cache de données de l'application et servies via le protocole d'actifs.
+- Une version publiée plus récente affiche un badge de mise à jour ; **Actualiser Civitai** revalide le résultat en cache.
+- Dans le gestionnaire de LoRA, **Appliquer les métadonnées Civitai** fusionne les mots entraînés, la description et l'aperçu sans supprimer les mots déclencheurs existants.
 
 ---
 

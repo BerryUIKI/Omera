@@ -16,8 +16,14 @@ Omera natively understands metadata embedded in PNG chunks, WebP EXIF headers, a
 | **Fooocus / Fooocus-MRE** | Base Model, Refiner, LoRA weights, Sharpness, Performance mode, Resolution, Prompt | PNG `parameters` text blocks |
 | **InvokeAI** | Model name, VAE, Scheduler, Generation mode (txt2img/img2img), Seamless tiling | PNG `sd-metadata` & `invokeai_metadata` JSON |
 | **EasyDiffusion / Stable Swarm** | Formatted JSON parameter blocks, Seed, Model name | PNG `sui_image_params` / sidecars |
+| **Flux.1 / SD3.5** | Guidance, Distilled CFG Scale, Shift, schedule type, dual CLIP-L / T5-XXL prompts, Size, model | PNG parameters / ComfyUI prompt graph |
 
 ---
+
+
+### Flux.1 & SD3.5 parameters
+
+Forge/A1111 and ComfyUI metadata can include `Guidance`, `Distilled CFG Scale`, `Shift`, `Schedule type`, and separate CLIP-L / T5-XXL text-encoder prompts. Omera stores these as optional metadata fields and shows them in the Inspector. Rows indexed before v0.5.0 need a metadata rebuild or rescan before the new fields appear.
 
 ## 2. The Property Inspector Pane (`InspectorPane.vue`)
 

@@ -198,12 +198,14 @@ Get the latest pre-built binaries from **[GitHub Releases](https://github.com/Be
 
 | Platform | Architecture | Format | File Name |
 |:---|:---|:---|:---|
-| **Windows** | x86_64 | NSIS Installer | `Omera_Windows_x64.exe` |
-| **Windows** | x86_64 | Portable Zip | `Omera_Windows_x64.zip` |
-| **macOS** | Apple Silicon | DMG | `Omera_macOS_aarch64.dmg` |
-| **macOS** | Intel x86_64 | DMG | `Omera_macOS_x64.dmg` |
-| **Linux** | x86_64 | AppImage | `Omera_Linux_x64.AppImage` |
-| **Linux** | x86_64 | Debian | `Omera_Linux_x64.deb` |
+| **Windows** | x86_64 | NSIS Installer | `Omera_<version>_x64-setup.exe` |
+| **Windows** | x86_64 | MSI | `Omera_<version>_x64_en-US.msi` |
+| **macOS** | Apple Silicon (arm64) | DMG | `Omera_<version>_aarch64.dmg` |
+| **Linux** | x86_64 | AppImage | `Omera_<version>_amd64.AppImage` |
+| **Linux** | x86_64 | Debian | `Omera_<version>_amd64.deb` |
+| **Linux** | x86_64 | RPM | `Omera-<version>-1.x86_64.rpm` |
+
+The current release matrix covers Windows x64, macOS Apple Silicon and Linux x64. Intel macOS and a portable ZIP are not published.
 
 ---
 
@@ -226,10 +228,10 @@ cd Omera
 pnpm install
 
 # Development (hot-reload)
-pnpm run tauri dev
+pnpm dev:desktop
 
 # Production build
-pnpm run tauri build
+pnpm tauri build
 ```
 
 Output: `src-tauri/target/release/bundle/`
@@ -241,10 +243,10 @@ Output: `src-tauri/target/release/bundle/`
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/roadmap_status_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/roadmap_status_light.svg">
-  <img alt="Omera roadmap status at v0.5.0: twelve milestones complete, video and model-ecosystem milestones partially complete, and milestones 17–20 planned" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
+  <img alt="Omera roadmap status at v0.5.0: thirteen milestones complete, video and model-ecosystem milestones partially complete, and milestones 17–19 planned" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15 (video)** and **Milestone 16 (Flux.1 / SD3.5 + Civitai)** are partially complete. The remaining items are resolution/codec/motion-score facets and the ComfyUI workflow visualizer. Milestones 17–20 cover real-time ComfyUI workflows, the LAN web companion, color analytics and image compression.
+**Milestone 15 (video)** and **Milestone 16 (Flux.1 / SD3.5 + Civitai)** are partially complete. The remaining items are resolution/codec/motion-score facets and the ComfyUI workflow visualizer. Milestone 20 (image compression) is delivered; Milestones 17–19 cover real-time ComfyUI workflows, the LAN web companion and color analytics.
 
 📖 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full checklist.
 

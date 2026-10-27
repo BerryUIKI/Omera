@@ -6,7 +6,7 @@ The target product is Omera, identifier `com.berryuiki.omera`, canonical reposit
 
 Before publishing, follow [OMERA_MIGRATION.md](OMERA_MIGRATION.md). Verify migration to `omera.db`, `omera_*` settings and the Omera credential service; platform installer replacement; signed OS/architecture-specific updates; and the subsequent Omera update. Test upgrades that skip intermediate releases. Keep legacy data until validated migration and explicit cleanup confirmation. Never reset application/schema versions or publish an unverified rename build.
 
-Implementation branches start from and target `dev`; approved release integration reaches `main`. Signing key provisioning and actual installer upgrade tests are release gates. The owner requested preparation of v0.4.7 on 2026-10-15. The installed-update matrix remains pending under [#256](https://github.com/BerryUIKI/Omera/issues/256); release preparation and the earlier owner-approved releases do not establish native acceptance. Record candidate package/signing results separately and retain the required approving review on `main`. A changed macOS Bundle ID requires checking provisioning and App Store distribution as a new identity.
+Implementation branches start from and target `dev`; approved release integration reaches `main`. Signing key provisioning and actual installer upgrade tests are release gates. v0.5.0 was prepared and published on 2026-10-26 with signed Windows, macOS and Linux assets. The installed-update matrix remains pending under [#256](https://github.com/BerryUIKI/Omera/issues/256); release preparation and published signed artifacts do not by themselves establish native acceptance. Record candidate package/signing results separately and retain the required approving review on `main`. A changed macOS Bundle ID requires checking provisioning and App Store distribution as a new identity.
 
 This guide describes the release process, versioning conventions, and build artifact management for **Omera**.
 
@@ -92,10 +92,10 @@ git checkout main
 git pull origin main
 
 # 2. Tag the release commit
-git tag v0.4.7
+git tag v0.5.0
 
 # 3. Push the tag to GitHub
-git push origin v0.4.7
+git push origin v0.5.0
 ```
 
 The workflow checks synchronized versions and requires the tag to be integrated

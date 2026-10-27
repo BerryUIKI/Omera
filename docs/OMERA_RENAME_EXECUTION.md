@@ -1,6 +1,6 @@
 # Omera rename execution and agent handoff
 
-Status: implementation plan for [#134](https://github.com/BerryUIKI/Omera/issues/134), not evidence that the runtime identity or migration has shipped. This document is the single entry point for the **entire** Berry AI Studio → Omera rename. The safety protocol is specified in [OMERA_MIGRATION.md](OMERA_MIGRATION.md); API status is in [API_CONTRACTS.md](API_CONTRACTS.md); release gates are in [RELEASING.md](RELEASING.md). Read those contracts before changing code.
+Status: completed historical execution record for [#134](https://github.com/BerryUIKI/Omera/issues/134). The active identity, crates, database and settings are already Omera; the steps below document the migration and the intentional legacy fallbacks. The safety protocol is specified in [OMERA_MIGRATION.md](OMERA_MIGRATION.md); API status is in [API_CONTRACTS.md](API_CONTRACTS.md); release gates are in [RELEASING.md](RELEASING.md).
 
 For the latest merged-PR state and immediate to-do list, see [OMERA_RENAME_STATUS.md](OMERA_RENAME_STATUS.md). The baseline below is the original audit snapshot, not the current implementation baseline.
 

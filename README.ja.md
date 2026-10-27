@@ -111,6 +111,14 @@
 - **プロンプト頻度分析** — プロンプト内のキーワード出現頻度と平均評価を統計分析。
 - **モデルマネージャー** — AutoV2/SHA256 による Civitai 直接検索、プレビューカードのキャッシュ、バージョン更新バッジ、ワンクリックモデル絞り込み。
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gui_model_manager_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/gui_model_manager_light.svg">
+  <img alt="Omera モデルマネージャー：Civitai 検索、プレビューキャッシュ、更新バッジ" src="docs/screenshots/gui_model_manager_dark.svg" width="100%">
+</picture>
+
+<sub>イメージ図 · Civitai 検索、プレビューキャッシュ、更新バッジ</sub>
+
 ### ☁️ クラウド同期＆エクスポート
 
 - **S3 / WebDAV スナップショットバックアップ** — AWS S3、Cloudflare R2、MinIO、Backblaze B2、WebDAV サーバへのホット `VACUUM INTO` バックアップ。スキーマ検証とロールバック保護付き。
@@ -157,32 +165,11 @@ Omera は大規模ライブラリ向けに設計されています。起動時�
 
 ## 🏗️ アーキテクチャ
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Omera (デスクトップ)                │
-├─────────────────────────────────────────────────────────────────┤
-│  Vue 3 + TypeScript          │  Tauri 2 IPC コマンドレイヤー    │
-│  ─ 仮想グリッド / ウォーター │  ─ 薄型アダプター、入力検証、    │
-│    フォール                  │    ロック早期解放                │
-│  ─ インスペクター / ライト   │  ─ 50以上のエンドポイント        │
-│    ボックス / 37コンポーネント│                                 │
-├──────────────────────────────┼──────────────────────────────────┤
-│             モジュール型 Rust Cargo ワークスペース               │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │ berry-domain │ │berry-metadata│ │  berry-scan   │           │
-│  │ 純粋モデル   │ │ PNG/EXIF/    │ │ スキャナー、  │           │
-│  │ ゼロ I/O 契約│ │ ComfyUI/     │ │ サムネイル、  │           │
-│  │              │ │ NovelAI/...  │ │ Showcase 生成 │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │berry-storage │ │ berry-tagger │ │  berry-clip   │           │
-│  │ SQLite       │ │ WD14 ONNX    │ │ CLIP/SigLIP   │           │
-│  │ (ランタイム) │ │ Danbooru     │ │ テキスト＆画像│           │
-│  │ マイグレー   │ │ タグ自動抽出 │ │ マルチモーダル│           │
-│  │ ション       │ │              │ │ 埋め込み      │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/architecture_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/architecture_light.svg">
+  <img alt="Omera アーキテクチャ：Vue 3 フロントエンドが Tauri IPC を介して omera アプリシェル、6 つの omera-* Rust クレート、SQLite・アセットプロトコル・ファイル監視・Civitai・更新・クラウドバックアップに接続" src="docs/screenshots/architecture_dark.svg" width="100%">
+</picture>
 
 **使用技術スタック：** Tauri 2 · Rust (2021 edition) · Vue 3.5 · TypeScript 5.6 · Vite 6 · SQLite (WAL) · Rayon · ONNX Runtime
 
@@ -209,12 +196,14 @@ Omera は大規模ライブラリ向けに設計されています。起動時�
 
 | OS プラットフォーム | アーキテクチャ | 形式 | 配布ファイル名 |
 |:---|:---|:---|:---|
-| **Windows** | x86_64 (64-bit) | NSIS インストーラー | `Omera_Windows_x64.exe` |
-| **Windows** | x86_64 (64-bit) | ポータブル Zip | `Omera_Windows_x64.zip` |
-| **macOS** | Apple Silicon (ARM64) | DMG ディスクイメージ | `Omera_macOS_aarch64.dmg` |
-| **macOS** | Intel (x86_64) | DMG ディスクイメージ | `Omera_macOS_x64.dmg` |
-| **Linux** | x86_64 (64-bit) | AppImage | `Omera_Linux_x64.AppImage` |
-| **Linux** | x86_64 (64-bit) | Debian パッケージ | `Omera_Linux_x64.deb` |
+| **Windows** | x86_64 | NSIS インストーラー | `Omera_<version>_x64-setup.exe` |
+| **Windows** | x86_64 | MSI | `Omera_<version>_x64_en-US.msi` |
+| **macOS** | Apple Silicon (arm64) | DMG ディスクイメージ | `Omera_<version>_aarch64.dmg` |
+| **Linux** | x86_64 | AppImage | `Omera_<version>_amd64.AppImage` |
+| **Linux** | x86_64 | Debian パッケージ | `Omera_<version>_amd64.deb` |
+| **Linux** | x86_64 | RPM | `Omera-<version>-1.x86_64.rpm` |
+
+現在のリリースマトリクスは Windows x64、macOS Apple Silicon、Linux x64 を対象としています。Intel macOS とポータブル ZIP は配布していません。
 
 ---
 
@@ -237,10 +226,10 @@ cd Omera
 pnpm install
 
 # 3. 開発モードの起動 (ホットリロード)
-pnpm run tauri dev
+pnpm dev:desktop
 
 # 4. リリース用バイナリのビルド
-pnpm run tauri build
+pnpm tauri build
 ```
 
 出力バイナリ：`src-tauri/target/release/bundle/`
@@ -252,10 +241,10 @@ pnpm run tauri build
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/roadmap_status_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/roadmap_status_light.svg">
-  <img alt="Omera v0.5.0 ロードマップ状況：12 マイルストーン完了、動画とモデルエコシステムは一部完了、マイルストーン 17–20 は計画中" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
+  <img alt="Omera v0.5.0 ロードマップ状況：13 マイルストーン完了、動画とモデルエコシステムは一部完了、マイルストーン 17–19 は計画中" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15（動画）** と **Milestone 16（Flux.1 / SD3.5 + Civitai）** は一部完了しています。残りは解像度/コーデック/motion score ファセットと ComfyUI ワークフロー可視化です。Milestone 17–20 は ComfyUI リアルタイムワークフロー、LAN Web コンパニオン、カラー分析、画像圧縮を対象とします。
+**Milestone 15（動画）** と **Milestone 16（Flux.1 / SD3.5 + Civitai）** は一部完了しています。残りは解像度/コーデック/motion score ファセットと ComfyUI ワークフロー可視化です。Milestone 20（画像圧縮）は提供済みで、Milestone 17–19 は ComfyUI リアルタイムワークフロー、LAN Web コンパニオン、カラー分析を対象とします。
 
 📖 詳細は [docs/ROADMAP.md](docs/ROADMAP.md) をご覧ください。
 
