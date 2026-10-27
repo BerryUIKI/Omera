@@ -1,17 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
+import { currentLocale } from "../i18n";
+import { HELP_TOPICS, HELP_UI } from "../i18n/help-content";
 
-export interface HelpTopic {
-  id: string;
-  category: string;
-  title: string;
-  icon: string;
-  badge?: string;
-  summary: string;
-  content: string[];
-  tips?: string[];
-  shortcuts?: { key: string; desc: string }[];
-}
 
 const props = withDefaults(
   defineProps<{
@@ -32,178 +23,21 @@ const searchQuery = ref("");
 const selectedTopicId = ref("workspace-layout");
 const articleContainer = ref<HTMLElement | null>(null);
 
-const TOPICS: HelpTopic[] = [
-  {
-    id: "workspace-layout",
-    category: "Getting Started",
-    title: "Workspace Layout & 3-Pane View",
-    icon: "🖥️",
-    badge: "Core",
-    summary: "Overview of the studio interface: Navigation Sidebar, Gallery Canvas, and Metadata Inspector.",
-    content: [
-      "Omera features an ultra-responsive 3-pane studio workspace optimized for high-volume creative curation.",
-      "Left Sidebar: Navigate Library folders, Smart Albums, Tags, Sensitive Media, and Prompt Insights.",
-      "Center Canvas: High-performance virtualized Grid, Masonry Waterfall, or Table layout with dynamic thumbnail zoom.",
-      "Right Inspector: Comprehensive parameter inspector showing Generation Prompts, KSampler configs, CFG, Seeds, Models, and LoRA chips."
-    ],
-    tips: [
-      "Press Tab or click the panel toggles in the top MenuBar (View menu) to collapse the Sidebar or Inspector for fullscreen browsing.",
-      "Double-click or press Space / Enter on any card to summon the Fullscreen Quick Look Lightbox."
-    ]
-  },
-  {
-    id: "keyboard-shortcuts",
-    category: "Getting Started",
-    title: "Keyboard Shortcuts & Fast Curation",
-    icon: "⌨️",
-    summary: "Master all single-key shortcuts for rapid culling, rating, comparing, and navigation.",
-    content: [
-      "Keyboard shortcuts allow prompt engineers and artists to triage thousands of images without taking their hands off the keyboard.",
-      "Rating & Culling: Use numeric keys 1-5 to rate images; 0 clears rating. Press Delete or Backspace to move to system Trash.",
-      "Compare Mode: Select 2 to 4 images and press 'C' to launch the Side-by-Side compare matrix with synchronized pan and zoom."
-    ],
-    shortcuts: [
-      { key: "1 - 5", desc: "Set star rating on selection" },
-      { key: "0", desc: "Clear rating on selection" },
-      { key: "F", desc: "Toggle favorite bookmark" },
-      { key: "C", desc: "Side-by-side compare selected images" },
-      { key: "Ctrl + G", desc: "Group selection into a new burst stack" },
-      { key: "Ctrl + Shift + G", desc: "Ungroup active burst stack" },
-      { key: "Alt + S", desc: "Set selected image as stack hero cover" },
-      { key: "Space / Enter", desc: "Open fullscreen Quick Look Lightbox" },
-      { key: "/ or Ctrl+F", desc: "Focus search bar" },
-      { key: "F1", desc: "Open this Help Guide & Documentation" }
-    ]
-  },
-  {
-    id: "folder-modes",
-    category: "Library Management",
-    title: "Folder Modes & Pipeline Ingestion",
-    icon: "📂",
-    badge: "Architecture",
-    summary: "Mode A (External Link), Mode B (Managed Vault), and Mode C (AIGC Pipeline Harvesting).",
-    content: [
-      "Mode A: External Link mode leaves your image files in-place on disk (read-only index). Perfect for existing generation outputs.",
-      "Mode B: Managed Project Vault stores images within dedicated app storage with copy/move drag-and-drop ingestion.",
-      "Mode C: AIGC Ingestion Pipeline monitors WebUI/ComfyUI output directories, debounces new generations, and safely harvests them into organized collections."
-    ],
-    tips: [
-      "You can toggle between Subfolder recursive search and Direct single-level browsing using the folder options in the sidebar."
-    ]
-  },
-  {
-    id: "stacks-and-bursts",
-    category: "Intelligent Curation",
-    title: "Image Stacking & Burst Grouping",
-    icon: "🃏",
-    badge: "Pro",
-    summary: "Poker-deck card stacking, automatic prompt clustering, hero cover selection, and draft culling.",
-    content: [
-      "Burst stacks consolidate variations of the same generation into a clean, collapsible poker-deck card.",
-      "Auto-Stacking: Choose Tools > Organize by Prompt to cluster generations created within similar timeframes or prompt similarity.",
-      "Hero Selection: The top card (Hero) represents the stack. Select any card within an expanded stack and press Alt+S to assign it as the new cover.",
-      "Batch Cull: Click 'Cull Drafts' in the batch action bar or menu to automatically keep heroes and 4-5 star artworks while moving lower-rated iterations to Trash."
-    ]
-  },
-  {
-    id: "search-and-filtering",
-    category: "Discovery & Analytics",
-    title: "Search Syntax & Structured Filters",
-    icon: "🔍",
-    summary: "Structured search tokens, parameter ranges, negation, and multi-facet filtering.",
-    content: [
-      "Search supports structured key-value queries: prompt:cat, model:sdxl, steps:>=30, cfg:>7, rating:>=4.",
-      "Negation & Exclusion: Use -tag:draft or -model:pony to exclude specific attributes.",
-      "Video Facets: Use fps:>=24 and duration:>=5s in search, or the Images/Videos media filter in the filter drawer.",
-      "Sensitive Media: Toggle the 18+ filter or search is:nsfw / is:sfw to quickly locate sensitive artworks."
-    ]
-  },
-  {
-    id: "ai-semantic-and-tagger",
-    category: "Intelligent Curation",
-    title: "AI Semantic Search & WD14 Tagger",
-    icon: "🧠",
-    badge: "AI Powered",
-    summary: "Local CLIP/SigLIP text-to-image natural language search and local ONNX auto-tagger.",
-    content: [
-      "Natural Language Semantic Search: Toggle Semantic mode in the search bar to describe concepts freely (e.g. 'cyberpunk rainy alleyway at night').",
-      "Local Vector Indexing: Generate 768-dim embeddings locally with zero data sent to external clouds via Tools > CLIP Semantic Search Index.",
-      "Local WD14 Tagger: Batch extract Danbooru & general anime tags with high accuracy using Tools > Auto-Tag with WD14."
-    ],
-    tips: [
-      "Semantic inference failures are tracked per-model and will not block gallery rendering or cause retry loops."
-    ]
-  },
-  {
-    id: "models-and-loras",
-    category: "Intelligent Curation",
-    title: "Checkpoint Models & LoRA Trigger Words",
-    icon: "🎨",
-    summary: "Model hash reverse lookups, Civitai caching, and one-click LoRA trigger word injection.",
-    content: [
-      "Tools > Model Manager displays all unique checkpoint base models indexed across your creations with Civitai SHA256 reverse lookups.",
-      "Tools > LoRA Trigger Library automatically identifies active LoRA weights in ComfyUI / WebUI generation strings and copies trigger tokens to clipboard."
-    ]
-  },
-  {
-    id: "export-and-showcase",
-    category: "Export & Collaboration",
-    title: "Batch Export, Transcoding & HTML Showcase",
-    icon: "📦",
-    summary: "Lossless/lossy format conversion, privacy sanitization, companion sidecars, and standalone HTML showcase.",
-    content: [
-      "Batch Export (Ctrl+E): Convert selections to WebP, JPEG, or PNG with strict resolution downscaling constraints and collision resolution.",
-      "Privacy Stripping: Select 'Strip Prompt Only', 'Strip All AI Metadata', or 'Full Sanitize' to clean files for public release.",
-      "Standalone HTML Showcase: Generate a self-contained, zero-dependency responsive photo gallery with prompt inspection playable directly in any browser."
-    ]
-  },
-  {
-    id: "video-support",
-    category: "Library Management",
-    title: "Video & Animation AIGC Support",
-    icon: "🎬",
-    badge: "New in v0.4.0",
-    summary: "MP4/WebM video indexing, AnimateDiff/Hunyuan/Wan2.1 workflows, and lightbox video controls.",
-    content: [
-      "Omera automatically parses generation parameters and workflow metadata embedded within MP4 and WebM video files.",
-      "Full Lightbox playback supports looping, playback speed adjustment (0.25x - 2.0x), and frame-stepping (',' and '.')."
-    ]
-  },
-  {
-    id: "database-maintenance",
-    category: "Reference & Maintenance",
-    title: "Database Maintenance & Cloud Backups",
-    icon: "⚙️",
-    summary: "SQLite VACUUM compaction, safe WAL migrations, and S3 / WebDAV snapshot cloud backups.",
-    content: [
-      "Database Compaction: Tools > Database Manager allows running live SQLite VACUUM and integrity checks without downtime.",
-      "Cloud Snapshots: Configure AWS S3, Cloudflare R2, MinIO, or WebDAV in Settings to create point-in-time encrypted snapshot backups."
-    ]
-  },
-  {
-    id: "settings-reference",
-    category: "Reference & Maintenance",
-    title: "Settings Reference & Privacy Policy",
-    icon: "🛡️",
-    summary: "Application preferences, theme appearance, thumbnail cache budgets, and local-first data protection.",
-    content: [
-      "Theme: Switch between Dark, Light, and Cyberpunk theme accents with high-contrast text rendering.",
-      "Thumbnail Cache: Set maximum disk cache budget (512MB - 16GB) with automatic LRU tiered cleanup.",
-      "Zero Telemetry Guarantee: Omera is 100% local-first and never sends prompts, images, or metrics to external analytics."
-    ]
-  }
-];
+const ui = computed(() => HELP_UI[currentLocale.value] ?? HELP_UI.en);
+const topics = computed(() => HELP_TOPICS[currentLocale.value] ?? HELP_TOPICS.en);
+
+
 
 const categories = computed(() => {
   const cats = new Set<string>();
-  TOPICS.forEach((t) => cats.add(t.category));
+  topics.value.forEach((t) => cats.add(t.category));
   return Array.from(cats);
 });
 
 const filteredTopics = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return TOPICS;
-  return TOPICS.filter(
+  if (!q) return topics.value;
+  return topics.value.filter(
     (item) =>
       item.title.toLowerCase().includes(q) ||
       item.summary.toLowerCase().includes(q) ||
@@ -213,7 +47,7 @@ const filteredTopics = computed(() => {
 });
 
 const activeTopic = computed(() => {
-  return TOPICS.find((t) => t.id === selectedTopicId.value) || TOPICS[0];
+  return topics.value.find((t) => t.id === selectedTopicId.value) || topics.value[0];
 });
 
 function selectTopic(id: string) {
@@ -253,14 +87,14 @@ watch(
         <div class="header-branding">
           <span class="header-icon">📖</span>
           <div>
-            <h2 id="help-drawer-title" class="drawer-title">Feature Guide & Documentation</h2>
-            <p class="drawer-subtitle">Offline studio manuals, shortcuts, and workflow guides</p>
+            <h2 id="help-drawer-title" class="drawer-title">{{ ui.title }}</h2>
+            <p class="drawer-subtitle">{{ ui.subtitle }}</p>
           </div>
         </div>
         <button
           type="button"
           class="btn-close"
-          aria-label="Close Help Guide"
+          :aria-label="ui.closeLabel"
           @click="emit('close')"
         >
           ✕
@@ -274,7 +108,7 @@ watch(
           v-model="searchQuery"
           type="search"
           class="drawer-search-input"
-          placeholder="Search guides, parameters, shortcuts (e.g. stacks, video, models)..."
+          :placeholder="ui.searchPlaceholder"
         />
         <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">✕</button>
       </div>
@@ -282,7 +116,7 @@ watch(
       <!-- Drawer Body: Split Navigation and Reader -->
       <div class="drawer-body">
         <!-- Sidebar Navigation -->
-        <nav class="drawer-nav" aria-label="Help topics">
+        <nav class="drawer-nav" :aria-label="ui.title">
           <div v-for="cat in categories" :key="cat" class="nav-category-group">
             <h3 class="category-header">{{ cat }}</h3>
             <ul class="topic-list">
@@ -305,7 +139,7 @@ watch(
           </div>
 
           <div v-if="filteredTopics.length === 0" class="empty-search">
-            <p>No documentation found matching "{{ searchQuery }}".</p>
+            <p>{{ ui.noResults.replace("{query}", searchQuery) }}</p>
           </div>
         </nav>
 
@@ -324,7 +158,7 @@ watch(
 
             <!-- Shortcuts Table if provided -->
             <div v-if="activeTopic.shortcuts && activeTopic.shortcuts.length" class="shortcuts-section">
-              <h4 class="section-heading">⚡ Essential Shortcuts</h4>
+              <h4 class="section-heading">{{ ui.shortcutsHeading }}</h4>
               <div class="shortcut-matrix">
                 <div v-for="(sc, sidx) in activeTopic.shortcuts" :key="sidx" class="shortcut-row">
                   <kbd class="key-pill">{{ sc.key }}</kbd>
@@ -335,7 +169,7 @@ watch(
 
             <!-- Pro Tips Callout if provided -->
             <div v-if="activeTopic.tips && activeTopic.tips.length" class="pro-tips-card">
-              <div class="tip-badge">💡 Pro Tip</div>
+              <div class="tip-badge">{{ ui.tipBadge }}</div>
               <ul class="tip-list">
                 <li v-for="(tip, tidx) in activeTopic.tips" :key="tidx">{{ tip }}</li>
               </ul>
@@ -346,8 +180,8 @@ watch(
 
       <!-- Drawer Footer -->
       <div class="drawer-footer">
-        <span class="footer-hint">Press <kbd class="kbd-hint">Esc</kbd> to close · <kbd class="kbd-hint">F1</kbd> to summon anywhere</span>
-        <button type="button" class="btn btn-secondary" @click="emit('close')">Done</button>
+        <span class="footer-hint">{{ ui.footerHint }}</span>
+        <button type="button" class="btn btn-secondary" @click="emit('close')">{{ ui.done }}</button>
       </div>
     </div>
   </div>
