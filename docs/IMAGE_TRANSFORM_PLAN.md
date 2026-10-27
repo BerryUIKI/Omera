@@ -37,7 +37,7 @@ Code review of the current `dev` baseline found the following preconditions for 
 - Directory export uses `fs::write`, ZIP creation uses `File::create`, and the current write paths do not consistently propagate output/sidecar/ZIP entry errors into per-file success. Define a safe collision policy and count success only after every required write has completed. Do not silently overwrite an existing asset or ZIP.
 - The raster re-encode path strips embedded metadata. The UI's existing privacy choices cannot imply preservation of EXIF, ICC or AI workflow data when that preservation is not implemented. Sidecar contents must follow the same effective privacy choice.
 
-The existing source of truth is `crates/berry-domain/src/export.rs`, `crates/berry-scan/src/export.rs`, `src/components/ExportModal.vue`, and the `export_files_batch` IPC entry in [IPC_REFERENCE.md](IPC_REFERENCE.md). Revalidate these observations against the implementation baseline before coding.
+The existing source of truth is `crates/omera-domain/src/export.rs`, `crates/omera-scan/src/export.rs`, `src/components/ExportModal.vue`, and the `export_files_batch` IPC entry in [IPC_REFERENCE.md](IPC_REFERENCE.md). Revalidate these observations against the implementation baseline before coding.
 
 ## Workflow and safety decisions
 

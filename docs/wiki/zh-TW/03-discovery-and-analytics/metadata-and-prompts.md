@@ -16,8 +16,14 @@ Omera 原生支援讀取內嵌於 PNG 數據區塊 (Chunks)、WebP EXIF 標頭�
 | **Fooocus / Fooocus-MRE** | 基底模型、Refiner 模型、LoRA 權重、銳化度、效能模式、解析度、提示詞文字 | PNG `parameters` 文字區塊 |
 | **InvokeAI** | 模型名稱、VAE、排程器、生成模式（txt2img / img2img）、無縫拼貼 | PNG `sd-metadata` 與 `invokeai_metadata` JSON |
 | **EasyDiffusion / Stable Swarm** | 格式化 JSON 參數區塊、種子、模型名稱 | PNG `sui_image_params` / 同名側車檔案 |
+| **Flux.1 / SD3.5** | Guidance、Distilled CFG Scale、Shift、排程類型、CLIP-L / T5-XXL 雙編碼器提示詞、尺寸、模型 | PNG 參數 / ComfyUI 提示詞圖 |
 
 ---
+
+
+### Flux.1 與 SD3.5 參數
+
+Forge/A1111 與 ComfyUI 中繼資料可能包含 `Guidance`、`Distilled CFG Scale`、`Shift`、`Schedule type`，以及獨立的 CLIP-L / T5-XXL 文字編碼器提示詞。Omera 將其儲存為可選中繼資料欄位並在檢查器中顯示。v0.5.0 之前已索引的記錄需要重建中繼資料或重新掃描後才會出現這些欄位。
 
 ## 2. 屬性檢查器面板 (`InspectorPane.vue`)
 

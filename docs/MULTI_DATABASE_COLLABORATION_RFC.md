@@ -63,9 +63,9 @@ flowchart TD
 
 ---
 
-## 2. Storage Abstraction Layer (`crates/berry-storage`)
+## 2. Storage Abstraction Layer (`crates/omera-storage`)
 
-Currently, `berry-storage` depends directly on synchronous `rusqlite`. The refactored architecture introduces an asynchronous trait `StorageEngine` powered by `sqlx`.
+Currently, `omera-storage` depends directly on synchronous `rusqlite`. The refactored architecture introduces an asynchronous trait `StorageEngine` powered by `sqlx`.
 
 ### 2.1 Storage Engine Trait Definition
 
@@ -477,7 +477,7 @@ A crucial architectural decision is that **thumbnails are generated and cached l
    - Image downscaling and decoding are distributed across workstations' multi-core CPUs and GPU decoders rather than overloading the central server.
 
 ### 7.2 Cache Lifecycle
-- Reuses the existing `berry-scan` persistent thumbnail manifest (`sqlite3` local manifest in app data directory).
+- Reuses the existing `omera-scan` persistent thumbnail manifest (`sqlite3` local manifest in app data directory).
 - Thumbnails are keyed by SHA-256 fingerprint or `(root_uuid, relative_path, modified_at)`.
 - If an image is modified by another workstation, the updated `modified_at` automatically invalidates the local tier cache.
 
@@ -512,7 +512,7 @@ A dedicated **Team & Database** tab will be introduced into `SettingsModal.vue`:
 +-------------------------------------------------------------------------------+
 ```
 
-### 8.2 Migration Pipeline (`berry-cli` & In-App)
+### 8.2 Migration Pipeline (CLI & In-App)
 
 The migration tool transfers existing SQLite libraries to MySQL or PostgreSQL:
 1. Validates schema compatibility and database permissions (`CREATE TABLE`, `CREATE INDEX`).
@@ -525,7 +525,7 @@ The migration tool transfers existing SQLite libraries to MySQL or PostgreSQL:
 ## 9. Phased Implementation Roadmap
 
 ### Phase 1: Storage Trait Extraction & `sqlx` Integration
-- Abstract `rusqlite` into the `StorageEngine` trait inside `crates/berry-storage`.
+- Abstract `rusqlite` into the `StorageEngine` trait inside `crates/omera-storage`.
 - Integrate `sqlx` with conditional feature flags (`sqlite`, `mysql`, `postgres`).
 - Implement cursor-based pagination API alongside existing offset pagination.
 

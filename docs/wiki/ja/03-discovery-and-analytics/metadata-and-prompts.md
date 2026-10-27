@@ -16,8 +16,14 @@ Omera は、PNG チャンク、WebP EXIF ヘッダー、MP4 ISOBMFF ボックス
 | **Fooocus / Fooocus-MRE** | ベースモデル、リファイナー、LoRA ウェイト、シャープネス、パフォーマンスモード、解像度、プロンプト | PNG `parameters` テキストブロック |
 | **InvokeAI** | モデル名、VAE、スケジューラー、生成モード (txt2img/img2img)、シームレスタイル設定 | PNG `sd-metadata` & `invokeai_metadata` JSON |
 | **EasyDiffusion / Stable Swarm** | フォーマット済み JSON パラメータブロック、シード値、モデル名 | PNG `sui_image_params` / サイドカーファイル |
+| **Flux.1 / SD3.5** | Guidance、Distilled CFG Scale、Shift、スケジュールタイプ、CLIP-L / T5-XXL デュアルプロンプト、サイズ、モデル | PNG パラメータ / ComfyUI プロンプトグラフ |
 
 ---
+
+
+### Flux.1 / SD3.5 パラメータ
+
+Forge/A1111 と ComfyUI のメタデータには `Guidance`、`Distilled CFG Scale`、`Shift`、`Schedule type`、および CLIP-L / T5-XXL の個別テキストエンコーダープロンプトが含まれる場合があります。Omera はこれらを任意のメタデータフィールドとして保存し、インスペクターに表示します。v0.5.0 より前に索引済みの行は、メタデータの再構築または再スキャンを行うまで新しいフィールドが表示されません。
 
 ## 2. プロパティインスペクターパネル (`InspectorPane.vue`)
 

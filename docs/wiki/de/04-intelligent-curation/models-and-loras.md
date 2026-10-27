@@ -20,7 +20,10 @@ Omera erfasst automatisch jedes Checkpoint-Modell, das in Ihren Bildmetadaten au
   3. Omera übernimmt die Zuordnungen in die lokale Tabelle `model_cache` und löst kryptische Hashes in Ihrer gesamten Bibliothek sofort in lesbare Modellnamen auf.
 
 ### Civitai SHA256-Hash-Auflösung:
-- Für Modelle ohne lokalen Klarnamen können Sie im Inspektor auf die Civitai-Schaltfläche klicken, um die öffentliche Civitai-Datenbank anhand des SHA256-Hashes abzufragen.
+- Für Modelle ohne lokalen Klarnamen verwenden Sie die Civitai-Schaltfläche im **Model Manager** (Checkpoints) oder im **LoRA Manager** (Katalogeinträge).
+- Abfrageergebnisse werden in SQLite zwischengespeichert; Vorschaubilder landen im App-Daten-Cache und werden über das Asset-Protokoll ausgeliefert.
+- Eine neuere veröffentlichte Version zeigt ein Update-Abzeichen; **Civitai aktualisieren** validiert das zwischengespeicherte Ergebnis erneut.
+- Im LoRA Manager führt **Civitai-Metadaten übernehmen** trainierte Wörter, Beschreibung und Vorschau zusammen, ohne bestehende Trigger-Wörter zu löschen.
 
 ---
 

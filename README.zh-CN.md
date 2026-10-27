@@ -111,6 +111,14 @@
 - **提示词词频与表现洞察** — 正负提示词关键词频次统计，关联平均评分表现。
 - **模型库管理与哈希反查** — 通过 AutoV2/SHA256 直连 Civitai 查询、缓存预览卡、显示版本更新徽章，并支持一键模型筛选。
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gui_model_manager_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/gui_model_manager_light.svg">
+  <img alt="Omera 模型管理器：Civitai 查询、预览缓存与版本更新徽章" src="docs/screenshots/gui_model_manager_dark.svg" width="100%">
+</picture>
+
+<sub>示例界面 · Civitai 查询、预览缓存与版本更新徽章</sub>
+
 ### ☁️ 云端同步与导出工具
 
 - **S3 / WebDAV 快照备份** — 热 `VACUUM INTO` 备份到 AWS S3、Cloudflare R2、MinIO、Backblaze B2 与各类 WebDAV 服务器，具备架构校验与安全回滚保障。
@@ -157,30 +165,11 @@ Omera 为十万级海量图库专门设计。应用启动时直接渲染 SQLite 
 
 ## 🏗️ 架构分层
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Omera (桌面客户端)                 │
-├─────────────────────────────────────────────────────────────────┤
-│  Vue 3 + TypeScript          │  Tauri 2 IPC 命令通道            │
-│  ─ 虚拟网格 / 瀑布流         │  ─ 轻量适配器、入参校验、        │
-│  ─ 属性检查器 / 全屏灯箱     │    锁快速释放                    │
-│  ─ 37 个组件、11 个工具集    │  ─ 50+ 个核心接口                │
-├──────────────────────────────┼──────────────────────────────────┤
-│              模块化 Rust 工作区 (Cargo Workspace)               │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │ berry-domain │ │berry-metadata│ │  berry-scan   │           │
-│  │ 核心领域模型 │ │ PNG/EXIF/    │ │ 扫描索引、    │           │
-│  │ 零 I/O 契约  │ │ ComfyUI/     │ │ 缩略图引擎、  │           │
-│  │              │ │ NovelAI/...  │ │ 导出与展示页  │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │berry-storage │ │ berry-tagger │ │  berry-clip   │           │
-│  │ SQLite       │ │ WD14 ONNX    │ │ CLIP/SigLIP   │           │
-│  │ (运行时)     │ │ Danbooru     │ │ 文本与图像    │           │
-│  │ 增量迁移系统 │ │ 反推打标     │ │ 多模态嵌入    │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/architecture_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/architecture_light.svg">
+  <img alt="Omera 架构：Vue 3 前端经 Tauri IPC 连接 omera 应用外壳、6 个 omera-* Rust crate，以及 SQLite、资源协议、文件监听、Civitai、更新与云备份等外部服务" src="docs/screenshots/architecture_dark.svg" width="100%">
+</picture>
 
 **核心技术栈：** Tauri 2 · Rust (2021 edition) · Vue 3.5 · TypeScript 5.6 · Vite 6 · SQLite (WAL) · Rayon · ONNX Runtime
 
@@ -207,12 +196,14 @@ Omera 为十万级海量图库专门设计。应用启动时直接渲染 SQLite 
 
 | 操作系统平台 | 处理器架构 | 格式类型 | 安装包文件名 |
 |:---|:---|:---|:---|
-| **Windows** | x86_64 (64位) | NSIS 安装包 | `Omera_Windows_x64.exe` |
-| **Windows** | x86_64 (64位) | 免安装便携版 | `Omera_Windows_x64.zip` |
-| **macOS** | Apple Silicon (ARM64) | DMG 磁盘镜像 | `Omera_macOS_aarch64.dmg` |
-| **macOS** | Intel (x86_64) | DMG 磁盘镜像 | `Omera_macOS_x64.dmg` |
-| **Linux** | x86_64 (64位) | AppImage | `Omera_Linux_x64.AppImage` |
-| **Linux** | x86_64 (64位) | Debian 软件包 | `Omera_Linux_x64.deb` |
+| **Windows** | x86_64 | NSIS 安装包 | `Omera_<version>_x64-setup.exe` |
+| **Windows** | x86_64 | MSI | `Omera_<version>_x64_en-US.msi` |
+| **macOS** | Apple Silicon (arm64) | DMG 磁盘镜像 | `Omera_<version>_aarch64.dmg` |
+| **Linux** | x86_64 | AppImage | `Omera_<version>_amd64.AppImage` |
+| **Linux** | x86_64 | Debian 软件包 | `Omera_<version>_amd64.deb` |
+| **Linux** | x86_64 | RPM | `Omera-<version>-1.x86_64.rpm` |
+
+当前发布矩阵覆盖 Windows x64、macOS Apple Silicon 与 Linux x64；不发布 Intel macOS 和便携 ZIP。
 
 ---
 
@@ -235,10 +226,10 @@ cd Omera
 pnpm install
 
 # 3. 运行本地开发模式（支持热重载）
-pnpm run tauri dev
+pnpm dev:desktop
 
 # 4. 打包正式版安装程序
-pnpm run tauri build
+pnpm tauri build
 ```
 
 编译输出目录：`src-tauri/target/release/bundle/`
@@ -250,10 +241,10 @@ pnpm run tauri build
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/roadmap_status_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/roadmap_status_light.svg">
-  <img alt="Omera v0.5.0 路线图状态：12 个里程碑已完成，视频与模型生态里程碑部分完成，里程碑 17–20 已规划" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
+  <img alt="Omera v0.5.0 路线图状态：13 个里程碑已完成，视频与模型生态里程碑部分完成，里程碑 17–19 已规划" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15（视频）** 与 **Milestone 16（Flux.1 / SD3.5 + Civitai）** 已部分完成；剩余项为分辨率/编码/motion score 筛选与 ComfyUI 工作流可视化。Milestone 17–20 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣、色彩分析与图片压缩。
+**Milestone 15（视频）** 与 **Milestone 16（Flux.1 / SD3.5 + Civitai）** 已部分完成；剩余项为分辨率/编码/motion score 筛选与 ComfyUI 工作流可视化。Milestone 20（图片压缩）已交付；Milestone 17–19 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣与色彩分析。
 
 📖 查阅完整开发计划：[docs/ROADMAP.md](docs/ROADMAP.md)。
 

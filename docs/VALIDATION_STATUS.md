@@ -1,5 +1,7 @@
 # Handoff baseline and validation status
 
+> **Historical (2026-09-23).** The latest release evidence is in [CHANGELOG.md](../CHANGELOG.md) and the GitHub release notes.
+
 Recorded: 2026-09-23. No release readiness is implied.
 
 ## Baselines

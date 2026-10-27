@@ -1,5 +1,7 @@
 # Omera engineering handoff
 
+> **Historical snapshot (2026-09-23).** Ownership boundaries and migration safeguards still apply; current status and priorities are in [ROADMAP.md](ROADMAP.md) and [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+
 Updated: 2026-09-23. This is an execution plan, not a completion report.
 
 Start here: [API_CONTRACTS.md](API_CONTRACTS.md), [IPC_REFERENCE.md](IPC_REFERENCE.md), and copy-ready [HANDOFF_PROMPTS.md](HANDOFF_PROMPTS.md). Existing and proposed interfaces are explicitly separated. Engineers must not wire production code to a proposed migration command.
