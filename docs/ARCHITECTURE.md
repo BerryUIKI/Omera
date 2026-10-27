@@ -2,52 +2,15 @@
 
 ## Identity transition
 
-The accepted target is Omera (`com.berryuiki.omera`), repository `BerryUIKI/Omera`, database `omera.db`, and settings prefix `omera_`. Runtime and crate renaming is pending; paths and database names below describe the existing implementation. Follow [OMERA_MIGRATION.md](OMERA_MIGRATION.md) before switching identity. Storage changes follow [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md), preserving applied migrations.
+The active identity is Omera (`com.berryuiki.omera`), repository `BerryUIKI/Omera`, database `omera.db`, and settings prefix `omera_`. Follow [OMERA_MIGRATION.md](OMERA_MIGRATION.md) before switching identity. Storage changes follow [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md), preserving applied migrations.
 
 **Omera** is a high-performance desktop application built on **Tauri 2**, **Rust**, **Vue 3**, and **SQLite**. It uses a multi-crate Rust backend to handle heavy I/O, file system operations, and metadata extraction, while providing a modern Eagle-style 3-Pane Studio UI in the frontend webview.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 Frontend (Vue 3 + TypeScript)               │
-│  - App.vue (Studio Layout: Sidebar + Gallery + Inspector)   │
-│  - TitleBar.vue & MenuBar.vue (Frameless Desktop Navigation)│
-│  - VirtualGrid.vue (Virtualized Waterfall Scrolling Canvas) │
-│  - LightboxModal.vue (Fullscreen Immersive Quick Look)      │
-│  - InspectorPane.vue (Tokenized Prompts & Parameters)       │
-│  - UpdateModal.vue (GitHub Releases SemVer Updater)         │
-│  - Modals: Settings, FilterDrawer, TagModal, AlbumModal     │
-│  - i18n Localization Engine (7 Locales + Auto OS Tracking)   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Tauri IPC (@tauri-apps/api/core)
-┌──────────────────────────────▼──────────────────────────────┐
-│             App Shell Crate (`src-tauri/`)                  │
-│  - lib.rs (Tauri setup, SQLite connection lifecycle)        │
-│  - commands.rs (40+ type-safe IPC command endpoints)        │
-└──────────────┬──────────────────────────────┬───────────────┘
-               │                              │
-┌──────────────▼──────────────┐┌──────────────▼───────────────┐
-│        `berry-scan`         ││       `berry-metadata`       │
-│ - Multi-threaded directory  ││ - PNGInfo parameters parser  │
-│   scanner (walkdir)         ││ - ComfyUI workflow JSON tree │
-│ - Targeted watcher reconcile││ - NovelAI comment signatures │
-│ - Batch SQLite transactions ││ - Fooocus & InvokeAI formats │
-│ - Progress event streaming  ││ - EXIF extraction & Sidecars │
-└──────────────┬──────────────┘└──────────────┬───────────────┘
-               │                              │
-┌──────────────▼──────────────────────────────▼───────────────┐
-│                        `berry-domain`                       │
-│  - Shared domain models: ImageFile, Folder, Album, Tag      │
-│  - ExtractedMetadata, CheckpointModelStat, SearchCriteria   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────┐
-│                       `omera-storage`                       │
-│  - Embedded SQLite database engine (rusqlite)               │
-│  - Version-controlled schema migrations (`PRAGMA user_ver`) │
-│  - Full-text & structured metadata search engine            │
-│  - Database maintenance: VACUUM compaction & VACUUM INTO    │
-└─────────────────────────────────────────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/architecture_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/architecture_light.svg">
+  <img alt="Omera architecture: Vue 3 frontend over Tauri IPC, the omera app shell, six omera-* Rust crates, and external SQLite, asset, watcher, Civitai, update and cloud services" src="screenshots/architecture_dark.svg" width="100%">
+</picture>
 
 ---
 

@@ -36,6 +36,8 @@ Organize, search, compare, and export tens of thousands of AIGC artworks — all
   <img alt="Omera — 3-Pane Studio Workspace" src="docs/screenshots/gui_preview_dark.svg" width="100%">
 </picture>
 
+<sub>Illustrative UI mockup · v0.5.0</sub>
+
 </div>
 
 <br/>
@@ -111,6 +113,14 @@ Automatically extracts and indexes Prompt, Negative Prompt, Model, Hash, Sampler
 - **Prompt Keyword Insights** — Frequency analysis of prompt tokens with average rating correlations.
 - **Checkpoint Model Manager** — Direct Civitai lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click model filtering.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gui_model_manager_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/gui_model_manager_light.svg">
+  <img alt="Omera Model Manager with Civitai lookups, cached previews and update badges" src="docs/screenshots/gui_model_manager_dark.svg" width="100%">
+</picture>
+
+<sub>Illustrative UI mockup · Civitai lookups, cached previews and update badges</sub>
+
 ### ☁️ Cloud Sync & Export
 
 - **S3 / WebDAV Snapshot Backup** — Hot `VACUUM INTO` snapshots to AWS S3, Cloudflare R2, MinIO, Backblaze B2, and WebDAV servers with schema verification and rollback safety.
@@ -157,31 +167,11 @@ Omera is built for large libraries. The gallery renders from the indexed SQLite 
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Omera (Desktop)                    │
-├─────────────────────────────────────────────────────────────────┤
-│  Vue 3 + TypeScript          │  Tauri 2 IPC Commands           │
-│  ─ VirtualGrid / Waterfall   │  ─ Thin adapters, input         │
-│  ─ Inspector / Lightbox      │    validation, lock release      │
-│  ─ 37 components, 11 utils   │  ─ 50+ endpoints                │
-├──────────────────────────────┼──────────────────────────────────┤
-│              Modular Rust Crate Workspace                       │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │ berry-domain │ │berry-metadata│ │  berry-scan   │           │
-│  │ Pure models  │ │ PNG/EXIF/    │ │ Indexer,      │           │
-│  │ Zero I/O     │ │ ComfyUI/     │ │ Thumbnails,   │           │
-│  │              │ │ NovelAI/     │ │ Export, HTML   │           │
-│  │              │ │ Fooocus/...  │ │ Showcase       │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │berry-storage │ │ berry-tagger │ │  berry-clip   │           │
-│  │ SQLite       │ │ WD14 ONNX    │ │ CLIP/SigLIP   │           │
-│  │ (runtime)    │ │ Danbooru     │ │ Text & Vision │           │
-│  │ Migrations   │ │ Tagging      │ │ Embeddings    │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/architecture_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/architecture_light.svg">
+  <img alt="Omera architecture: Vue 3 frontend over Tauri IPC, the omera app shell, six omera-* Rust crates, and external SQLite, asset, watcher, Civitai, update and cloud services" src="docs/screenshots/architecture_dark.svg" width="100%">
+</picture>
 
 **Tech Stack:** Tauri 2 · Rust (2021 edition) · Vue 3.5 · TypeScript 5.6 · Vite 6 · SQLite (WAL) · Rayon · ONNX Runtime
 
