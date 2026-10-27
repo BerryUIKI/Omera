@@ -139,10 +139,10 @@ const TOPICS: HelpTopic[] = [
     category: "Intelligent Curation",
     title: "Checkpoint Models & LoRA Trigger Words",
     icon: "🎨",
-    summary: "Model hash reverse lookups, Civitai caching, and one-click LoRA trigger word injection.",
+    summary: "Checkpoint hash lookups, cached Civitai previews, version update badges, and one-click LoRA trigger word injection.",
     content: [
-      "Tools > Model Manager displays all unique checkpoint base models indexed across your creations with Civitai SHA256 reverse lookups.",
-      "Tools > LoRA Trigger Library automatically identifies active LoRA weights in ComfyUI / WebUI generation strings and copies trigger tokens to clipboard."
+      "Tools > Model Manager displays checkpoint models with Civitai lookups, cached preview images and version update badges.",
+      "Tools > LoRA Trigger Library identifies active LoRA weights and can merge Civitai trained words, description and preview; click a trigger or Inject to copy it."
     ]
   },
   {
@@ -162,10 +162,11 @@ const TOPICS: HelpTopic[] = [
     category: "Library Management",
     title: "Video & Animation AIGC Support",
     icon: "🎬",
-    badge: "New in v0.4.0",
+    badge: "Core",
     summary: "MP4/WebM video indexing, AnimateDiff/Hunyuan/Wan2.1 workflows, and lightbox video controls.",
     content: [
       "Omera automatically parses generation parameters and workflow metadata embedded within MP4 and WebM video files.",
+      "Gallery cards support frame thumbnails, hover scrubbing and duration badges; the media filter and search support duration/FPS facets.",
       "Full Lightbox playback supports looping, playback speed adjustment (0.25x - 2.0x), and frame-stepping (',' and '.')."
     ]
   },
