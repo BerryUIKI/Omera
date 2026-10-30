@@ -231,12 +231,16 @@ legacy mappings never authorize remote deletion or automatic adoption.
 
 `download_update({ url, filename })` resolves a staged installer path after signature verification in the working code. `install_update({ installerPath, silent })` revalidates the local installer and launches installation. Missing embedded trust configuration is an error; engineers must not add a bypass. Platform/architecture asset selection and renamed-repository trust remain lead-owned work.
 
-On Windows, verified NSIS EXE packages launch directly (`/S` only when silent).
-Verified MSI packages use the system Windows Installer with `/i`, `/norestart`
-and optional `/quiet`, following
+On Windows, verified NSIS EXE packages launch with `/P /UPDATE /R` (or
+`/S /UPDATE /R` when silent). Tauri's update mode skips the previous NSIS
+uninstaller, preserves shortcuts and restarts the application after success.
+See the [Tauri NSIS template](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.11.4/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi).
+Verified MSI packages use the system Windows Installer with `/i`, `/norestart`,
+`/passive` (or `/quiet` when silent) and `AUTOLAUNCHAPP=True`, following
 [Microsoft's installer options](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec).
 Keep paths as individual process arguments, including spaces and Unicode. Reject
-unsupported Windows package extensions before launching or exiting the app. The
+unsupported Windows package extensions before launching or exiting the app.
+Launch the canonical path whose signature was checked. The
 IPC request/response shape and both signature-verification points are unchanged.
 Command-plan tests do not establish successful installed-version upgrades.
 

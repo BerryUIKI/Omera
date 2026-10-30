@@ -14,9 +14,11 @@ pub fn windows_installer_command(
         .unwrap_or_default();
     if extension.eq_ignore_ascii_case("exe") {
         let mut command = Command::new(installer);
-        if silent {
-            command.arg("/S");
-        }
+        // Tauri's NSIS update mode skips the old-version uninstaller and
+        // preserves existing shortcuts. Passive mode shows progress only.
+        command
+            .arg(if silent { "/S" } else { "/P" })
+            .args(["/UPDATE", "/R"]);
         Ok(command)
     } else if extension.eq_ignore_ascii_case("msi") {
         let root = system_root
@@ -24,10 +26,12 @@ pub fn windows_installer_command(
             .filter(|path| path.is_absolute())
             .ok_or("Cannot locate the system Windows Installer")?;
         let mut command = Command::new(root.join("System32").join("msiexec.exe"));
-        command.arg("/i").arg(installer).arg("/norestart");
-        if silent {
-            command.arg("/quiet");
-        }
+        command
+            .arg("/i")
+            .arg(installer)
+            .arg("/norestart")
+            .arg(if silent { "/quiet" } else { "/passive" })
+            .arg("AUTOLAUNCHAPP=True");
         Ok(command)
     } else {
         Err("Unsupported Windows update package; use an EXE or MSI installer".into())
@@ -44,14 +48,13 @@ mod tests {
     }
 
     #[test]
-    fn nsis_preserves_interactive_and_silent_launches() {
-        let path = Path::new("Omera setup.EXE");
-        let interactive = windows_installer_command(path, false, None).unwrap();
-        assert_eq!(interactive.get_program(), path.as_os_str());
-        assert!(args(&interactive).is_empty());
-        let silent = windows_installer_command(path, true, None).unwrap();
-        assert_eq!(silent.get_program(), path.as_os_str());
-        assert_eq!(args(&silent), vec![OsString::from("/S")]);
+    fn nsis_updates_without_uninstalling_and_restarts_in_both_modes() {
+        let path = Path::new("更新 & Omera setup.EXE");
+        for (silent, mode) in [(false, "/P"), (true, "/S")] {
+            let command = windows_installer_command(path, silent, None).unwrap();
+            assert_eq!(command.get_program(), path.as_os_str());
+            assert_eq!(args(&command), [mode, "/UPDATE", "/R"].map(OsString::from));
+        }
     }
 
     #[test]
@@ -61,14 +64,13 @@ mod tests {
         for silent in [false, true] {
             let command = windows_installer_command(&path, silent, Some(root.as_os_str())).unwrap();
             assert_eq!(command.get_program(), root.join("System32/msiexec.exe"));
-            let mut expected = vec![
+            let expected = vec![
                 OsString::from("/i"),
                 path.clone().into_os_string(),
                 OsString::from("/norestart"),
+                OsString::from(if silent { "/quiet" } else { "/passive" }),
+                OsString::from("AUTOLAUNCHAPP=True"),
             ];
-            if silent {
-                expected.push(OsString::from("/quiet"));
-            }
             assert_eq!(args(&command), expected);
         }
     }
