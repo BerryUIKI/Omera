@@ -147,7 +147,7 @@ Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [E
 
 - [ ] Complete [OMERA_MIGRATION.md](OMERA_MIGRATION.md): full identity rename, pre-1.0 legacy discovery, staged migration, and separately confirmed cleanup.
 - [ ] Validate signed updates and platform installer transitions, including skipped bridge releases. v0.5.0 is published with signed assets; the native installed-update matrix remains open in [#256](https://github.com/BerryUIKI/Omera/issues/256).
-- [ ] Complete review issues #98–#117 with regression coverage.
+- [x] Complete review issues #98–#117 with regression coverage. All twenty issues are closed as completed and their regression suites run in CI.
 - [ ] Measure and implement [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md) without rewriting applied migrations.
 
 ### 🟡 Milestone 15: Video & Animation AIGC Ingestion & Playback (core features complete; extended facets pending)
