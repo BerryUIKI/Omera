@@ -3,6 +3,22 @@
 Updated: 2026-10-30. Lead-owned follow-up for #256; integration targets `dev`.
 This contract precedes release integration. It does not authorize publishing a release.
 
+## Owner-approved v0.5.1 patch release — 2026-10-30
+
+The owner authorized a PR to `dev`, version verification, and the release
+process for the direct-update fix. The latest published stable release and all
+three manifests were v0.5.0; v0.5.1 is the next patch version. Synchronize the
+workspace lockfile and preserve the small implementation commits. Merge into
+`dev`, then open the release integration PR from `dev` to release-only `main`.
+Keep the required approving review on `main`; this authorization does not bypass
+branch protection or the production signing/notarization/publication gates.
+
+Retain the deferred native testing decision and disclose the pending installed
+matrix in the changelog. Candidate CI, signed installer artifacts, and production
+macOS qualification must be associated with this candidate; prior-version build
+evidence does not qualify v0.5.1. No tag or release exists until approved release
+integration completes. Do not change or replace v0.5.0 published assets.
+
 ## Direct Windows updates
 
 The update dialog's **Update Now** action downloads the selected Windows
