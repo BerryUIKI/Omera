@@ -5,6 +5,39 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-10-30
+
+### Fixed
+
+- Make Windows **Update Now** download, verify, and launch installation with one
+  click. NSIS updates use the existing installation without first uninstalling,
+  preserve shortcuts, and reopen Omera after success. MSI updates use unattended
+  Windows Installer mode and request application relaunch.
+- Prevent duplicate update operations and state resets while downloading or
+  launching installation. Retain verified packages for retry after launch errors.
+
+### Changed
+
+- Show the silent-install option before updating and localize installation
+  progress in all seven languages. macOS/Linux retain their explicit package
+  installation steps.
+- Update the localized help guide, user documentation, architecture diagrams,
+  and website to describe current features and supported release platforms.
+
+### Release testing
+
+The updater implementation passed the Windows frontend build, 318 frontend
+regressions, workspace Rust tests, strict formatting and linting, memory/scroll
+checks, and the 167-command IPC inventory check. Candidate CI and signed installer
+qualification are tracked separately. The real installed-update platform matrix
+remains incomplete (#256); these checks do not establish native upgrade or
+data-preservation acceptance. Older installed builds receive the new one-click
+flow only after upgrading to this version. Legacy discovery and supported import
+remain available throughout pre-1.0; cleanup requires a separate explicit
+in-application decision.
+
+---
+
 ## [0.5.0] - 2026-10-26
 
 ### Added

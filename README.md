@@ -36,6 +36,8 @@ Organize, search, compare, and export tens of thousands of AIGC artworks — all
   <img alt="Omera — 3-Pane Studio Workspace" src="docs/screenshots/gui_preview_dark.svg" width="100%">
 </picture>
 
+<sub>Illustrative UI mockup · v0.5.0</sub>
+
 </div>
 
 <br/>
@@ -49,16 +51,14 @@ Organize, search, compare, and export tens of thousands of AIGC artworks — all
 
 ---
 
-## 🆕 What's New in v0.3.0
+## 🆕 What's New in v0.5.0
 
-> **Cloud Sync & Export**, **Keyset Deep Pagination**, and **Multi-Database Team Studio** — [Read the full changelog →](CHANGELOG.md)
+> **Flux.1 / SD3.5 parsing**, **direct Civitai integration**, and **signed 0.5.0 installers** — [Read the full changelog →](CHANGELOG.md)
 
-- ☁️ **S3 / WebDAV Snapshot Backup & Restore** — Automated hot `VACUUM INTO` snapshots to AWS S3, R2, MinIO, Backblaze B2, and WebDAV (Nextcloud / Synology).
-- 📤 **Standalone HTML Showcase Export** — Zero-dependency single `index.html` with dark-theme gallery, fullscreen lightbox, prompt inspector, and keyword filter.
-- 🔄 **Incremental Remote Media Mirroring** — One-way local-to-remote upload sync with fingerprint/SHA-256 change detection, token-bucket bandwidth throttle, and worker concurrency (bidirectional sync planned).
-- ⚡ **O(1) Keyset Cursor Pagination** — < 1 ms page traversal at 500,000+ assets (84× faster than OFFSET).
-- 👥 **Multi-Database Team Studio (Planned)** — Abstract `StorageEngine` trait with cross-platform storage roots, optimistic concurrency, and real-time collaboration sync. Current runtime uses SQLite; MySQL 8.0+ and PostgreSQL 14+ support are experimental/planned.
-- 📦 **Batch Transcoding & Privacy Strip** — Multi-threaded WebP/JPEG/PNG conversion with 4-tier metadata stripping (`KeepAll` → `StripAll`).
+- 🧬 **Flux.1 / SD3.5 parameter parsing** — Guidance, Distilled CFG Scale, Shift, schedule type and dual CLIP-L / T5-XXL prompts from A1111/Forge and ComfyUI metadata.
+- 🔎 **Civitai lookups** — Reverse-lookup checkpoint and LoRA hashes, cache preview cards locally, flag newer published versions, and merge trained trigger words into your LoRA catalog.
+- 🛡️ **Signed release** — v0.5.0 ships signed Windows, macOS and Linux installers with matching `.minisig` assets.
+- 🎨 **Clearer generation details** — The Inspector surfaces the new Flux/SD3.5 fields and dual text-encoder prompts in all seven languages.
 
 ---
 
@@ -84,9 +84,17 @@ Automatically extracts and indexes Prompt, Negative Prompt, Model, Hash, Sampler
 | **NovelAI** | Comment & Description signature decoding |
 | **Fooocus / Fooocus-MRE** | Parameter parsing & model resolution |
 | **InvokeAI & EasyDiffusion** | Embedded metadata & JSON sidecars |
+| **Flux.1 / SD3.5** | A1111/Forge guidance fields, ComfyUI dual-encoder prompts |
 | **Sidecar Files** | `.txt` companion metadata |
 
-**Supported formats:** PNG · JPG/JPEG · WebP · MP4
+**Supported formats:** PNG · JPG/JPEG · WebP · AVIF · MP4 · WebM
+
+### 🎬 Video & Animation Support
+
+- **AIGC video metadata** — MP4/WebM containers with ComfyUI AnimateDiff, Wan2.1, HunyuanVideo, CogVideoX, LTX-Video and SVD workflows.
+- **Hover scrubbing** — Scrub through video frames directly on Grid and Waterfall cards.
+- **Fullscreen player** — Loop, 0.25x–2x speed, frame-by-frame stepping (`.` / `,`), mute, and the shared Inspector.
+- **Video facets** — Filter by duration range, frame rate (FPS) and media type; resolution, container-codec and motion-score filters are planned.
 
 ### 🗃️ Multi-Mode Ingestion & Smart Stacking
 
@@ -101,14 +109,22 @@ Automatically extracts and indexes Prompt, Negative Prompt, Model, Hash, Sampler
 - **Local CLIP / SigLIP Semantic Search** — Search images using natural language via local ONNX models — no cloud required.
 - **WD14 / Danbooru Auto-Tagging** — Automated anime & realistic tag extraction with confidence thresholds.
 - **Visual Similarity Search** — Find compositionally similar images from any starting point.
-- **LoRA Trigger Word Library** — Scan LoRA directories, match Civitai metadata, and one-click inject trigger words.
+- **LoRA Trigger Word Library** — Scan LoRA directories, merge Civitai trained words, descriptions and previews, and one-click inject trigger words.
 - **Prompt Keyword Insights** — Frequency analysis of prompt tokens with average rating correlations.
-- **Checkpoint Model Manager** — Civitai SHA256 cache sync, reverse hash lookup, and one-click model filtering.
+- **Checkpoint Model Manager** — Direct Civitai lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click model filtering.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gui_model_manager_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/gui_model_manager_light.svg">
+  <img alt="Omera Model Manager with Civitai lookups, cached previews and update badges" src="docs/screenshots/gui_model_manager_dark.svg" width="100%">
+</picture>
+
+<sub>Illustrative UI mockup · Civitai lookups, cached previews and update badges</sub>
 
 ### ☁️ Cloud Sync & Export
 
 - **S3 / WebDAV Snapshot Backup** — Hot `VACUUM INTO` snapshots to AWS S3, Cloudflare R2, MinIO, Backblaze B2, and WebDAV servers with schema verification and rollback safety.
-- **Incremental Remote Media Mirroring (Upload-Only)** — One-way library media upload mirroring to S3, WebDAV, and network paths with file-size and SHA-256 change detection, token-bucket bandwidth throttling, dry-run simulation, and cancelable multi-threading. Remote-to-local pull, ETag delta reconciliation, and bidirectional synchronization are planned future capabilities.
+- **Incremental Remote Media Mirroring (Upload-Only)** — One-way library media upload mirroring to S3, WebDAV, and network paths with file-size and SHA-256 change detection, token-bucket bandwidth throttling, dry-run simulation, and cancelable multi-threading. Remote-to-local pull, ETag delta reconciliation, and bidirectional sync planned; this release remains upload-only.
 - **Batch Export & Transcoding** — Multi-threaded WebP/JPEG/PNG conversion with 4-tier privacy metadata stripping and customizable filename templates.
 - **HTML Showcase Generator** — Standalone zero-dependency `index.html` with responsive dark gallery, fullscreen lightbox, prompt inspector, and instant keyword filter.
 
@@ -151,31 +167,11 @@ Omera is built for large libraries. The gallery renders from the indexed SQLite 
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Omera (Desktop)                    │
-├─────────────────────────────────────────────────────────────────┤
-│  Vue 3 + TypeScript          │  Tauri 2 IPC Commands           │
-│  ─ VirtualGrid / Waterfall   │  ─ Thin adapters, input         │
-│  ─ Inspector / Lightbox      │    validation, lock release      │
-│  ─ 37 components, 11 utils   │  ─ 50+ endpoints                │
-├──────────────────────────────┼──────────────────────────────────┤
-│              Modular Rust Crate Workspace                       │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │ berry-domain │ │berry-metadata│ │  berry-scan   │           │
-│  │ Pure models  │ │ PNG/EXIF/    │ │ Indexer,      │           │
-│  │ Zero I/O     │ │ ComfyUI/     │ │ Thumbnails,   │           │
-│  │              │ │ NovelAI/     │ │ Export, HTML   │           │
-│  │              │ │ Fooocus/...  │ │ Showcase       │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-│  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐           │
-│  │berry-storage │ │ berry-tagger │ │  berry-clip   │           │
-│  │ SQLite       │ │ WD14 ONNX    │ │ CLIP/SigLIP   │           │
-│  │ (runtime)    │ │ Danbooru     │ │ Text & Vision │           │
-│  │ Migrations   │ │ Tagging      │ │ Embeddings    │           │
-│  └──────────────┘ └──────────────┘ └───────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/architecture_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/architecture_light.svg">
+  <img alt="Omera architecture: Vue 3 frontend over Tauri IPC, the omera app shell, six omera-* Rust crates, and external SQLite, asset, watcher, Civitai, update and cloud services" src="docs/screenshots/architecture_dark.svg" width="100%">
+</picture>
 
 **Tech Stack:** Tauri 2 · Rust (2021 edition) · Vue 3.5 · TypeScript 5.6 · Vite 6 · SQLite (WAL) · Rayon · ONNX Runtime
 
@@ -202,12 +198,14 @@ Get the latest pre-built binaries from **[GitHub Releases](https://github.com/Be
 
 | Platform | Architecture | Format | File Name |
 |:---|:---|:---|:---|
-| **Windows** | x86_64 | NSIS Installer | `Omera_Windows_x64.exe` |
-| **Windows** | x86_64 | Portable Zip | `Omera_Windows_x64.zip` |
-| **macOS** | Apple Silicon | DMG | `Omera_macOS_aarch64.dmg` |
-| **macOS** | Intel x86_64 | DMG | `Omera_macOS_x64.dmg` |
-| **Linux** | x86_64 | AppImage | `Omera_Linux_x64.AppImage` |
-| **Linux** | x86_64 | Debian | `Omera_Linux_x64.deb` |
+| **Windows** | x86_64 | NSIS Installer | `Omera_<version>_x64-setup.exe` |
+| **Windows** | x86_64 | MSI | `Omera_<version>_x64_en-US.msi` |
+| **macOS** | Apple Silicon (arm64) | DMG | `Omera_<version>_aarch64.dmg` |
+| **Linux** | x86_64 | AppImage | `Omera_<version>_amd64.AppImage` |
+| **Linux** | x86_64 | Debian | `Omera_<version>_amd64.deb` |
+| **Linux** | x86_64 | RPM | `Omera-<version>-1.x86_64.rpm` |
+
+The current release matrix covers Windows x64, macOS Apple Silicon and Linux x64. Intel macOS and a portable ZIP are not published.
 
 ---
 
@@ -230,10 +228,10 @@ cd Omera
 pnpm install
 
 # Development (hot-reload)
-pnpm run tauri dev
+pnpm dev:desktop
 
 # Production build
-pnpm run tauri build
+pnpm tauri build
 ```
 
 Output: `src-tauri/target/release/bundle/`
@@ -242,15 +240,15 @@ Output: `src-tauri/target/release/bundle/`
 
 ## 🗺️ Roadmap
 
-| Milestone | Planned |
-|:---|:---|
-| 🎬 Video & Animation AIGC Ingestion (AnimateDiff, Wan2.1, HunyuanVideo) | v0.4.0 |
-| 🧬 Next-Gen Model Architectures (Flux.1, SD3.5, Civitai API) | v0.5.0 |
-| 🔗 Bi-Directional ComfyUI Studio (WebSocket telemetry, prompt diff) | v0.6.0 |
-| 📱 Local LAN Web Companion ("Omera Remote" for tablets & phones) | v0.7.0 |
-| 🎨 Dominant Color Palette Indexing & Faceted Analytics | v0.8.0 |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/roadmap_status_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/roadmap_status_light.svg">
+  <img alt="Omera roadmap status at v0.5.0: thirteen milestones complete, video and model-ecosystem milestones partially complete, and milestones 17–19 planned" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
+</picture>
 
-📖 See [docs/ROADMAP.md](docs/ROADMAP.md) for full details.
+**Milestone 15 (video)** and **Milestone 16 (Flux.1 / SD3.5 + Civitai)** are partially complete. The remaining items are resolution/codec/motion-score facets and the ComfyUI workflow visualizer. Milestone 20 (image compression) is delivered; Milestones 17–19 cover real-time ComfyUI workflows, the LAN web companion and color analytics.
+
+📖 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full checklist.
 
 ---
 

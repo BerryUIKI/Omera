@@ -4027,7 +4027,7 @@ pub fn install_update(
     {
         let system_root = std::env::var_os("SystemRoot");
         let mut cmd = crate::update_installation::windows_installer_command(
-            p,
+            &canonical,
             _is_silent,
             system_root.as_deref(),
         )?;

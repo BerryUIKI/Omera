@@ -16,8 +16,14 @@ Omera 原生支持从 PNG 文本块、WebP EXIF 头以及 MP4 ISOBMFF box 容器
 | **Fooocus / Fooocus-MRE** | 基础模型、精炼器 Refiner、LoRA 权重配置、锐化度 Sharpness、性能模式、分辨率、提示词 | PNG `parameters` 文本段 |
 | **InvokeAI** | 模型名、VAE、调度器 Scheduler、生成模式 (txt2img/img2img)、无缝贴图平铺设置 | PNG `sd-metadata` 与 `invokeai_metadata` JSON |
 | **EasyDiffusion / Stable Swarm** | 格式化 JSON 参数块、Seed 种子、底模名称 | PNG `sui_image_params` / 伴随文件 |
+| **Flux.1 / SD3.5** | Guidance、Distilled CFG Scale、Shift、调度类型、CLIP-L / T5-XXL 双编码器提示词、尺寸、模型 | PNG 参数 / ComfyUI 提示词图 |
 
 ---
+
+
+### Flux.1 与 SD3.5 参数
+
+Forge/A1111 与 ComfyUI 元数据可能包含 `Guidance`、`Distilled CFG Scale`、`Shift`、`Schedule type`，以及独立的 CLIP-L / T5-XXL 文本编码器提示词。Omera 将其保存为可选元数据字段并在检查器中显示。v0.5.0 之前已索引的记录需要重建元数据或重新扫描后才会出现这些字段。
 
 ## 2. 右侧属性检查器面板 (`InspectorPane.vue`)
 

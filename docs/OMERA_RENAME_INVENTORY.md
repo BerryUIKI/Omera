@@ -92,7 +92,7 @@ If a setting exists in the new Omera store, that value wins unconditionally over
 
 ## 5. Database & Schema Invariants
 
-1. **Current Schema Version:** `12` (`LATEST_VERSION` in `crates/berry-storage/src/migrations.rs`).
+1. **Current Schema Version:** `18` (`LATEST_VERSION` in `crates/omera-storage/src/migrations.rs`; schema 12 was the baseline during the original rename inventory).
 2. **Database Filenames:**
    - Active / Legacy source: `berry.db`
    - Migrated target: `omera.db`

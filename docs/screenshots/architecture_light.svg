@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-labelledby="title desc">
+<title id="title">Omera architecture</title>
+<desc id="desc">Vue 3 frontend, Tauri IPC, the omera app shell, six core Rust crates, and external storage, network and asset services.</desc>
+<defs>
+<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient>
+<linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#99f6e4"/><stop offset="100%" stop-color="#a5f3fc"/></linearGradient>
+<linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#fbcfe8"/></linearGradient>
+<linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#bfdbfe"/><stop offset="100%" stop-color="#ddd6fe"/></linearGradient>
+<linearGradient id="g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fecdd3"/><stop offset="100%" stop-color="#fed7aa"/></linearGradient>
+<linearGradient id="g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#bbf7d0"/><stop offset="100%" stop-color="#d9f99d"/></linearGradient>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+  <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000000" flood-opacity="0.28"/>
+</filter>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+  <path d="M 0 0 L 10 5 L 0 10 z" fill="#0891b2"/>
+</marker>
+</defs>
+<rect x="0" y="0" width="1200" height="760" rx="24" fill="#eef2f7"/>
+<rect x="1" y="1" width="1198" height="758" rx="23" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<text x="48" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a" text-anchor="start">Omera architecture</text>
+<text x="48" y="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#64748b" text-anchor="start">Tauri 2 desktop shell · modular Rust workspace · Vue 3 frontend</text>
+<rect x="1000" y="34" width="152" height="32" rx="16.0" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1"/><text x="1076.0" y="54.32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0891b2" text-anchor="middle">v0.5.0 · released</text>
+<rect x="48" y="110" width="1104" height="152" rx="18" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<text x="68" y="136" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#2563eb" text-anchor="start" letter-spacing="0.8">FRONTEND</text>
+<text x="68" y="154" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#64748b" text-anchor="start">Vue 3 + TypeScript</text>
+<rect x="68" y="168" width="248" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="68" y="168" width="4" height="70" rx="2" fill="#2563eb"/>
+<text x="84" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Studio shell</text>
+<text x="84" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">App.vue · menus · modals</text>
+<rect x="332" y="168" width="248" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="332" y="168" width="4" height="70" rx="2" fill="#2563eb"/>
+<text x="348" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Gallery</text>
+<text x="348" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">VirtualGrid · FileList · stacks</text>
+<rect x="596" y="168" width="248" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="596" y="168" width="4" height="70" rx="2" fill="#2563eb"/>
+<text x="612" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Inspector &amp; Lightbox</text>
+<text x="612" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">prompts · parameters · viewer</text>
+<rect x="860" y="168" width="248" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="860" y="168" width="4" height="70" rx="2" fill="#2563eb"/>
+<text x="876" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">i18n &amp; utilities</text>
+<text x="876" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">7 locales · state · pure helpers</text>
+<rect x="48" y="280" width="1104" height="34" rx="17" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1"/>
+<text x="600" y="302" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0891b2" text-anchor="middle">Tauri IPC · 167 typed commands · camelCase invoke args / snake_case DTOs</text>
+<line x1="300" y1="262" x2="300" y2="280" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="900" y1="262" x2="900" y2="280" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="300" y1="314" x2="300" y2="332" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="900" y1="314" x2="900" y2="332" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="48" y="332" width="1104" height="118" rx="18" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<text x="68" y="358" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#7c3aed" text-anchor="start" letter-spacing="0.8">APP SHELL</text>
+<text x="68" y="376" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#64748b" text-anchor="start">src-tauri · omera (thin adapters)</text>
+<rect x="68" y="378" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="68" y="378" width="4" height="54" rx="2" fill="#7c3aed"/>
+<text x="84" y="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">IPC commands</text>
+<text x="84" y="418" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">validation · lock scope · Serde</text>
+<rect x="424" y="378" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="424" y="378" width="4" height="54" rx="2" fill="#7c3aed"/>
+<text x="440" y="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">AppState</text>
+<text x="440" y="418" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">database · tagger · CLIP · watcher</text>
+<rect x="780" y="378" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="780" y="378" width="4" height="54" rx="2" fill="#7c3aed"/>
+<text x="796" y="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">Services</text>
+<text x="796" y="418" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">updates · Civitai · cloud sync</text>
+<rect x="48" y="468" width="1104" height="192" rx="18" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<text x="68" y="494" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#16a34a" text-anchor="start" letter-spacing="0.8">CORE CRATES</text>
+<text x="68" y="512" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#64748b" text-anchor="start">omera-* Rust workspace</text>
+<rect x="68" y="512" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="82" y="526" width="26" height="26" rx="7" fill="url(#g1)"/>
+<text x="120" y="534" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">omera-domain</text>
+<text x="120" y="552" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">DTOs · search parser · stacking</text>
+<rect x="424" y="512" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="438" y="526" width="26" height="26" rx="7" fill="url(#g2)"/>
+<text x="476" y="534" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">omera-metadata</text>
+<text x="476" y="552" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">PNGInfo · ComfyUI · EXIF · video</text>
+<rect x="780" y="512" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="794" y="526" width="26" height="26" rx="7" fill="url(#g3)"/>
+<text x="832" y="534" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">omera-storage</text>
+<text x="832" y="552" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">SQLite · migrations · recovery</text>
+<rect x="68" y="578" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="82" y="592" width="26" height="26" rx="7" fill="url(#g4)"/>
+<text x="120" y="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">omera-scan</text>
+<text x="120" y="618" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">scanner · thumbnails · export</text>
+<rect x="424" y="578" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="438" y="592" width="26" height="26" rx="7" fill="url(#g5)"/>
+<text x="476" y="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">omera-tagger</text>
+<text x="476" y="618" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">WD14 ONNX auto-tagging</text>
+<rect x="780" y="578" width="338" height="54" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+<rect x="794" y="592" width="26" height="26" rx="7" fill="url(#g6)"/>
+<text x="832" y="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a" text-anchor="start">omera-clip</text>
+<text x="832" y="618" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#64748b" text-anchor="start">CLIP / SigLIP embeddings</text>
+<line x1="250" y1="450" x2="250" y2="470" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="250" y1="660" x2="250" y2="682" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="600" y1="450" x2="600" y2="470" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="600" y1="660" x2="600" y2="682" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="950" y1="450" x2="950" y2="470" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="950" y1="660" x2="950" y2="682" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="48" y="700" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#d97706" text-anchor="start" letter-spacing="0.8">EXTERNAL SYSTEMS</text>
+<rect x="48" y="712" width="168" height="30" rx="15" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="132" y="732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748b" text-anchor="middle">SQLite + WAL</text>
+<rect x="232" y="712" width="168" height="30" rx="15" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="316" y="732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748b" text-anchor="middle">Asset protocol</text>
+<rect x="416" y="712" width="168" height="30" rx="15" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="500" y="732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748b" text-anchor="middle">Filesystem watcher</text>
+<rect x="600" y="712" width="168" height="30" rx="15" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="684" y="732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748b" text-anchor="middle">Civitai API</text>
+<rect x="784" y="712" width="168" height="30" rx="15" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="868" y="732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748b" text-anchor="middle">GitHub releases</text>
+<rect x="968" y="712" width="168" height="30" rx="15" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="1052" y="732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748b" text-anchor="middle">S3 / WebDAV</text>
+</svg>

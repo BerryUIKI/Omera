@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import { t } from "../i18n";
 import {
   checkForUpdates,
@@ -31,8 +31,15 @@ const downloadError = ref<string | null>(null);
 const downloadedFilePath = ref<string | null>(null);
 const silentInstall = ref(false);
 const installing = ref(false);
+const busy = computed(() => downloading.value || installing.value);
+const directUpdate = computed(() => /\.(exe|msi)$/i.test(result.value?.matchedAsset?.name ?? ""));
+
+function handleClose() {
+  if (!busy.value) emit("close");
+}
 
 async function runCheck() {
+  if (checking.value || busy.value) return;
   checking.value = true;
   result.value = null;
   downloading.value = false;
@@ -78,6 +85,7 @@ function handleDownloadAsset() {
 }
 
 async function handleAutoDownload() {
+  if (busy.value) return;
   if (!result.value?.matchedAsset?.browser_download_url) {
     handleDownloadAsset();
     return;
@@ -103,6 +111,10 @@ async function handleAutoDownload() {
       }
     );
     downloadedFilePath.value = filePath;
+    downloading.value = false;
+    // Windows installers support an unattended, in-place update. Other
+    // platforms retain their explicit package-manager / DMG handoff.
+    if (directUpdate.value) await handleInstallAndRestart();
   } catch (err: any) {
     downloadError.value = err?.message || String(err);
   } finally {
@@ -111,12 +123,14 @@ async function handleAutoDownload() {
 }
 
 async function handleInstallAndRestart() {
-  if (!downloadedFilePath.value) return;
+  if (!downloadedFilePath.value || busy.value) return;
   installing.value = true;
+  downloadError.value = null;
   try {
     await installUpdate(downloadedFilePath.value, silentInstall.value);
   } catch (err: any) {
     downloadError.value = err?.message || String(err);
+  } finally {
     installing.value = false;
   }
 }
@@ -127,7 +141,7 @@ function handleOpenUpdatesFolder() {
 </script>
 
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="emit('close')" v-dialog="() => emit('close')">
+  <div v-if="show" class="modal-overlay" @click.self="handleClose" v-dialog="handleClose">
     <div class="update-dialog">
       <!-- Header -->
       <div class="dialog-header">
@@ -135,7 +149,7 @@ function handleOpenUpdatesFolder() {
           <img src="../assets/logo.png" alt="Omera" width="20" height="20" class="dialog-logo" />
           <h3 class="dialog-title">{{ t.updater.title }}</h3>
         </div>
-        <button type="button" class="close-btn" @click="emit('close')">✕</button>
+        <button type="button" class="close-btn" :disabled="busy" @click="handleClose">✕</button>
       </div>
 
       <!-- Body -->
@@ -183,11 +197,16 @@ function handleOpenUpdatesFolder() {
             </span>
           </div>
 
-          <!-- Safe Storage & No-Uninstall Guarantee Notice -->
+          <!-- In-place update and data retention notice -->
           <div class="preserve-notice-box">
             <span class="notice-icon">🛡️</span>
             <span class="notice-text">{{ t.updater.preserveDataNotice }}</span>
           </div>
+
+          <label v-if="directUpdate" class="checkbox-label">
+            <input type="checkbox" v-model="silentInstall" :disabled="busy" />
+            <span>{{ t.updater.silentInstall }}</span>
+          </label>
 
           <!-- In-App Download Progress Card -->
           <div v-if="downloading || downloadedFilePath || downloadError" class="download-progress-card">
@@ -217,13 +236,7 @@ function handleOpenUpdatesFolder() {
             <div v-else-if="downloadedFilePath" class="ready-details">
               <div class="ready-title-line">
                 <span class="ready-badge">✓</span>
-                <span class="ready-text">{{ t.updater.downloadComplete }}</span>
-              </div>
-              <div class="silent-option">
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="silentInstall" />
-                  <span>{{ t.updater.silentInstall }}</span>
-                </label>
+                <span class="ready-text">{{ installing ? t.updater.installing : t.updater.downloadComplete }}</span>
               </div>
             </div>
           </div>
@@ -311,7 +324,7 @@ function handleOpenUpdatesFolder() {
           class="btn primary"
           @click="handleAutoDownload"
         >
-          {{ t.updater.autoDownloadAndInstall }}
+          {{ directUpdate ? t.updater.autoDownloadAndInstall : t.updater.downloadUpdate }}
         </button>
 
         <!-- Downloading State Indicator -->
@@ -341,14 +354,15 @@ function handleOpenUpdatesFolder() {
           :disabled="installing"
           @click="handleInstallAndRestart"
         >
-          {{ installing ? '⏳ ...' : t.updater.installAndRestart }}
+          {{ installing ? t.updater.installing : t.updater.installAndRestart }}
         </button>
 
         <button
           type="button"
           class="btn"
+          :disabled="busy"
           :class="{ 'primary': result?.status !== 'update_available' && !downloadedFilePath }"
-          @click="emit('close')"
+          @click="handleClose"
         >
           {{ t.updater.close }}
         </button>
@@ -846,10 +860,6 @@ function handleOpenUpdatesFolder() {
   font-size: 0.82rem;
   font-weight: 600;
   color: #10b981;
-}
-
-.silent-option {
-  margin-top: 4px;
 }
 
 .checkbox-label {

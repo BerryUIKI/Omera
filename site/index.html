@@ -231,7 +231,7 @@
       <div class="flex flex-wrap items-center justify-center gap-4 text-[12px] text-[#64748b]">
         <span class="flex items-center gap-1.5"><span class="text-white/60">🪟</span> Windows 10 / 11 (x64)</span>
         <span class="text-white/20">·</span>
-        <span class="flex items-center gap-1.5"><span class="text-white/60">🍎</span> macOS (Apple Silicon M-Series / Intel)</span>
+        <span class="flex items-center gap-1.5"><span class="text-white/60">🍎</span> macOS (Apple Silicon)</span>
         <span class="text-white/20">·</span>
         <span class="flex items-center gap-1.5"><span class="text-white/60">🐧</span> Linux (.AppImage / .deb)</span>
       </div>
@@ -385,7 +385,7 @@
           </div>
           <h3 class="font-display text-lg font-bold text-white mb-2" data-i18n="features.f12.title">S3 & WebDAV Snapshot Cloud Backup</h3>
           <p class="text-[#94a3b8] text-[14px] leading-relaxed" data-i18n="features.f12.desc">
-            Hot VACUUM INTO snapshots with schema verification to AWS S3, R2, MinIO, and Synology/Nextcloud WebDAV, plus bidirectional delta asset sync.
+            Hot VACUUM INTO snapshots with schema verification to AWS S3, R2, MinIO, and Synology/Nextcloud WebDAV, plus upload-only asset mirroring; bidirectional sync is planned.
           </p>
         </div>
 
@@ -409,7 +409,31 @@
           </div>
           <h3 class="font-display text-lg font-bold text-white mb-2" data-i18n="features.f14.title">Multi-DB Team Studio & O(1) Pagination</h3>
           <p class="text-[#94a3b8] text-[14px] leading-relaxed" data-i18n="features.f14.desc">
-            Storage engine support for SQLite, MySQL 8.0+, and PostgreSQL 14+ with real-time sync, and keyset cursor deep pagination for 500,000+ assets.
+            SQLite runtime with a StorageEngine abstraction and cross-platform storage roots prepared for future backends, plus keyset cursor deep pagination for 500,000+ assets.
+          </p>
+        </div>
+
+        <!-- Feature 15: Flux.1 / SD3.5 Parameter Parsing (v0.5.0) -->
+        <div class="p-6 rounded-2xl bg-[#141418] border border-white/[0.08] hover:border-[#12b5cb]/40 transition-all group relative overflow-hidden">
+          <div class="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9] text-[10px] font-bold tracking-wide border border-[#12b5cb]/30">v0.5.0</div>
+          <div class="w-12 h-12 rounded-xl bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform">
+            🧬
+          </div>
+          <h3 class="font-display text-lg font-bold text-white mb-2" data-i18n="features.f15.title">Flux.1 / SD3.5 Parameter Parsing</h3>
+          <p class="text-[#94a3b8] text-[14px] leading-relaxed" data-i18n="features.f15.desc">
+            Extract Guidance, Distilled CFG Scale, Shift, schedule type and separate CLIP-L / T5-XXL prompts from A1111/Forge and ComfyUI metadata.
+          </p>
+        </div>
+
+        <!-- Feature 16: Direct Civitai Model Integration (v0.5.0) -->
+        <div class="p-6 rounded-2xl bg-[#141418] border border-white/[0.08] hover:border-[#12b5cb]/40 transition-all group relative overflow-hidden">
+          <div class="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9] text-[10px] font-bold tracking-wide border border-[#12b5cb]/30">v0.5.0</div>
+          <div class="w-12 h-12 rounded-xl bg-[#0ea5e9]/15 border border-[#0ea5e9]/30 flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform">
+            🔎
+          </div>
+          <h3 class="font-display text-lg font-bold text-white mb-2" data-i18n="features.f16.title">Direct Civitai Model Integration</h3>
+          <p class="text-[#94a3b8] text-[14px] leading-relaxed" data-i18n="features.f16.desc">
+            Look up checkpoint and LoRA hashes, cache preview cards locally, flag newer published versions and merge trained trigger words into your LoRA library.
           </p>
         </div>
       </div>
@@ -472,7 +496,7 @@
                 <span class="text-2xl">🪟</span>
                 <h3 class="font-display text-xl font-bold text-white">Windows</h3>
               </div>
-              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9]">x64 / ARM64</span>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9]">x64</span>
             </div>
             <p class="text-[#94a3b8] text-[13px] mb-6" data-i18n="download.winDesc">Compatible with Windows 10 / 11 (64-bit).</p>
             
@@ -498,7 +522,7 @@
                 <span class="text-2xl">🍎</span>
                 <h3 class="font-display text-xl font-bold text-white">macOS</h3>
               </div>
-              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9]">Apple Silicon / Intel</span>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9]">Apple Silicon</span>
             </div>
             <p class="text-[#94a3b8] text-[13px] mb-6" data-i18n="download.macDesc">Compatible with macOS 11.0 Big Sur or later.</p>
             
@@ -506,10 +530,6 @@
               <a id="macArmBtn" href="https://github.com/BerryUIKI/Omera/releases/latest" onclick="handleDirectDownload(event, this)" class="flex items-center justify-between p-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-[13px] text-white font-medium transition-colors">
                 <span class="flex items-center gap-2"><span>🍏</span> Apple Silicon (.dmg)</span>
                 <span class="text-[11px] text-[#67e8f9] font-semibold">M1 / M2 / M3 / M4</span>
-              </a>
-              <a id="macIntelBtn" href="https://github.com/BerryUIKI/Omera/releases/latest" onclick="handleDirectDownload(event, this)" class="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 text-[13px] text-[#cbd5e1] transition-colors">
-                <span class="flex items-center gap-2"><span>🖥️</span> Intel x64 (.dmg)</span>
-                <span class="text-[11px] text-[#64748b]">x86_64</span>
               </a>
               <a id="macArmTarBtn" href="https://github.com/BerryUIKI/Omera/releases/latest" onclick="handleDirectDownload(event, this)" class="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 text-[13px] text-[#cbd5e1] transition-colors">
                 <span class="flex items-center gap-2"><span>📦</span> App Bundle (.tar.gz)</span>
@@ -528,7 +548,7 @@
                 <span class="text-2xl">🐧</span>
                 <h3 class="font-display text-xl font-bold text-white">Linux</h3>
               </div>
-              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9]">x64 / ARM64</span>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#12b5cb]/15 text-[#67e8f9]">x64</span>
             </div>
             <p class="text-[#94a3b8] text-[13px] mb-6" data-i18n="download.linuxDesc">Supports Ubuntu, Debian, Arch, Fedora and others.</p>
             
@@ -601,6 +621,10 @@
             <div class="p-3 rounded-lg bg-black/40 border border-white/5 flex items-center justify-between">
               <span class="text-[#06b6d4]">crates/omera-clip</span>
               <span class="text-[#64748b]">On-Device Neural Embeddings & Vision Search</span>
+            </div>
+            <div class="p-3 rounded-lg bg-black/40 border border-white/5 flex items-center justify-between">
+              <span class="text-[#22c55e]">crates/omera-tagger</span>
+              <span class="text-[#64748b]">WD14 ONNX Auto-Tagging</span>
             </div>
             <div class="p-3 rounded-lg bg-black/40 border border-white/5 flex items-center justify-between">
               <span class="text-[#a78bfa]">src/ (Frontend)</span>
@@ -791,11 +815,15 @@
         "features.f11.title": "Masonry Waterfall & Square Grid",
         "features.f11.desc": "Enjoy dynamic waterfall masonry layout alongside classic square grids, showcasing portrait and landscape AI art in their true natural proportions.",
         "features.f12.title": "S3 & WebDAV Snapshot Cloud Backup",
-        "features.f12.desc": "Hot VACUUM INTO snapshots with schema verification to AWS S3, R2, MinIO, and Synology/Nextcloud WebDAV, plus bidirectional delta asset sync.",
+        "features.f12.desc": "Hot VACUUM INTO snapshots with schema verification to AWS S3, R2, MinIO, and Synology/Nextcloud WebDAV, plus upload-only asset mirroring; bidirectional sync is planned.",
         "features.f13.title": "Standalone Single-File HTML Showcase",
         "features.f13.desc": "Export zero-dependency standalone HTML portfolios with responsive dark gallery, fullscreen lightbox, prompt inspector, and keyword search.",
         "features.f14.title": "Multi-DB Team Studio & O(1) Pagination",
-        "features.f14.desc": "Storage engine support for SQLite, MySQL 8.0+, and PostgreSQL 14+ with real-time sync, and keyset cursor deep pagination for 500,000+ assets.",
+        "features.f14.desc": "SQLite runtime with a StorageEngine abstraction and cross-platform storage roots prepared for future backends, plus keyset cursor deep pagination for 500,000+ assets.",
+        "features.f15.title": "Flux.1 / SD3.5 Parameter Parsing",
+        "features.f15.desc": "Extract Guidance, Distilled CFG Scale, Shift, schedule type and separate CLIP-L / T5-XXL prompts from A1111/Forge and ComfyUI metadata.",
+        "features.f16.title": "Direct Civitai Model Integration",
+        "features.f16.desc": "Look up checkpoint and LoRA hashes, cache preview cards locally, flag newer published versions and merge trained trigger words into your LoRA library.",
         "ecosystem.title": "Universal Support for Leading AIGC Ecosystems",
         "download.heading": "Download Omera",
         "download.subheading": "Select your platform below. All releases are digitally packaged and open-source on GitHub Releases.",
@@ -869,11 +897,15 @@
         "features.f11.title": "瀑布流与自适应网格双视图",
         "features.f11.desc": "支持经典等宽正方形网格与动态瀑布流视图随意切换，完美还原本体竖版肖像与宽屏横幅的原生画质比例。",
         "features.f12.title": "S3 / WebDAV 快照备份与差异同步",
-        "features.f12.desc": "自动化热 VACUUM INTO 备份至 AWS S3、Cloudflare R2、MinIO 与群晖/Nextcloud WebDAV，兼具双向增量资产镜像与带宽限速。",
+        "features.f12.desc": "自动化热 VACUUM INTO 备份至 AWS S3、Cloudflare R2、MinIO 与群晖/Nextcloud WebDAV，并支持单向媒体镜像上传；双向同步仍在规划中。",
         "features.f13.title": "独立单文件 HTML Showcase 导出",
         "features.f13.desc": "导出零依赖、开箱即用的单个 HTML 作品集，内嵌暗色画廊、全屏缩放灯箱、提示词分词检查器与即时搜索。",
         "features.f14.title": "多数据库团队协作与 O(1) 游标分页",
-        "features.f14.desc": "抽象存储引擎支持 SQLite、MySQL 与 PostgreSQL，支持乐观并发实时协作，并在 50 万级资产下实现毫秒级游标深度分页。",
+        "features.f14.desc": "当前运行时采用 SQLite，提供 StorageEngine 抽象与跨平台存储根路径，为未来后端预留；同时支持 50 万级资产的键集游标深度分页。",
+        "features.f15.title": "Flux.1 / SD3.5 参数解析",
+        "features.f15.desc": "从 A1111/Forge 与 ComfyUI 元数据中提取 Guidance、Distilled CFG Scale、Shift、调度类型以及独立的 CLIP-L / T5-XXL 提示词。",
+        "features.f16.title": "Civitai 模型直连",
+        "features.f16.desc": "反查 Checkpoint 与 LoRA 哈希、本地缓存预览卡、标记新版本，并将训练触发词合并到 LoRA 词库。",
         "ecosystem.title": "全方位支持主流 AIGC 绘画工具",
         "download.heading": "下载 Omera",
         "download.subheading": "请选择您的操作系统。所有安装包均通过 GitHub Releases 自动化构建并开源发布。",
@@ -947,11 +979,15 @@
         "features.f11.title": "瀑布流與自適應網格雙檢視",
         "features.f11.desc": "支援經典等寬正方形網格與動態瀑布流檢視隨意切換，完美還原本體直向肖像與寬螢幕橫幅的原生畫質比例。",
         "features.f12.title": "S3 / WebDAV 快照備份與差異同步",
-        "features.f12.desc": "自動化熱 VACUUM INTO 備份至 AWS S3、Cloudflare R2、MinIO 與群暉/Nextcloud WebDAV，兼具雙向增量資產鏡像與頻寬限速。",
+        "features.f12.desc": "自動化熱 VACUUM INTO 備份至 AWS S3、Cloudflare R2、MinIO 與群暉/Nextcloud WebDAV，並支援單向媒體鏡像上傳；雙向同步仍在規劃中。",
         "features.f13.title": "獨立單一 HTML Showcase 匯出",
         "features.f13.desc": "匯出零依賴、開箱即用的單一 HTML 作品集，內建深色畫廊、全螢幕縮放燈箱、提示詞分詞檢查器與即時搜尋。",
         "features.f14.title": "多資料庫團隊協作與 O(1) 游標分頁",
-        "features.f14.desc": "抽象儲存引擎支援 SQLite、MySQL 與 PostgreSQL，支援樂觀並行即時協作，並在 50 萬級資產下實現毫秒級游標深度分頁。",
+        "features.f14.desc": "目前執行階段採用 SQLite，提供 StorageEngine 抽象與跨平台儲存根路徑，為未來後端預留；同時支援 50 萬級資產的鍵集游標深度分頁。",
+        "features.f15.title": "Flux.1 / SD3.5 參數解析",
+        "features.f15.desc": "從 A1111/Forge 與 ComfyUI 中繼資料中提取 Guidance、Distilled CFG Scale、Shift、排程類型以及獨立的 CLIP-L / T5-XXL 提示詞。",
+        "features.f16.title": "Civitai 模型直連",
+        "features.f16.desc": "反查 Checkpoint 與 LoRA 雜湊、本機快取預覽卡、標記新版本，並將訓練觸發詞合併到 LoRA 詞庫。",
         "ecosystem.title": "全方位支援主流 AIGC 繪畫工具",
         "download.heading": "下載 Omera",
         "download.subheading": "請選擇您的作業系統。所有安裝包均透過 GitHub Releases 自動化建置並開源發布。",
@@ -1025,11 +1061,15 @@
         "features.f11.title": "ウォーターフォール＆スクエアグリッド",
         "features.f11.desc": "正方形グリッドと可変高ウォーターフォール（Masonry）を自由自在に切替。縦長ポートレートやワイド風景を本来の比率で美しく鑑賞。",
         "features.f12.title": "S3 / WebDAV スナップショット同期＆復元",
-        "features.f12.desc": "AWS S3、Cloudflare R2、MinIO、WebDAVへのホットVACUUM INTOバックアップ。差分双方向アセットミラーリングにも対応。",
+        "features.f12.desc": "AWS S3、Cloudflare R2、MinIO、WebDAV へのホット VACUUM INTO バックアップ。単方向のアセットミラーリングに対応し、双方向同期は計画中です。",
         "features.f13.title": "単一ファイル HTML Showcase 出力",
         "features.f13.desc": "外部依存ゼロの単一HTML作品集を出力。ダークテーマ画廊、全画面拡大ライトボックス、プロンプト表示機能を内蔵。",
         "features.f14.title": "マルチDBチームスタジオ＆ O(1) ページ送り",
-        "features.f14.desc": "SQLite、MySQL、PostgreSQLに対応したチーム同期機能と、50万件規模でも1ミリ秒未満で動くキーセットカーソル深層ページネーション。",
+        "features.f14.desc": "現在のランタイムは SQLite で、StorageEngine 抽象化とクロスプラットフォームのストレージルートを将来のバックエンド向けに用意。50 万件規模のキーセットカーソルページネーションにも対応。",
+        "features.f15.title": "Flux.1 / SD3.5 パラメータ解析",
+        "features.f15.desc": "A1111/Forge と ComfyUI のメタデータから Guidance、Distilled CFG Scale、Shift、スケジュールタイプ、CLIP-L / T5-XXL の個別プロンプトを抽出。",
+        "features.f16.title": "Civitai モデル直接連携",
+        "features.f16.desc": "Checkpoint と LoRA のハッシュを検索し、プレビューカードをローカルにキャッシュ、新バージョンを表示、学習済みトリガーワードを LoRA ライブラリへ統合。",
         "ecosystem.title": "主要AIGCエコシステムを包括サポート",
         "download.heading": "Omera をダウンロード",
         "download.subheading": "お使いのOSを選択してください。GitHub Releasesから直接ダウンロード可能です。",
@@ -1103,11 +1143,15 @@
         "features.f11.title": "Masonry-Waterfall & Rasteransicht",
         "features.f11.desc": "Dynamisches Waterfall-Layout neben klassischem Quadratformat: Genießen Sie Porträt- und Querformate in ihren natürlichen Proportionen.",
         "features.f12.title": "S3 / WebDAV Cloud-Backup & Delta-Sync",
-        "features.f12.desc": "Hot VACUUM INTO-Snapshots zu AWS S3, R2, MinIO und WebDAV mit bidirektionaler inkrementeller Assets-Synchronisation.",
+        "features.f12.desc": "Hot-VACUUM-INTO-Snapshots zu AWS S3, R2, MinIO und WebDAV mit einseitiger Asset-Spiegelung; bidirektionale Synchronisation ist geplant.",
         "features.f13.title": "Eigenständiger HTML-Showcase-Export",
         "features.f13.desc": "Exportieren Sie eigenständige HTML-Portfolios ohne externe Abhängigkeiten mit responsivem Dark-Theme, Lightbox und Prompt-Inspektor.",
         "features.f14.title": "Multi-DB Team Studio & O(1)-Paginierung",
-        "features.f14.desc": "Speicher-Engine für SQLite, MySQL und PostgreSQL mit Echtzeit-Zusammenarbeit und Keyset-Cursor-Paginierung für 500.000+ Assets.",
+        "features.f14.desc": "SQLite-Laufzeit mit StorageEngine-Abstraktion und plattformübergreifenden Speicherwurzeln für künftige Backends sowie Keyset-Cursor-Paginierung für 500.000+ Assets.",
+        "features.f15.title": "Flux.1-/SD3.5-Parameteranalyse",
+        "features.f15.desc": "Guidance, Distilled CFG Scale, Shift, Zeitplan-Typ und getrennte CLIP-L-/T5-XXL-Prompts aus A1111/Forge- und ComfyUI-Metadaten extrahieren.",
+        "features.f16.title": "Direkte Civitai-Modellintegration",
+        "features.f16.desc": "Checkpoint- und LoRA-Hashes abfragen, Vorschaukarten lokal zwischenspeichern, neue Versionen markieren und trainierte Triggerwörter in die LoRA-Bibliothek übernehmen.",
         "ecosystem.title": "Umfassende Unterstützung für moderne AIGC-Tools",
         "download.heading": "Omera herunterladen",
         "download.subheading": "Wählen Sie Ihr Betriebssystem. Alle Builds sind als Open-Source auf GitHub verfügbar.",
@@ -1181,11 +1225,15 @@
         "features.f11.title": "Galerie Waterfall & Grille Carrée",
         "features.f11.desc": "Basculez entre grille carrée et disposition cascade dynamique pour apprécier les portraits verticaux et paysages dans leurs proportions réelles.",
         "features.f12.title": "Sauvegarde Cloud S3 / WebDAV & Delta Sync",
-        "features.f12.desc": "Snapshots hot VACUUM INTO vers AWS S3, R2, MinIO et WebDAV avec synchronisation différentielle bidirectionnelle.",
+        "features.f12.desc": "Snapshots hot VACUUM INTO vers AWS S3, R2, MinIO et WebDAV avec miroir de ressources unidirectionnel ; la synchronisation bidirectionnelle est prévue.",
         "features.f13.title": "Exportation Showcase HTML autonome",
         "features.f13.desc": "Exportez des portfolios HTML sans dépendance externe avec galerie responsive sombre, lightbox plein écran et inspecteur de prompts.",
         "features.f14.title": "Team Studio multi-BD & Pagination O(1)",
-        "features.f14.desc": "Moteur de stockage pour SQLite, MySQL et PostgreSQL avec collaboration en temps réel et pagination par curseur pour plus de 500 000 images.",
+        "features.f14.desc": "Runtime SQLite avec abstraction StorageEngine et racines de stockage multiplateformes préparées pour de futurs backends, plus pagination par curseur pour 500 000+ assets.",
+        "features.f15.title": "Analyse des paramètres Flux.1 / SD3.5",
+        "features.f15.desc": "Extraire Guidance, Distilled CFG Scale, Shift, le type de planification et les prompts CLIP-L / T5-XXL distincts des métadonnées A1111/Forge et ComfyUI.",
+        "features.f16.title": "Intégration directe des modèles Civitai",
+        "features.f16.desc": "Rechercher les hashs Checkpoint et LoRA, mettre en cache les aperçus, signaler les nouvelles versions et fusionner les mots déclencheurs entraînés dans la bibliothèque LoRA.",
         "ecosystem.title": "Prise en charge universelle des moteurs AIGC",
         "download.heading": "Télécharger Omera",
         "download.subheading": "Sélectionnez votre système d'exploitation. Tous les builds sont open source sur GitHub Releases.",
@@ -1259,11 +1307,15 @@
         "features.f11.title": "Galería Waterfall y cuadrícula clásica",
         "features.f11.desc": "Disfruta de diseño dinámico en cascada junto a la cuadrícula tradicional para admirar retratos verticales y paisajes panorámicos en su escala natural.",
         "features.f12.title": "Copia en la nube S3 / WebDAV y sinc. delta",
-        "features.f12.desc": "Instantáneas hot VACUUM INTO en AWS S3, R2, MinIO y WebDAV con sincronización diferencial bidireccional de recursos.",
+        "features.f12.desc": "Instantáneas hot VACUUM INTO en AWS S3, R2, MinIO y WebDAV con espejo de recursos unidireccional; la sincronización bidireccional está planificada.",
         "features.f13.title": "Exportación Showcase HTML independiente",
         "features.f13.desc": "Exporta colecciones HTML independientes sin dependencias externas con tema oscuro adaptable, lightbox y visor de prompts.",
         "features.f14.title": "Team Studio multi-BD y paginación O(1)",
-        "features.f14.desc": "Motor de almacenamiento para SQLite, MySQL y PostgreSQL con colaboración en tiempo real y paginación por cursor para más de 500.000 obras.",
+        "features.f14.desc": "Runtime SQLite con abstracción StorageEngine y raíces de almacenamiento multiplataforma preparadas para futuros backends, además de paginación por cursor para más de 500.000 obras.",
+        "features.f15.title": "Análisis de parámetros Flux.1 / SD3.5",
+        "features.f15.desc": "Extraiga Guidance, Distilled CFG Scale, Shift, el tipo de programación y prompts separados CLIP-L / T5-XXL de metadatos A1111/Forge y ComfyUI.",
+        "features.f16.title": "Integración directa de modelos Civitai",
+        "features.f16.desc": "Consulte hashes de Checkpoint y LoRA, guarde vistas previas en caché, marque nuevas versiones y combine palabras entrenadas en la biblioteca LoRA.",
         "ecosystem.title": "Soporte universal para los principales ecosistemas de IA",
         "download.heading": "Descargar Omera",
         "download.subheading": "Seleccione su plataforma. Todos los paquetes están disponibles en GitHub Releases.",
@@ -1388,13 +1440,13 @@
         return { os: "windows", arch: "x64", icon: "🪟", name: "Windows" };
       }
       if (platform.includes("mac") || ua.includes("macintosh") || ua.includes("mac os")) {
-        // Distinguish Apple Silicon (aarch64 / arm64) from Intel x64
+        // Detect Apple Silicon; Intel Macs are not currently supported.
         const isArm = ua.includes("arm") || (navigator.userAgentData?.architecture === "arm") || navigator.maxTouchPoints > 0;
         return {
           os: "macos",
           arch: isArm ? "arm64" : "x64",
           icon: "🍎",
-          name: isArm ? "macOS (Apple Silicon)" : "macOS (Intel)"
+          name: isArm ? "macOS (Apple Silicon)" : "macOS (Apple Silicon only)"
         };
       }
       if (platform.includes("linux") || ua.includes("linux")) {
@@ -1496,10 +1548,15 @@
         const matched = releaseAssets.find(a => a.name.endsWith(".exe") || a.name.endsWith(".msi"));
         if (matched) directUrl = matched.browser_download_url;
       } else if (client.os === "macos") {
-        fileFormatHint = client.arch === "arm64" ? `${latestVersion} · Apple Silicon (.dmg)` : `${latestVersion} · Intel x64 (.dmg)`;
-        directUrl = "https://github.com/BerryUIKI/Omera/releases/latest";
-        const matched = releaseAssets.find(a => a.name.endsWith(".dmg") && (client.arch === "arm64" ? /aarch64|arm64/i.test(a.name) : /x64|x86_64/i.test(a.name)));
-        if (matched) directUrl = matched.browser_download_url;
+        if (client.arch === "arm64") {
+          fileFormatHint = `${latestVersion} · Apple Silicon (.dmg)`;
+          directUrl = "https://github.com/BerryUIKI/Omera/releases/latest";
+          const matched = releaseAssets.find(a => a.name.endsWith(".dmg") && /aarch64|arm64/i.test(a.name));
+          if (matched) directUrl = matched.browser_download_url;
+        } else {
+          fileFormatHint = "Intel Macs are not currently supported";
+          directUrl = "https://github.com/BerryUIKI/Omera/releases";
+        }
       } else if (client.os === "linux") {
         fileFormatHint = `${latestVersion} · Universal AppImage (.AppImage / .deb)`;
         directUrl = "https://github.com/BerryUIKI/Omera/releases/latest";
@@ -1554,9 +1611,6 @@
                 if (el) el.href = asset.browser_download_url;
               } else if (name.endsWith(".dmg") && (name.includes("aarch64") || name.includes("arm64"))) {
                 const el = document.getElementById("macArmBtn");
-                if (el) el.href = asset.browser_download_url;
-              } else if (name.endsWith(".dmg") && (name.includes("x64") || name.includes("x86_64"))) {
-                const el = document.getElementById("macIntelBtn");
                 if (el) el.href = asset.browser_download_url;
               } else if (name.endsWith(".app.tar.gz") && (name.includes("aarch64") || name.includes("arm"))) {
                 const el = document.getElementById("macArmTarBtn");

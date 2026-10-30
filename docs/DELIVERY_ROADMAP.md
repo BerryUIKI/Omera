@@ -1,5 +1,7 @@
 # Omera delivery roadmap
 
+> **Historical delivery plan.** Phase 5 stabilization is the current phase; see [ROADMAP.md](ROADMAP.md) and [STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md).
+
 This roadmap separates lead-owned safety work from general-engineer implementation. Detailed task cards and issue links are in [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md). No dates are promised before dependencies and validation are complete.
 
 Dispatch work using [HANDOFF_PROMPTS.md](HANDOFF_PROMPTS.md). Interface changes must follow [API_CONTRACTS.md](API_CONTRACTS.md) and update [IPC_REFERENCE.md](IPC_REFERENCE.md). The lead provides contracts and reviews high-impact changes; ordinary engineering tasks should be assigned rather than folded into an unbounded lead implementation branch.

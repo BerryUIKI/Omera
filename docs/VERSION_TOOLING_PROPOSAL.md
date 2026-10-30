@@ -25,7 +25,7 @@ Manual editing creates risks of partial bumps, drift across manifests, invalid S
 ### 2.1 Authoritative Source
 `package.json` is designated as the primary version authority for the repository, with `Cargo.toml` and `src-tauri/tauri.conf.json` kept in strict 1:1 synchronization.
 
-All Rust member crates (`berry-domain`, `berry-storage`, `berry-metadata`, `berry-scan`, `berry-tagger`, `berry-clip`, and `src-tauri`) inherit from `[workspace.package].version` in the root `Cargo.toml`. Therefore, updating the root `Cargo.toml` automatically updates the entire Rust workspace.
+All Rust member crates (`omera-domain`, `omera-storage`, `omera-metadata`, `omera-scan`, `omera-tagger`, `omera-clip`, and `src-tauri`) inherit from `[workspace.package].version` in the root `Cargo.toml`. Therefore, updating the root `Cargo.toml` automatically updates the entire Rust workspace.
 
 ### 2.2 Version Files in Scope
 | File | Role | Sync Mechanism |

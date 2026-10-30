@@ -1,7 +1,57 @@
 # Signed update delivery
 
-Updated: 2026-10-12. Lead-owned follow-up for #256; integration targets `dev`.
+Updated: 2026-10-30. Lead-owned follow-up for #256; integration targets `dev`.
 This contract precedes release integration. It does not authorize publishing a release.
+
+## Owner-approved v0.5.1 patch release — 2026-10-30
+
+The owner authorized a PR to `dev`, version verification, and the release
+process for the direct-update fix. The latest published stable release and all
+three manifests were v0.5.0; v0.5.1 is the next patch version. Synchronize the
+workspace lockfile and preserve the small implementation commits. Merge into
+`dev`, then open the release integration PR from `dev` to release-only `main`.
+Keep the required approving review on `main`; this authorization does not bypass
+branch protection or the production signing/notarization/publication gates.
+
+Retain the deferred native testing decision and disclose the pending installed
+matrix in the changelog. Candidate CI, signed installer artifacts, and production
+macOS qualification must be associated with this candidate; prior-version build
+evidence does not qualify v0.5.1. No tag or release exists until approved release
+integration completes. Do not change or replace v0.5.0 published assets.
+
+## Direct Windows updates
+
+The update dialog's **Update Now** action downloads the selected Windows
+installer, verifies it and immediately requests installation. The backend checks
+the signature again before launching. NSIS uses `/P /UPDATE /R` by default to
+show progress without the setup wizard, skip the previous NSIS uninstaller,
+preserve shortcuts and reopen Omera on success. The optional silent setting
+uses `/S` instead of `/P`. MSI uses `/i /norestart`, `/passive` or `/quiet`, and
+`AUTOLAUNCHAPP=True`. See the pinned [Tauri installer source](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.11.4/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi)
+and the [updater launch configuration](https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/updater/src/config.rs).
+
+Reopening the dialog or repeating an action during download/launch cannot start
+another operation or discard its state. Download/verification failures allow a
+fresh download; launch failures retain the verified package for an install retry.
+The app exits only after a successful process spawn. An installer failure after
+that handoff is outside the dialog's error reporting. No application-data cleanup
+is part of this path. macOS/Linux retain their explicit installer handoffs.
+
+The no-uninstall NSIS behavior applies to NSIS-to-NSIS upgrades. Tauri still
+performs its installer-managed transition when switching from MSI to NSIS;
+cross-format transitions are not qualified by command-plan or component tests.
+Installed-version, data-preservation and restart acceptance still require the
+disposable-profile matrix below. These changes do not publish a release or
+retrofit the new updater into already installed older builds.
+
+Automated validation on Windows (2026-10-30): `pnpm run build`,
+`pnpm run test:stack` (318 passing tests), `pnpm run test:memory`,
+`pnpm run bench:scroll`, `cargo fmt --check`,
+`cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, and
+`node scripts/generate-ipc-reference.mjs --check` all passed. The component
+regressions cover one-click ordering, progress, duplicate actions, reopen during
+download, signature/download rejection, launch retry, and macOS/Linux handoffs.
+No real application installer was executed for this change.
 
 ## Trust and custody
 

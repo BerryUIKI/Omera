@@ -1,5 +1,7 @@
 # Engineering assignment board
 
+> **Historical (2026-09-23).** Superseded by [ROADMAP.md](ROADMAP.md) and [STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md). Use the current approved `dev` and open GitHub issues for dispatch.
+
 Updated: 2026-09-23. Named people can be assigned by the product owner; role labels below are proposed work packages, not claims that someone is already working.
 
 ## Ready to dispatch from dev

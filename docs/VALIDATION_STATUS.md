@@ -1,5 +1,10 @@
 # Handoff baseline and validation status
 
+> **Historical record.** This file is a chronological log of validation
+> snapshots; later sections supersede earlier ones. The latest release evidence
+> is in [CHANGELOG.md](../CHANGELOG.md) and the GitHub release notes. Reconciled
+> against `dev` on 2026-10-29.
+
 Recorded: 2026-09-23. No release readiness is implied.
 
 ## Baselines
@@ -8,11 +13,13 @@ Recorded: 2026-09-23. No release readiness is implied.
 - Current `dev` baseline for this documentation follow-up: `4f57246b9aeaa6ce556e960171ab590e58584f3e`. Later documentation translations are preserved.
 - Unmerged implementation snapshot: `5fabdd8`, branch `codex/repository-review-fixes`, [draft PR #138](https://github.com/BerryUIKI/Omera/pull/138). Runtime changes were committed at `b1b5afb`; `5fabdd8` only removes an extra blank line. This is a checkpoint of partial remediation, not an approved feature baseline or completed rename.
 - IPC_REFERENCE.md describes the 138 command signatures in `5fabdd8`. Proposed migration IPC is not part of that registry.
+- **Resolved 2026-09-23:** PR #138 was merged into `dev` and the `codex/repository-review-fixes` branch was deleted. The snapshot notes below describe archived history only.
 
-To inspect/check the snapshot without replacing a working checkout:
+To inspect/check the archived snapshot commits without replacing a working checkout
+(the commits are no longer reachable from a branch; fetch them from PR #138 if they
+are not present locally):
 
 ```sh
-git fetch origin codex/repository-review-fixes
 git show 5fabdd8:src-tauri/src/commands.rs
 node scripts/generate-ipc-reference.mjs --source-ref 5fabdd8 --check
 ```
@@ -38,13 +45,18 @@ The Node benchmark measures helper execution, not WebView painting, image decode
 
 ## Not validated / not complete
 
-- Native Grid, Waterfall and Table matrix at narrow/wide sizes, rapid dragging, stacks, keyboard and reduced motion.
-- macOS/Linux build and runtime validation for the working changes, including credential-store dependencies.
-- Actual Berry-to-Omera installer migration, App Store/provisioning implications, signed release artifacts, skipped-version upgrades and the next Omera update.
-- Legacy source discovery, multi-artifact receipts, source selection, old WebView-origin export/import, final Omera activation and separately approved cleanup.
-- Full file-operation fault/partial-result cases, config secret reuse/conflicts, watcher initialization/revocation races and remaining #98–#117 acceptance cases described in the task cards.
+Each entry keeps the 2026-09-23 statement; the status prefix records what has
+changed since. Evidence is in the later sections of this file,
+[CHANGELOG.md](../CHANGELOG.md) and the linked issues. Anything still open gates
+release regardless of green development CI.
 
-Do not close issues or merge draft PR #138 based solely on this table. Treat its changes as inputs to reviewed, issue-sized implementation work. The interface/assignment documents can be distributed independently, but engineers must use the baseline and readiness gate stated for their task.
+- **Partly closed.** Native Grid, Waterfall and Table matrix at narrow/wide sizes, rapid dragging, stacks, keyboard and reduced motion. The same matrix passed in the production-app browser fixture on 2026-10-14 (synthetic media, mocked IPC). A native installed session, real-media/video codecs and a native reduced-motion run remain open.
+- **Build path closed.** macOS/Linux build and runtime validation for the working changes, including credential-store dependencies. Required CI has run on Windows, macOS and Linux for every change since, and the production macOS qualification signs, notarizes and Gatekeeper-checks a real build. Credential storage on those platforms is covered only by automated tests, not by a native session.
+- **Partly closed.** Actual Berry-to-Omera installer migration, App Store/provisioning implications, signed release artifacts, skipped-version upgrades and the next Omera update. v0.4.3–v0.5.0 ship signed artifacts; the installed transition, skipped-version and next-update matrix remains open in [#256](https://github.com/BerryUIKI/Omera/issues/256).
+- **Application flow closed.** Legacy source discovery, multi-artifact receipts, source selection, old WebView-origin export/import, final Omera activation and separately approved cleanup. The 2026-10-14 setup follow-up covers these against SQLite and browser fixtures; no real legacy directory, media, credential or shared vault was migrated or removed.
+- **Issue set closed.** Full file-operation fault/partial-result cases, config secret reuse/conflicts, watcher initialization/revocation races and the remaining #98–#117 acceptance cases described in the task cards. All twenty issues are closed as completed. A full crash-fault matrix against a native installation has still not been run.
+
+Passing checks here do not close native-installation or release gates. Treat them as inputs to reviewed, issue-sized implementation work. The interface/assignment documents can be distributed independently, but engineers must use the baseline and readiness gate stated for their task.
 
 ## First Omera setup and legacy import follow-up (2026-10-14)
 
@@ -127,6 +139,8 @@ child to trigger required CI without rewriting commits. The current CI branch
 filter schedules PR checks against `dev`; #393 passed Linux/macOS/Windows CI,
 while the feature-based draft PRs still require those checks after retargeting.
 Preserve individual commits instead of squash-merging.
+
+> **Resolved 2026-10-15:** #393 and #394 merged; #395–#398 were integrated through the joint branch and #399, which merged into `dev` at `466b8bb`, and are closed. The merge-order instructions above are retained as history.
 
 ## Workbench review follow-up (2026-10-15)
 

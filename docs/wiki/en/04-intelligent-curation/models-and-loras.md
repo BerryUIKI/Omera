@@ -20,7 +20,10 @@ Omera automatically tracks every checkpoint model encountered across your librar
   3. Omera imports the mapping into its local `model_cache` table, instantly resolving cryptic hashes across your entire library into friendly model titles.
 
 ### Civitai SHA256 Hash Resolution:
-- For models without local names, you can click the Civitai lookup button in the Inspector to query Civitai's public model database via model hash.
+- For models without local names, use the Civitai lookup button in **Model Manager** (checkpoints) or **LoRA Manager** (catalog entries).
+- Lookup results are cached in SQLite; preview images are downloaded to the app-data cache and served through the asset protocol.
+- A newer published version shows an update badge; **Refresh Civitai** revalidates the cached result.
+- In LoRA Manager, **Apply Civitai metadata** merges trained words, description and preview while preserving existing trigger words.
 
 ---
 

@@ -16,8 +16,14 @@ Omera interprète nativement les métadonnées intégrées dans les chunks PNG, 
 | **Fooocus / Fooocus-MRE** | Modèle de base, Raffineur (Refiner), Poids LoRA, Netteté, Mode de performance, Résolution, Prompt | Blocs de texte PNG `parameters` |
 | **InvokeAI** | Nom du modèle, VAE, Scheduler, Mode de génération (txt2img/img2img), Répétition sans raccord | JSON PNG `sd-metadata` & `invokeai_metadata` |
 | **EasyDiffusion / Stable Swarm** | Blocs formatés de paramètres JSON, Seed, Nom du modèle | PNG `sui_image_params` / Fichiers auxiliaires |
+| **Flux.1 / SD3.5** | Guidance, Distilled CFG Scale, Shift, type de planification, prompts doubles CLIP-L / T5-XXL, taille, modèle | Paramètres PNG / graphe de prompt ComfyUI |
 
 ---
+
+
+### Paramètres Flux.1 et SD3.5
+
+Les métadonnées Forge/A1111 et ComfyUI peuvent inclure `Guidance`, `Distilled CFG Scale`, `Shift`, `Schedule type` et des prompts distincts pour les encodeurs CLIP-L / T5-XXL. Omera les stocke comme champs optionnels et les affiche dans l'Inspecteur. Les lignes indexées avant v0.5.0 nécessitent une reconstruction des métadonnées ou un nouveau scan pour afficher ces champs.
 
 ## 2. Le volet d'inspection des propriétés (`InspectorPane.vue`)
 
