@@ -8,9 +8,9 @@ Choisissez **Aide > Rechercher les mises à jour**. La vérification au démarra
 
 ## Télécharger et installer
 
-1. Choisissez le téléchargement automatique pour récupérer le paquet depuis la publication officielle GitHub.
-2. Omera vérifie sa signature avant de proposer l’installation, puis à nouveau avant de lancer l’installateur. Une erreur n’autorise pas l’installation.
-3. Sous Windows, l’installateur EXE peut utiliser l’option d’installation silencieuse choisie. Sous macOS, Omera ouvre le DMG vérifié ; terminez l’installation puis rouvrez Omera. Sous Linux, un AppImage est lancé ; les paquets DEB/RPM nécessitent le gestionnaire de paquets. Le redémarrage automatique n’est pas garanti sur toutes les plateformes.
+1. Sous Windows, choisissez **Mettre à jour maintenant** pour télécharger et installer la mise à jour en un clic. Vous pouvez choisir l’installation silencieuse avant de commencer. Sous macOS/Linux, choisissez d’abord **Télécharger la mise à jour**.
+2. Omera vérifie le paquet téléchargé, puis vérifie à nouveau sa signature avant de lancer l’installateur. Un échec de vérification bloque l’installation ; un échec de lancement permet de réessayer avec le paquet téléchargé.
+3. Windows met à jour l’application existante sans étape de désinstallation séparée et rouvre Omera après réussite. Sous macOS, utilisez l’action d’installation pour ouvrir le DMG vérifié, terminez l’installation puis rouvrez Omera. Sous Linux, l’action d’installation lance un AppImage ; les paquets DEB/RPM nécessitent le gestionnaire de paquets. Le redémarrage automatique n’est pas garanti sous macOS/Linux.
 
 Si la configuration de confiance ou la signature manque, ou si la vérification échoue, utilisez **Télécharger dans le navigateur** ou **GitHub Releases** pour ouvrir la [page officielle des versions](https://github.com/BerryUIKI/Omera/releases). Choisissez le paquet adapté au système et à l’architecture, puis suivez ses instructions d’installation manuelle. Ne désactivez pas la vérification et n’utilisez pas de miroir non fiable. Les anciennes versions sans configuration de confiance nécessitent une première mise à niveau manuelle vers une version de confiance.
 
