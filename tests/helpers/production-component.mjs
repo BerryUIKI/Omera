@@ -19,6 +19,7 @@ export async function withProductionComponent(name, initialProps, invoke, run, t
   const { descriptor } = parse(fs.readFileSync(filename, 'utf8'));
   const script = compileScript(descriptor, { id: name });
   const template = compileTemplate({ source: descriptor.template.content, filename, id: name,
+    transformAssetUrls: false,
     ssr: true, ssrCssVars: [], compilerOptions: { bindingMetadata: script.bindings } });
   assert.deepEqual(template.errors, []);
   let code = transform(script.content)
