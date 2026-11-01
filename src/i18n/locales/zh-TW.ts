@@ -2,6 +2,7 @@ import type { en } from "./en";
 
 export const zhTW: typeof en = {
   layout: {
+    displaySettings: "顯示設定",
     resizeSidebar: "調整側欄寬度",
     resizeInspector: "調整詳細資料欄寬度",
     resizeHint: "拖曳或使用方向鍵調整寬度；按兩下或按 Enter 恢復預設。",
