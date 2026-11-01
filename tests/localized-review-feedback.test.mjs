@@ -29,6 +29,7 @@ async function component(name, locale, run) {
     .replace(/import { invoke } from [^;]+;/, 'const invoke = () => new Promise(() => {});')
     .replace(/import { open as openDialog } from [^;]+;/, 'const openDialog = async () => null;')
     .replace(/import { useNotification } from [^;]+;/, 'const useNotification = () => ({});')
+    .replace(/import AppIcon from [^;]+;/, 'const AppIcon = {ssrRender(){}};')
     .replace(/import FolderTreeNode from [^;]+;/, 'const FolderTreeNode = {ssrRender(){}};')
     .replace(/import type [^;]+;/g, '');
   code = 'const window = {addEventListener(){},removeEventListener(){}};\n' + code;

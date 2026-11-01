@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { DetectedLora, ImageFile, Tag } from "../types";
@@ -263,7 +264,7 @@ function onWorkflowDragStart(e: DragEvent) {
 
     <!-- Empty State -->
     <div v-if="!file" class="empty-inspector">
-      <span class="empty-icon">🖼️</span>
+      <span class="empty-icon"><AppIcon name="image" /></span>
       <p class="empty-text">{{ t.preview.noSelection }}</p>
       <span class="empty-sub">{{ t.preview.noSelectionSub }}</span>
     </div>
@@ -373,7 +374,7 @@ function onWorkflowDragStart(e: DragEvent) {
             :title="t.preview.addTag"
             @click="file.id && emit('openTagModal', file.id)"
           >
-            🏷️
+            <AppIcon name="tag" />
           </button>
 
           <!-- Find Similar -->
@@ -383,7 +384,7 @@ function onWorkflowDragStart(e: DragEvent) {
             :title="t.preview.findSimilar"
             @click="file && emit('findSimilar', file)"
           >
-            🔍
+            <AppIcon name="search" />
           </button>
 
           <!-- Auto Tag (WD14) -->
@@ -393,7 +394,7 @@ function onWorkflowDragStart(e: DragEvent) {
             :title="t.preview.autoTag"
             @click="file && emit('openAutoTagModal', file)"
           >
-            🤖
+            <AppIcon name="sparkles" />
           </button>
         </div>
       </div>
@@ -419,7 +420,7 @@ function onWorkflowDragStart(e: DragEvent) {
               :title="t.modelsModal.filterModel"
               @click="emit('filterByModel', file.metadata!.model_name!)"
             >
-              🔍
+              <AppIcon name="search" />
             </button>
           </div>
         </div>
@@ -526,7 +527,7 @@ function onWorkflowDragStart(e: DragEvent) {
                 :title="t.modelsModal.filterHash"
                 @click="emit('filterByHash', file.metadata!.model_hash!)"
               >
-                🔍
+                <AppIcon name="search" />
               </button>
             </div>
           </div>
@@ -583,7 +584,7 @@ function onWorkflowDragStart(e: DragEvent) {
                 class="filter-icon-btn"
                 @click="copyText(String(file.metadata!.seed), 'seed')"
               >
-                {{ seedCopied ? '✓' : '📋' }}
+                <AppIcon :name="seedCopied ? 'check' : 'copy'" />
               </button>
             </div>
           </div>
@@ -638,7 +639,7 @@ function onWorkflowDragStart(e: DragEvent) {
                 @click="copyTriggerText(tw)"
               >
                 {{ tw }}
-                <span class="copy-hint">📋</span>
+                <span class="copy-hint"><AppIcon name="copy" /></span>
               </button>
             </div>
             <div v-else class="detected-unknown">
@@ -1061,9 +1062,9 @@ function onWorkflowDragStart(e: DragEvent) {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 8px;
-  font-size: 0.76rem;
+  font-size: var(--font-reading, 14px);
   color: var(--color-text-primary);
-  line-height: 1.45;
+  line-height: var(--line-reading, 1.6);
   user-select: text;
 }
 

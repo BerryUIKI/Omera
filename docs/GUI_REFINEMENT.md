@@ -27,18 +27,16 @@ remaining limits. Run the full frontend/Rust suites before release integration.
 
 - The preceding updater PR #421 passed all three CI platforms and was merged
   using a merge commit before this work started.
-- Package 1: PR #422 merged after three-platform CI. Existing navigation,
-  search and folder-tree regressions pass (21 tests). Chinese/dark and
-  English/light isolated previews verified geometry and folder expansion.
-- Package 2: width preferences use the existing per-device `omera_` storage
-  helpers (`layout_sidebar_width` / `layout_inspector_width`), with legacy read
-  fallback and bounded defaults. They are presentation preferences, not new
-  synchronized AppConfig fields. No startup IPC or filesystem work is added.
-  The center reserves at least one fixed-width card plus padding. An isolated
-  production-App fixture with 1,200 synthetic entries checked 960×640 and
-  1280×850 Grid/Waterfall/Table, keyboard resize, pointer drag, reset, persisted
-  widths, stack expansion/collapse, End-key rapid scrolling and embedded details.
-  Mounted cards remained bounded (36 observed after scrolling), with 200px
-  cards unchanged by panel resize and no page overflow. Reduced-motion CSS was
-  forced in this fixture; the resize handle had a 0s transition. Actual OS
-  reduced-motion switching was not performed. PR integration is pending.
+- Package 1: existing sidebar navigation, search and folder-tree regressions
+  pass (21 tests). Chinese/dark and English/light sidebar fixtures verified at
+  1280×720, including folder expansion. Merged as PR #422.
+
+- Package 2: bounded panel sizing passed 32 focused tests and a production build.
+  Synthetic 1,200-item gallery checked at 960×640 and 1280×850 in all three view
+  modes, including fixed card widths, bounded mounts, stacks, keyboard navigation,
+  reset, persistence and embedded inspector. Reduced-motion CSS was forced in
+  the fixture (the OS preference was not changed). Merged as PR #423.
+- Package 3: shared decorative line icons retain control names and inherit the
+  existing palette. Prompt and release-note reading text uses 14px / 1.6 line
+  height. 39 focused regressions and production build pass; production App
+  fixture visually checked at 1280×850.

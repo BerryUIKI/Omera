@@ -31,6 +31,7 @@ import { getFileName } from "./utils/image";
 import TitleBar from "./components/TitleBar.vue";
 import MenuBar from "./components/MenuBar.vue";
 import Sidebar from "./components/Sidebar.vue";
+import AppIcon from "./components/AppIcon.vue";
 import PanelResizeHandle from "./components/PanelResizeHandle.vue";
 import { readPanelWidths, fitPanelWidths, panelBounds } from "./utils/panel-layout";
 import FileList from "./components/FileList.vue";
@@ -953,7 +954,7 @@ function onSelectNav(target: NavTarget) {
 
 const targetTitle = computed(() => {
   if (similaritySourceFile.value) {
-    return `🔍 ${t.value.preview.similaritySearchTitle} ${getFileName(similaritySourceFile.value.path)}`;
+    return `${t.value.preview.similaritySearchTitle} ${getFileName(similaritySourceFile.value.path)}`;
   }
   switch (activeTarget.value.type) {
     case "all":
@@ -966,7 +967,7 @@ const targetTitle = computed(() => {
       const rootName = activeTarget.value.folder.path.split(/[\\/]/).pop() || activeTarget.value.folder.path;
       if (activeTarget.value.subfolderPath) {
         const subName = activeTarget.value.subfolderPath.split(/[\\/]/).pop() || activeTarget.value.subfolderPath;
-        return `📁 ${rootName} / ${subName}`;
+        return `${rootName} / ${subName}`;
       }
       return rootName;
     }
@@ -2492,7 +2493,7 @@ function onResetZoom() {
               :title="t.search.filters"
               @click="filterDrawerOpen = true"
             >
-              <span class="filter-icon">🔍</span>
+              <span class="filter-icon"><AppIcon name="filter" /></span>
               <span class="filter-label">{{ t.search.filters }}</span>
               <span v-if="activeFilterCount > 0" class="filter-count-badge">
                 {{ activeFilterCount }}
@@ -2532,7 +2533,7 @@ function onResetZoom() {
               aria-keyshortcuts="Shift+M"
               @click="onToggleGlobalMasking"
             >
-              <span aria-hidden="true">{{ blurNsfw ? '🔒' : '👁' }}</span>
+              <AppIcon :name="blurNsfw ? 'lock' : 'eye'" />
               {{ blurNsfw ? t.view.maskingOn : t.view.contentVisible }}
             </button>
 
@@ -2545,7 +2546,7 @@ function onResetZoom() {
                 :title="t.view.masonry"
                 @click="setViewMode('masonry')"
               >
-                ▥
+                <AppIcon name="waterfall" />
               </button>
               <button
                 type="button"
@@ -2554,7 +2555,7 @@ function onResetZoom() {
                 :title="t.view.grid"
                 @click="setViewMode('grid')"
               >
-                ⊞
+                <AppIcon name="grid" />
               </button>
               <button
                 type="button"
@@ -2563,7 +2564,7 @@ function onResetZoom() {
                 :title="t.view.table"
                 @click="setViewMode('table')"
               >
-                ☰
+                <AppIcon name="table" />
               </button>
             </div>
           </div>
@@ -2572,7 +2573,7 @@ function onResetZoom() {
         <!-- Similarity Search Banner -->
         <div v-if="similaritySourceFile && !lightboxFile" class="similarity-banner">
           <div class="similarity-banner-left">
-            <span class="similarity-badge">🔍 {{ t.preview.similaritySearchTitle }}</span>
+            <span class="similarity-badge"><AppIcon name="search" /> {{ t.preview.similaritySearchTitle }}</span>
             <span class="similarity-file-name" :title="getFileName(similaritySourceFile.path)">
               {{ getFileName(similaritySourceFile.path) }}
             </span>
