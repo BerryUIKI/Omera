@@ -472,3 +472,8 @@ archives, WAL/SHM sidecars and other files are retained. A refusal is persisted;
 manual Settings entry can review it later. Only the exact reviewed eligible
 paths go to system Trash, with partial failures reported and no permanent-delete
 fallback. Older unverified receipts remain readable but never authorize cleanup.
+
+Update download progress emits `percent: 100`, `done: false` after byte transfer
+and before signature retrieval/verification, including small or fast downloads.
+The UI displays verification at this boundary. `done: true` and the resolved
+command path still require successful verification; no DTO or command changed.

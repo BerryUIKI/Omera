@@ -516,6 +516,10 @@ export const zhCN: typeof en = {
     about: "关于 Omera",
   },
   updater: {
+    verifying: "正在验证更新包…",
+    otherOptions: "其他选项",
+    later: "稍后",
+
     title: "检查更新",
     checkingTitle: "正在检查更新...",
     checkingDesc: "正在连接 GitHub Releases 获取最新版本信息。",
@@ -541,7 +545,7 @@ export const zhCN: typeof en = {
     installing: "正在启动更新安装…",
     installModeNotice: "更新无需操作安装向导，会显示安装进度，完成后自动打开 Omera。",
     downloadInBrowser: "在浏览器中下载",
-    preserveDataNotice: "💡 更新会保留图库与设置。Windows 可直接覆盖升级，无需先卸载；macOS 和 Linux 请按安装包提示完成更新。",
+    preserveDataNotice: "更新会保留图库与设置。",
     close: "关闭",
   },
   settings: {
