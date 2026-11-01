@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
-import { t } from "../i18n";
+import { currentLocale, t } from "../i18n";
 import {
   checkForUpdates,
   openUrl,
@@ -12,6 +12,7 @@ import {
 import { openStorageDir } from "../utils/config";
 import { formatBytes } from "../utils/image";
 import { renderReleaseMarkdown } from "../utils/release-markdown";
+import { selectReleaseNotes } from "../utils/release-notes";
 
 const props = defineProps<{
   show: boolean;
@@ -34,7 +35,7 @@ const installing = ref(false);
 const busy = computed(() => downloading.value || installing.value);
 const directUpdate = computed(() => /\.(exe|msi)$/i.test(result.value?.matchedAsset?.name ?? ""));
 const releaseNotesHtml = computed(() => renderReleaseMarkdown(
-  result.value?.release?.body || t.value.updater.noChangelog,
+  (result.value?.release ? selectReleaseNotes(result.value.release, currentLocale.value) : "") || t.value.updater.noChangelog,
   result.value?.release?.tag_name ?? "main",
 ));
 

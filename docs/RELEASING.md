@@ -27,11 +27,14 @@ When preparing a release, update the version number consistently in:
 2. `src-tauri/tauri.conf.json` (`"version": "X.Y.Z"`)
 3. `package.json` (`"version": "X.Y.Z"`)
 4. `CHANGELOG.md` (Add release date and feature summary under `## [X.Y.Z]`)
+5. `src/i18n/locales/release-notes.json` (Add matching release notes in all seven languages; see [RELEASE_NOTES.md](RELEASE_NOTES.md))
 
 Use `node scripts/bump-version.mjs patch` from a clean working tree, refresh
 `Cargo.lock` with a workspace Cargo check, and run
 `node scripts/bump-version.mjs --check`. Workspace crates inherit the version and
 the `Apache-2.0` license; `package.json` declares the same license.
+Run `node scripts/generate-release-notes.mjs --check` before integration; CI and
+release preflight require a complete localized entry for the current version.
 
 Run the required frontend and Rust checks on the candidate. Merge the preparation
 PR into `dev` using a merge commit, then open the release PR from `dev` to `main`.

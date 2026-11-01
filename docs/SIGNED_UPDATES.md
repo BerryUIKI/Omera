@@ -57,6 +57,11 @@ No real application installer was executed for this change.
 
 ## Trust and custody
 
+Release notes follow [RELEASE_NOTES.md](RELEASE_NOTES.md): the dialog selects the
+current application language and renders safe Markdown. CI and publication
+preflight require all seven translations. This changes presentation of the
+existing release body, without adding IPC commands, networking, or trust bypasses.
+
 The custom updater accepts official HTTPS GitHub release assets only. Each
 installer requires an adjacent `<asset-name>.minisig` containing plain Minisign
 text. The app verifies the downloaded bytes and verifies them again before launch.
