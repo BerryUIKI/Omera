@@ -33,6 +33,8 @@ const downloadError = ref<string | null>(null);
 const downloadedFilePath = ref<string | null>(null);
 const installing = ref(false);
 const busy = computed(() => downloading.value || installing.value);
+const verifying = computed(() => downloading.value && !!downloadProgress.value &&
+  !downloadProgress.value.done && downloadProgress.value.percent >= 100);
 const directUpdate = computed(() => /\.(exe|msi)$/i.test(result.value?.matchedAsset?.name ?? ""));
 const releaseNotesHtml = computed(() => renderReleaseMarkdown(
   (result.value?.release ? selectReleaseNotes(result.value.release, currentLocale.value) : "") || t.value.updater.noChangelog,
@@ -220,7 +222,7 @@ function handleOpenUpdatesFolder() {
           <p v-if="directUpdate" class="install-mode-notice">{{ t.updater.installModeNotice }}</p>
 
           <!-- In-App Download Progress Card -->
-          <div v-if="downloading || downloadedFilePath || downloadError" class="download-progress-card">
+          <div v-if="downloading || downloadedFilePath || downloadError" class="download-progress-card" role="status" aria-live="polite">
             <!-- If download error -->
             <div v-if="downloadError" class="download-error-line">
               <span>⚠️ {{ downloadError }}</span>
@@ -229,7 +231,7 @@ function handleOpenUpdatesFolder() {
             <!-- If currently downloading -->
             <div v-if="downloading" class="progress-details">
               <div class="progress-header">
-                <span class="progress-title">⚡ {{ t.updater.downloading }}</span>
+                <span class="progress-title">⚡ {{ verifying ? t.updater.verifying : t.updater.downloading }}</span>
                 <span class="progress-speed">
                   {{ downloadProgress?.speed_bytes_per_sec ? `${formatBytes(downloadProgress.speed_bytes_per_sec)}/s` : '' }}
                 </span>
@@ -309,6 +311,39 @@ function handleOpenUpdatesFolder() {
           🔄 {{ t.updater.checkAgain }}
         </button>
 
+        <!-- Auto Download Action Button -->
+        <button
+          v-if="result?.status === 'update_available' && !downloadedFilePath && !downloading"
+          type="button"
+          class="btn primary"
+          @click="handleAutoDownload"
+        >
+          {{ directUpdate ? t.updater.autoDownloadAndInstall : t.updater.downloadUpdate }}
+        </button>
+
+        <!-- Downloading State Indicator -->
+        <button
+          v-if="downloading"
+          type="button"
+          class="btn primary"
+          disabled
+        >
+          ⏳ {{ verifying ? t.updater.verifying : t.updater.downloading }}
+        </button>
+
+        <button
+          v-if="downloadedFilePath"
+          type="button"
+          class="btn primary install-btn"
+          :disabled="installing"
+          @click="handleInstallAndRestart"
+        >
+          {{ installing ? t.updater.installing : t.updater.installAndRestart }}
+        </button>
+
+        <details v-if="result?.release" class="fallback-actions">
+          <summary>{{ t.updater.otherOptions }}</summary>
+          <div class="fallback-menu">
         <button
           v-if="result?.release?.html_url"
           type="button"
@@ -328,27 +363,6 @@ function handleOpenUpdatesFolder() {
           🌐 {{ t.updater.downloadInBrowser }}
         </button>
 
-        <!-- Auto Download Action Button -->
-        <button
-          v-if="result?.status === 'update_available' && !downloadedFilePath && !downloading"
-          type="button"
-          class="btn primary"
-          @click="handleAutoDownload"
-        >
-          {{ directUpdate ? t.updater.autoDownloadAndInstall : t.updater.downloadUpdate }}
-        </button>
-
-        <!-- Downloading State Indicator -->
-        <button
-          v-if="downloading"
-          type="button"
-          class="btn primary"
-          disabled
-        >
-          ⏳ {{ t.updater.downloading }}
-        </button>
-
-        <!-- Install & Restart Action -->
         <button
           v-if="downloadedFilePath"
           type="button"
@@ -358,15 +372,8 @@ function handleOpenUpdatesFolder() {
           📁 {{ t.settings.openFolder }}
         </button>
 
-        <button
-          v-if="downloadedFilePath"
-          type="button"
-          class="btn primary install-btn"
-          :disabled="installing"
-          @click="handleInstallAndRestart"
-        >
-          {{ installing ? t.updater.installing : t.updater.installAndRestart }}
-        </button>
+          </div>
+        </details>
 
         <button
           type="button"
@@ -375,7 +382,7 @@ function handleOpenUpdatesFolder() {
           :class="{ 'primary': result?.status !== 'update_available' && !downloadedFilePath }"
           @click="handleClose"
         >
-          {{ t.updater.close }}
+          {{ result?.status === 'update_available' ? t.updater.later : t.updater.close }}
         </button>
       </div>
     </div>
@@ -396,7 +403,8 @@ function handleOpenUpdatesFolder() {
 }
 
 .update-dialog {
-  width: 560px;
+  width: 600px;
+  max-height: 90vh;
   max-width: 90vw;
   background: var(--color-bg-primary);
   border: 1px solid var(--border-color);
@@ -451,7 +459,8 @@ function handleOpenUpdatesFolder() {
 .dialog-body {
   padding: 20px;
   min-height: 220px;
-  max-height: 460px;
+  min-height: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -682,8 +691,7 @@ function handleOpenUpdatesFolder() {
 
 .changelog-body {
   padding: 10px 12px;
-  max-height: 180px;
-  overflow-y: auto;
+
 }
 
 .changelog-text {
@@ -731,8 +739,10 @@ function handleOpenUpdatesFolder() {
 .changelog-text :deep(> :last-child) { margin-bottom: 0; }
 
 .dialog-footer {
-  height: 48px;
-  padding: 0 16px;
+  min-height: 56px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -913,4 +923,13 @@ function handleOpenUpdatesFolder() {
   color: var(--color-text-secondary);
 }
 
+</style>
+
+<style scoped>
+.fallback-actions { position: relative; order: -1; margin-right: auto; font-size: 13px; }
+.fallback-actions summary { cursor: pointer; padding: 8px; border-radius: 6px; }
+.fallback-actions summary:focus-visible { outline: 2px solid var(--color-accent); }
+.fallback-menu { position: absolute; bottom: calc(100% + 8px); left: 0; display: flex;
+  flex-direction: column; gap: 6px; min-width: 200px; padding: 8px; z-index: 2;
+  background: var(--color-bg-primary); border: 1px solid var(--border-color); border-radius: 6px; }
 </style>
