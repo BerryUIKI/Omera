@@ -105,6 +105,7 @@ async function handleAutoDownload() {
     handleDownloadAsset();
     return;
   }
+  const asset = result.value.matchedAsset;
   downloading.value = true;
   downloadError.value = null;
   downloadedFilePath.value = null;
@@ -119,8 +120,8 @@ async function handleAutoDownload() {
 
   try {
     const filePath = await runBackgroundTask("updateDownload", update => downloadUpdateAsset(
-      result.value.matchedAsset.browser_download_url,
-      result.value.matchedAsset.name,
+      asset.browser_download_url,
+      asset.name,
       (progress) => {
         downloadProgress.value = progress;
         update({ current: progress.downloaded_bytes, total: progress.total_bytes });
