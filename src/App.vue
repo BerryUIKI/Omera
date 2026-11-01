@@ -145,11 +145,12 @@ const lightboxFile = ref<ImageFile | null>(null);
 const studioLayoutRef = ref<HTMLElement | null>(null);
 const layoutViewport = ref(typeof window === "undefined" ? 1280 : window.innerWidth);
 const panelWidths = ref(readPanelWidths(getStorageItem));
-const fittedPanels = computed(() => fitPanelWidths(panelWidths.value, layoutViewport.value, sidebarOpen.value, inspectorOpen.value));
+const galleryMinimum = computed(() => Math.max(320, gridItemWidth.value + 24));
+const fittedPanels = computed(() => fitPanelWidths(panelWidths.value, layoutViewport.value, sidebarOpen.value, inspectorOpen.value, galleryMinimum.value));
 const sidebarMax = computed(() => Math.min(panelBounds.sidebar.max, Math.max(panelBounds.sidebar.min,
-  layoutViewport.value - 320 - 12 - (inspectorOpen.value ? fittedPanels.value.inspector : 0))));
+  layoutViewport.value - galleryMinimum.value - 12 - (inspectorOpen.value ? fittedPanels.value.inspector : 0))));
 const inspectorMax = computed(() => Math.min(panelBounds.inspector.max, Math.max(panelBounds.inspector.min,
-  layoutViewport.value - 320 - 12 - (sidebarOpen.value ? fittedPanels.value.sidebar : 0))));
+  layoutViewport.value - galleryMinimum.value - 12 - (sidebarOpen.value ? fittedPanels.value.sidebar : 0))));
 function savePanelWidths() {
   setStorageItem("layout_sidebar_width", String(panelWidths.value.sidebar));
   setStorageItem("layout_inspector_width", String(panelWidths.value.inspector));

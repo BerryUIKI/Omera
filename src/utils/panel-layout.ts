@@ -19,10 +19,10 @@ export function readPanelWidths(read: (key: string) => string | null): PanelWidt
 }
 
 /** Reserve the gallery's usable center at the supported 960px minimum window. */
-export function fitPanelWidths(requested: PanelWidths, viewport: number, left = true, right = true): PanelWidths {
+export function fitPanelWidths(requested: PanelWidths, viewport: number, left = true, right = true, centerMin = 320): PanelWidths {
   const sidebar = boundPanelWidth(requested.sidebar, panelBounds.sidebar.min, panelBounds.sidebar.max);
   const inspector = boundPanelWidth(requested.inspector, panelBounds.inspector.min, panelBounds.inspector.max);
-  const budget = Math.max(0, viewport - 320 - (Number(left) + Number(right)) * 6);
+  const budget = Math.max(0, viewport - Math.max(320, centerMin) - (Number(left) + Number(right)) * 6);
   const minimum = (left ? panelBounds.sidebar.min : 0) + (right ? panelBounds.inspector.min : 0);
   const extra = Math.max(0, budget - minimum);
   const wanted = (left ? sidebar - panelBounds.sidebar.min : 0) + (right ? inspector - panelBounds.inspector.min : 0);

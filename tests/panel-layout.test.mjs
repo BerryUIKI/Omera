@@ -12,6 +12,8 @@ test('panel preferences reject corrupt input and reserve gallery space at narrow
     assert.ok(fit.sidebar >= 220 && fit.inspector >= 260);
   }
   assert.deepEqual(fitPanelWidths({sidebar:380,inspector:480}, 1280), {sidebar:380,inspector:480});
+  const largeCards = fitPanelWidths({sidebar:380,inspector:480},960,true,true,384);
+  assert.ok(960 - largeCards.sidebar - largeCards.inspector - 12 >= 384);
 });
 
 test('production resize handle bounds dragging, cancels without saving, and supports keyboard/reset', async () => {
