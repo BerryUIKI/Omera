@@ -58,3 +58,20 @@ remaining limits. Run the full frontend/Rust suites before release integration.
   and the production build pass; full frontend suite passes 335 tests. Chinese
   fixture visually verified running progress and failure details at 1280×850.
   Tasks are session-local; no unsupported cancel/retry controls are advertised.
+
+## Integrated acceptance (2026-11-01)
+
+- Production build, 335 frontend regressions, `cargo fmt --check`, workspace
+  clippy with warnings denied, and all workspace Rust/unit/doc tests pass.
+- Combined production-App synthetic fixture verified Grid/Waterfall/Table at
+  960×640 and 1280×850, fixed 200px cards, stack expansion/collapse, End-key
+  scrolling (11 mounted cells at narrow width), and image selection advancing
+  from image-96 to image-97 with ArrowRight. No horizontal page overflow.
+- Display disclosure remains open during same-mode layout measurements; Escape
+  closes it and restores focus. Reduced-motion CSS remains forced in the fixture.
+- Activity history scrolls within 960×640, settled entries can be dismissed, and
+  closing restores focus to the activity button. Chinese update dialog at this
+  size shows rendered headings/lists/bold text, a fixed action footer and explicit
+  signature verification. No real installer or personal library was exercised.
+- Existing installed-version/platform migration matrix #256 remains pending;
+  these browser checks do not replace that native installation qualification.
