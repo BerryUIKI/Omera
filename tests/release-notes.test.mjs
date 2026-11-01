@@ -8,16 +8,18 @@ import { renderReleaseMarkdown } from '../src/utils/release-markdown.ts';
 const catalog = JSON.parse(readFileSync('src/i18n/locales/release-notes.json', 'utf8'));
 
 test('published release generation round-trips each of the seven languages into the app', () => {
-  const body = generateReleaseNotes('v0.5.1');
-  for (const locale of releaseLocales) {
-    const selected = selectReleaseNotes({ tag_name: 'v0.5.1', body }, locale);
-    assert.equal(selected, catalog.releases['0.5.1'][locale]);
-    const html = renderReleaseMarkdown(selected, 'v0.5.1');
-    assert.match(html, /<h3>/);
-    assert.doesNotMatch(html, /\*\*/);
-    assert.doesNotMatch(selected, /<details>|omera-release-notes:/);
+  for (const version of Object.keys(catalog.releases)) {
+    const body = generateReleaseNotes(`v${version}`);
+    for (const locale of releaseLocales) {
+      const selected = selectReleaseNotes({ tag_name: `v${version}`, body }, locale);
+      assert.equal(selected, catalog.releases[version][locale]);
+      const html = renderReleaseMarkdown(selected, `v${version}`);
+      assert.match(html, /<h3>/);
+      assert.doesNotMatch(html, /\*\*/);
+      assert.doesNotMatch(selected, /<details>|omera-release-notes:/);
+    }
+    assert.match(body, /<summary>简体中文<\/summary>/);
   }
-  assert.match(body, /<summary>简体中文<\/summary>/);
 });
 
 test('legacy v0.5.1 notes have version-exact translations without applying them to other releases', () => {
@@ -42,6 +44,6 @@ test('publication cannot silently omit a locale, version, or publish malformed l
       assert.throws(() => generateReleaseNotes('0.5.1', partial), new RegExp(locale));
     }
   }
-  assert.throws(() => generateReleaseNotes('0.5.2'), /Missing or invalid en/);
+  assert.throws(() => generateReleaseNotes('999.0.0'), /Missing or invalid en/);
   assert.throws(() => generateReleaseNotes('not-a-version'), /valid version/);
 });
