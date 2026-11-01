@@ -46,6 +46,11 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         assert.deepEqual(calls.map(([command]) => command), ['check', 'download']);
         calls[1][1][2]({ downloaded_bytes: 25, total_bytes: 100, percent: 25 });
         assert.equal(c.downloadProgress.value.percent, 25);
+        assert.equal(c.verifying.value, false);
+        calls[1][1][2]({ downloaded_bytes: 100, total_bytes: 100, percent: 100, done: false });
+        assert.equal(c.verifying.value, true);
+        assert.match(await render(), /Verifying update package/);
+        assert.equal(calls.filter(([command]) => command === 'install').length, 0);
         await c.handleAutoDownload();
         await c.runCheck();
         c.handleClose();

@@ -490,6 +490,10 @@ export const ja: typeof en = {
     about: "Omera について",
   },
   updater: {
+    verifying: "更新パッケージを検証中…",
+    otherOptions: "その他のオプション",
+    later: "後で",
+
     title: "アップデートの確認",
     checkingTitle: "アップデートを確認中...",
     checkingDesc: "GitHub Releases に接続して最新バージョン情報を取得しています。",
@@ -515,7 +519,7 @@ export const ja: typeof en = {
     installing: "更新のインストールを開始しています…",
     installModeNotice: "セットアップウィザードの操作は不要です。進行状況を表示し、完了後に Omera を自動で開きます。",
     downloadInBrowser: "ブラウザでダウンロード",
-    preserveDataNotice: "💡 更新ではライブラリと設定が保持されます。Windows はアンインストールせずに上書き更新します。macOS と Linux はパッケージのインストール手順に従ってください。",
+    preserveDataNotice: "更新後もライブラリと設定は保持されます。",
     close: "閉じる",
   },
   settings: {

@@ -488,6 +488,10 @@ export const en = {
     about: "About Omera",
   },
   updater: {
+    verifying: "Verifying update package…",
+    otherOptions: "Other options",
+    later: "Later",
+
     title: "Check for Updates",
     checkingTitle: "Checking for Updates...",
     checkingDesc: "Connecting to GitHub Releases to check for the latest version.",
@@ -513,7 +517,7 @@ export const en = {
     installing: "Starting update installation…",
     installModeNotice: "Updates install without a setup wizard, show progress, and reopen Omera when finished.",
     downloadInBrowser: "Download in Browser",
-    preserveDataNotice: "💡 Updates preserve your library and settings. Windows updates in place without uninstalling; on macOS and Linux, follow the package installation steps.",
+    preserveDataNotice: "Updates preserve your library and settings.",
     close: "Close",
   },
   settings: {

@@ -490,6 +490,10 @@ export const zhTW: typeof en = {
     about: "關於 Omera",
   },
   updater: {
+    verifying: "正在驗證更新套件…",
+    otherOptions: "其他選項",
+    later: "稍後",
+
     title: "檢查更新",
     checkingTitle: "正在檢查更新...",
     checkingDesc: "正在連線至 GitHub Releases 取得最新版本資訊。",
@@ -515,7 +519,7 @@ export const zhTW: typeof en = {
     installing: "正在啟動更新安裝…",
     installModeNotice: "更新無需操作安裝精靈，會顯示安裝進度，完成後自動開啟 Omera。",
     downloadInBrowser: "在瀏覽器中下載",
-    preserveDataNotice: "💡 更新會保留圖庫與設定。Windows 可直接覆蓋升級，無需先解除安裝；macOS 和 Linux 請依安裝套件提示完成更新。",
+    preserveDataNotice: "更新會保留圖庫與設定。",
     close: "關閉",
   },
   settings: {
