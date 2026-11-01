@@ -177,7 +177,7 @@ const formattedLastReconcile = computed(() => {
           <div class="metric-row">
             <span class="label">{{ t.tasks.cacheHits }}</span>
             <span class="value">
-              {{ (thumbDiag?.backend.reused_tier_hits ?? 0) + (thumbDiag?.backend.manifest_hits ?? 0) }}
+              {{ (thumbDiag?.backend?.reused_tier_hits ?? 0) + (thumbDiag?.backend?.manifest_hits ?? 0) }}
             </span>
           </div>
         </div>
