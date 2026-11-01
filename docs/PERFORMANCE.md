@@ -315,3 +315,11 @@ On Windows with Vite 6.4.3, the production entry decreased from 695.21 kB at
 them; another startup language adds its own catalog. These are JavaScript asset
 measurements, not installed application size or measured startup-time gains.
 The build's 500 kB chunk advisory no longer appears.
+
+Background task presentation owns export/model/update download state outside modal
+lifetimes. Progress subscriptions are registered before starting their operation and
+disposed on settlement, including partial listener-registration failure. Duplicate
+operations of the same kind are blocked because existing events have no operation
+IDs. Completed history is capped at 20 records; it is session-local and adds no
+startup IPC or filesystem work. Activity diagnostics poll only while open, with
+no overlapping requests and a generation fence against stale replies.

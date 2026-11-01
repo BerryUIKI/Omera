@@ -15,8 +15,9 @@ onMounted(() => {
   if (gallery) {
     compact.value = gallery.clientWidth < 900;
     observer = new ResizeObserver(([entry]) => {
-      compact.value = entry.contentRect.width < 900;
-      open.value = false;
+      const nextCompact = entry.contentRect.width < 900;
+      if (compact.value !== nextCompact) open.value = false;
+      compact.value = nextCompact;
     });
     observer.observe(gallery);
   }

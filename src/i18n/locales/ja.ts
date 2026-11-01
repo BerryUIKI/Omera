@@ -1,6 +1,33 @@
 import type { en } from "./en";
 
 export const ja: typeof en = {
+  tasks: {
+    updateDownload: "更新のダウンロード",
+    title: "バックグラウンドタスク",
+    export: "エクスポート",
+    modelDownload: "モデルのダウンロード",
+    running: "実行中",
+    completed: "完了",
+    failed: "失敗",
+    canceled: "キャンセル済み",
+    dismiss: "履歴を削除",
+    empty: "最近のタスクはありません",
+    partialFailure: "一部のファイルをエクスポートできませんでした。",
+    output: "出力を表示",
+    pendingChanges: "保留中の変更",
+    lastReconciled: "最終同期",
+    status: "状態",
+    thumbnails: "サムネイル",
+    diagnostics: "診断",
+    inFlight: "処理中",
+    queuedBatches: "待機中のバッチ",
+    memoryCache: "メモリキャッシュ",
+    cacheHits: "キャッシュヒット",
+    scanner: "スキャン",
+    discovering: "ファイルを検出中",
+    processed: "処理済み",
+    roots: "フォルダー",
+  },
   layout: {
     displaySettings: "表示設定",
     resizeSidebar: "サイドバーの幅を変更",
