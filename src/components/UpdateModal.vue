@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { runBackgroundTask } from "../utils/background-tasks";
 import { computed, ref, watch, onMounted } from "vue";
 import { currentLocale, t } from "../i18n";
 import {
@@ -104,6 +105,7 @@ async function handleAutoDownload() {
     handleDownloadAsset();
     return;
   }
+  const asset = result.value.matchedAsset;
   downloading.value = true;
   downloadError.value = null;
   downloadedFilePath.value = null;
@@ -117,13 +119,14 @@ async function handleAutoDownload() {
   };
 
   try {
-    const filePath = await downloadUpdateAsset(
-      result.value.matchedAsset.browser_download_url,
-      result.value.matchedAsset.name,
+    const filePath = await runBackgroundTask("updateDownload", update => downloadUpdateAsset(
+      asset.browser_download_url,
+      asset.name,
       (progress) => {
         downloadProgress.value = progress;
+        update({ current: progress.downloaded_bytes, total: progress.total_bytes });
       }
-    );
+    ));
     downloadedFilePath.value = filePath;
     downloading.value = false;
     // Windows installers support an unattended, in-place update. Other

@@ -1,6 +1,33 @@
 import type { en } from "./en";
 
 export const fr: typeof en = {
+  tasks: {
+    updateDownload: "Téléchargement de la mise à jour",
+    title: "Tâches en arrière-plan",
+    export: "Exportation",
+    modelDownload: "Téléchargement du modèle",
+    running: "En cours",
+    completed: "Terminé",
+    failed: "Échec",
+    canceled: "Annulé",
+    dismiss: "Retirer de l’historique",
+    empty: "Aucune tâche récente",
+    partialFailure: "Certains fichiers n’ont pas pu être exportés.",
+    output: "Afficher la sortie",
+    pendingChanges: "Modifications en attente",
+    lastReconciled: "Dernière synchronisation",
+    status: "État",
+    thumbnails: "Miniatures",
+    diagnostics: "Diagnostic",
+    inFlight: "En traitement",
+    queuedBatches: "Lots en attente",
+    memoryCache: "Cache mémoire",
+    cacheHits: "Accès au cache",
+    scanner: "Analyse",
+    discovering: "Recherche de fichiers",
+    processed: "Traités",
+    roots: "Dossiers",
+  },
   layout: {
     displaySettings: "Options d’affichage",
     resizeSidebar: "Redimensionner la barre latérale",
