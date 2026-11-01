@@ -156,14 +156,14 @@ function onSubfolderKeydown(e: KeyboardEvent) {
 .subfolder-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding-top: 8px;
+  padding-bottom: 8px;
   padding-right: 8px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border-radius: var(--nav-radius, 6px);
+  font-size: var(--nav-font-size, 14px);
   color: #94a3b8;
   cursor: pointer;
   transition: background-color 0.12s, color 0.12s;
@@ -172,7 +172,11 @@ function onSubfolderKeydown(e: KeyboardEvent) {
   border: none;
   text-align: left;
   font-family: inherit;
+  min-height: var(--nav-row-height, 36px);
+  line-height: 20px;
 }
+
+.item-icon { font-size: var(--nav-icon-size, 13px); width: 16px; flex-shrink: 0; }
 
 .subfolder-header:hover {
   background: var(--color-bg-hover, rgba(255, 255, 255, 0.05));
@@ -198,14 +202,14 @@ function onSubfolderKeydown(e: KeyboardEvent) {
   border: none;
   color: #64748b;
   font-size: 0.65rem;
-  width: 16px;
-  height: 16px;
+  width: var(--nav-control-size, 28px);
+  height: var(--nav-control-size, 28px);
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--nav-radius, 6px);
   transition: all 0.12s ease;
   flex-shrink: 0;
 }
@@ -223,8 +227,8 @@ function onSubfolderKeydown(e: KeyboardEvent) {
 }
 
 .tree-arrow-spacer {
-  width: 16px;
-  height: 16px;
+  width: var(--nav-control-size, 28px);
+  height: var(--nav-control-size, 28px);
   flex-shrink: 0;
 }
 
