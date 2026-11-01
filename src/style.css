@@ -5,6 +5,9 @@
   --panel-width: 350px;
   --header-height: 48px;
 
+  --font-reading: 14px;
+  --line-reading: 1.6;
+
   /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;

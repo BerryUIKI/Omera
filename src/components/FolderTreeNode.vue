@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed } from "vue";
 import { t } from "../i18n";
 import type { Folder, NavTarget, SubdirectoryEntry } from "../types";
@@ -95,7 +96,7 @@ function onSubfolderKeydown(e: KeyboardEvent) {
         @click.stop="emit('toggleExpand', folder, entry.path)"
       >
         <span v-if="isLoading" class="tree-loading-dot">…</span>
-        <span v-else>{{ isExpanded ? '▼' : '▶' }}</span>
+        <AppIcon v-else :name="isExpanded ? 'chevronDown' : 'chevronRight'" />
       </button>
       <span v-else class="tree-arrow-spacer" aria-hidden="true"></span>
 
@@ -110,7 +111,7 @@ function onSubfolderKeydown(e: KeyboardEvent) {
         @keydown="onSubfolderKeydown"
       >
         <span class="item-icon" aria-hidden="true">
-          {{ isExpanded ? '📂' : '📁' }}
+          <AppIcon :name="isExpanded ? 'folderOpen' : 'folder'" />
         </span>
 
         <span class="item-label truncate">{{ entry.name }}</span>
@@ -176,7 +177,6 @@ function onSubfolderKeydown(e: KeyboardEvent) {
   line-height: 20px;
 }
 
-.item-icon { font-size: var(--nav-icon-size, 13px); width: 16px; flex-shrink: 0; }
 
 .subfolder-header:hover {
   background: var(--color-bg-hover, rgba(255, 255, 255, 0.05));
@@ -257,7 +257,8 @@ function onSubfolderKeydown(e: KeyboardEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: var(--nav-icon-size, 13px);
+  width: 16px;
   flex-shrink: 0;
 }
 

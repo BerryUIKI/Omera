@@ -23,6 +23,7 @@ export async function withProductionComponent(name, initialProps, invoke, run, t
     ssr: true, ssrCssVars: [], compilerOptions: { bindingMetadata: script.bindings } });
   assert.deepEqual(template.errors, []);
   let code = transform(script.content)
+    .replace(/import AppIcon from [^;]+;/, 'const AppIcon = { ssrRender(_ctx, push) { push(`<svg aria-hidden="true"></svg>`); }, render: () => null };')
     .replace(/import \{ invoke \} from [^;]+;/, `const invoke = (...args) => globalThis[${JSON.stringify(key)}](...args);`)
     .replace(/import \{ getThumbnailUrl \} from [^;]+;/, 'const getThumbnailUrl = async file => "thumbnail:" + file.id;')
     .replace(/import \{ useFileCuration, type CurationChange \} from [^;]+;/,
