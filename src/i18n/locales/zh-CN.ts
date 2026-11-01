@@ -2,6 +2,7 @@ import type { en } from "./en";
 
 export const zhCN: typeof en = {
   tasks: {
+    updateDownload: "更新包下载",
     title: "后台任务",
     export: "导出",
     modelDownload: "模型下载",

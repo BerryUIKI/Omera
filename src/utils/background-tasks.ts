@@ -1,6 +1,6 @@
 import { computed, reactive, readonly } from "vue";
 
-export type TaskKind = "export" | "modelDownload";
+export type TaskKind = "export" | "modelDownload" | "updateDownload";
 export type TaskStatus = "running" | "completed" | "failed" | "canceled";
 export interface TaskProgress { current: number; total: number; detail?: string }
 export interface BackgroundTask {
@@ -29,7 +29,7 @@ function trimHistory() {
 }
 
 /** Own progress subscriptions for the whole operation, independently of dialogs. */
-export async function runBackgroundTask<T>(kind: TaskKind, operation: () => Promise<T>, options: {
+export async function runBackgroundTask<T>(kind: TaskKind, operation: (update: (progress: TaskProgress) => void) => Promise<T>, options: {
   subscribe?: (update: (progress: TaskProgress) => void) => Promise<() => void>;
   result?: (value: T) => { error?: string; outputPath?: string };
 } = {}): Promise<T> {
@@ -37,16 +37,17 @@ export async function runBackgroundTask<T>(kind: TaskKind, operation: () => Prom
   tasks.unshift({ id: ++sequence, kind, status: "running", progress: null });
   const task = tasks[0];
   let unsubscribe: (() => void) | undefined;
-  try {
-    unsubscribe = await options.subscribe?.(progress => {
+  const update = (progress: TaskProgress) => {
       if (task.status !== "running") return;
       task.progress = {
         current: Number.isFinite(progress.current) ? Math.max(0, progress.current) : 0,
         total: Number.isFinite(progress.total) ? Math.max(0, progress.total) : 0,
         detail: progress.detail?.slice(0, 500),
       };
-    });
-    const value = await operation();
+  };
+  try {
+    if (options.subscribe) unsubscribe = await options.subscribe(update);
+    const value = await operation(update);
     const result = options.result?.(value);
     task.error = result?.error?.slice(0, 6000);
     task.outputPath = result?.outputPath;

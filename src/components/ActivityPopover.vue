@@ -100,8 +100,8 @@ const formattedLastReconcile = computed(() => {
             <progress v-if="task.status === 'running'" :max="task.progress.total || 1"
               :value="task.progress.total ? Math.min(task.progress.current, task.progress.total) : undefined"
               :aria-label="t.tasks[task.kind]" />
-            <p>{{ task.kind === 'modelDownload' ? formatBytes(task.progress.current) : task.progress.current }}
-              <template v-if="task.progress.total"> / {{ task.kind === 'modelDownload' ? formatBytes(task.progress.total) : task.progress.total }}</template>
+            <p>{{ task.kind !== 'export' ? formatBytes(task.progress.current) : task.progress.current }}
+              <template v-if="task.progress.total"> / {{ task.kind !== 'export' ? formatBytes(task.progress.total) : task.progress.total }}</template>
             </p>
           </template>
           <p v-if="task.error" class="task-error">{{ task.error }}</p>

@@ -46,3 +46,14 @@ test('partial result errors remain visible and completed history stays bounded',
   for (const task of [...backgroundTasks]) dismissTask(task.id);
   assert.equal(backgroundTasks.length, 0);
 });
+
+
+test('paired legacy event subscriptions clean up after partial registration failure', async () => {
+  const { subscribeTaskEvents } = await import('../src/utils/task-events.ts');
+  let disposed = 0;
+  await assert.rejects(subscribeTaskEvents(['omera', 'legacy'], () => {}, async name => {
+    if (name === 'legacy') throw new Error('listener unavailable');
+    return () => disposed++;
+  }), /listener unavailable/);
+  assert.equal(disposed, 1);
+});

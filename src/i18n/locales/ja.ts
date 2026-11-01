@@ -2,6 +2,7 @@ import type { en } from "./en";
 
 export const ja: typeof en = {
   tasks: {
+    updateDownload: "更新のダウンロード",
     title: "バックグラウンドタスク",
     export: "エクスポート",
     modelDownload: "モデルのダウンロード",

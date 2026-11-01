@@ -1,5 +1,6 @@
 export const en = {
   tasks: {
+    updateDownload: "Update download",
     title: "Background tasks",
     export: "Export",
     modelDownload: "Model download",

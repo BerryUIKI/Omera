@@ -2,6 +2,7 @@ import type { en } from "./en";
 
 export const fr: typeof en = {
   tasks: {
+    updateDownload: "Téléchargement de la mise à jour",
     title: "Tâches en arrière-plan",
     export: "Exportation",
     modelDownload: "Téléchargement du modèle",

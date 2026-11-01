@@ -2,6 +2,7 @@ import type { en } from "./en";
 
 export const zhTW: typeof en = {
   tasks: {
+    updateDownload: "更新套件下載",
     title: "背景工作",
     export: "匯出",
     modelDownload: "模型下載",
