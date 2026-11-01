@@ -244,6 +244,12 @@ Launch the canonical path whose signature was checked. The
 IPC request/response shape and both signature-verification points are unchanged.
 Command-plan tests do not establish successful installed-version upgrades.
 
+The update dialog always requests the default progress-only installation mode;
+the optional `silent: true` IPC input remains compatible for older callers.
+Release metadata keeps the existing string `body` field. Localized Markdown
+blocks and the version-exact fallback catalog are interpreted in the frontend;
+see [RELEASE_NOTES.md](RELEASE_NOTES.md). No DTO or IPC signature changes apply.
+
 Subscribe to progress before starting an operation and always dispose listeners in `finally` and component teardown. Existing events are global and mostly lack operation IDs; concurrent unrelated jobs may interleave. Do not infer ownership by listening to every event. Adding operation IDs is an explicit cross-layer contract change, not a frontend-only patch.
 
 | Event | Current payload/source | Lifecycle rule |

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
-import { t } from "../i18n";
+import { currentLocale, t } from "../i18n";
 import {
   checkForUpdates,
   openUrl,
@@ -11,6 +11,8 @@ import {
 } from "../utils/updater";
 import { openStorageDir } from "../utils/config";
 import { formatBytes } from "../utils/image";
+import { renderReleaseMarkdown } from "../utils/release-markdown";
+import { selectReleaseNotes } from "../utils/release-notes";
 
 const props = defineProps<{
   show: boolean;
@@ -29,10 +31,20 @@ const downloading = ref(false);
 const downloadProgress = ref<UpdateDownloadProgress | null>(null);
 const downloadError = ref<string | null>(null);
 const downloadedFilePath = ref<string | null>(null);
-const silentInstall = ref(false);
 const installing = ref(false);
 const busy = computed(() => downloading.value || installing.value);
 const directUpdate = computed(() => /\.(exe|msi)$/i.test(result.value?.matchedAsset?.name ?? ""));
+const releaseNotesHtml = computed(() => renderReleaseMarkdown(
+  (result.value?.release ? selectReleaseNotes(result.value.release, currentLocale.value) : "") || t.value.updater.noChangelog,
+  result.value?.release?.tag_name ?? "main",
+));
+
+function handleReleaseNoteLink(event: MouseEvent) {
+  const anchor = (event.target as Element | null)?.closest("a[href]");
+  if (!anchor) return;
+  event.preventDefault();
+  void openUrl(anchor.getAttribute("href")!);
+}
 
 function handleClose() {
   if (!busy.value) emit("close");
@@ -127,7 +139,9 @@ async function handleInstallAndRestart() {
   installing.value = true;
   downloadError.value = null;
   try {
-    await installUpdate(downloadedFilePath.value, silentInstall.value);
+    // Default passive mode needs no wizard interaction, shows installation
+    // progress, and reopens Omera after success.
+    await installUpdate(downloadedFilePath.value);
   } catch (err: any) {
     downloadError.value = err?.message || String(err);
   } finally {
@@ -203,10 +217,7 @@ function handleOpenUpdatesFolder() {
             <span class="notice-text">{{ t.updater.preserveDataNotice }}</span>
           </div>
 
-          <label v-if="directUpdate" class="checkbox-label">
-            <input type="checkbox" v-model="silentInstall" :disabled="busy" />
-            <span>{{ t.updater.silentInstall }}</span>
-          </label>
+          <p v-if="directUpdate" class="install-mode-notice">{{ t.updater.installModeNotice }}</p>
 
           <!-- In-App Download Progress Card -->
           <div v-if="downloading || downloadedFilePath || downloadError" class="download-progress-card">
@@ -250,7 +261,7 @@ function handleOpenUpdatesFolder() {
               </span>
             </div>
             <div class="changelog-body">
-              <pre class="changelog-text">{{ result.release?.body || t.updater.noChangelog }}</pre>
+              <div class="changelog-text" v-html="releaseNotesHtml" @click="handleReleaseNoteLink"></div>
             </div>
           </div>
         </div>
@@ -681,9 +692,43 @@ function handleOpenUpdatesFolder() {
   font-size: 0.74rem;
   color: var(--color-text-secondary);
   line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
+
+.changelog-text :deep(h1),
+.changelog-text :deep(h2),
+.changelog-text :deep(h3),
+.changelog-text :deep(h4) {
+  color: var(--color-text-primary);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  margin: 1em 0 0.5em;
+}
+
+.changelog-text :deep(p),
+.changelog-text :deep(ul),
+.changelog-text :deep(ol),
+.changelog-text :deep(blockquote),
+.changelog-text :deep(pre) {
+  margin: 0.6em 0;
+}
+
+.changelog-text :deep(ul),
+.changelog-text :deep(ol) {
+  padding-left: 1.5em;
+}
+
+.changelog-text :deep(li + li) { margin-top: 0.3em; }
+.changelog-text :deep(a) { color: var(--accent-color, #12b5cb); text-decoration: underline; }
+.changelog-text :deep(a:focus-visible) { outline: 2px solid currentColor; outline-offset: 2px; }
+.changelog-text :deep(code) { background: var(--color-bg-secondary); padding: 0.1em 0.3em; border-radius: 3px; }
+.changelog-text :deep(pre) { overflow-x: auto; padding: 0.7em; background: var(--color-bg-secondary); }
+.changelog-text :deep(pre code) { padding: 0; }
+.changelog-text :deep(blockquote) { padding-left: 0.8em; border-left: 2px solid var(--border-color); }
+.changelog-text :deep(table) { border-collapse: collapse; display: block; overflow-x: auto; }
+.changelog-text :deep(th), .changelog-text :deep(td) { border: 1px solid var(--border-color); padding: 0.4em 0.6em; }
+.changelog-text :deep(> :first-child) { margin-top: 0; }
+.changelog-text :deep(> :last-child) { margin-bottom: 0; }
 
 .dialog-footer {
   height: 48px;
@@ -862,13 +907,10 @@ function handleOpenUpdatesFolder() {
   color: #10b981;
 }
 
-.checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.install-mode-notice {
+  margin: 0;
   font-size: 0.75rem;
   color: var(--color-text-secondary);
-  cursor: pointer;
 }
 
 </style>

@@ -508,7 +508,7 @@ export const zhCN: typeof en = {
     downloadComplete: "更新包下载完毕，准备安装",
     installAndRestart: "⚡ 立即安装并重启",
     installing: "正在启动更新安装…",
-    silentInstall: "静默覆盖安装 (免向导就地升级)",
+    installModeNotice: "更新无需操作安装向导，会显示安装进度，完成后自动打开 Omera。",
     downloadInBrowser: "在浏览器中下载",
     preserveDataNotice: "💡 更新会保留图库与设置。Windows 可直接覆盖升级，无需先卸载；macOS 和 Linux 请按安装包提示完成更新。",
     close: "关闭",

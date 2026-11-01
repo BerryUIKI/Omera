@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { nextTick } from 'vue';
 import { withProductionComponent } from './helpers/production-component.mjs';
+import { setLocale } from '../src/i18n/index.ts';
+import { releaseLocales } from '../scripts/generate-release-notes.mjs';
 
 const asset = { name: 'Omera_0.6.0_x64-setup.exe', browser_download_url: 'https://github.com/BerryUIKI/Omera/releases/download/v0.6.0/Omera_0.6.0_x64-setup.exe', size: 100 };
 const available = { status: 'update_available', latestVersion: '0.6.0', matchedAsset: asset,
@@ -14,7 +16,7 @@ function updateBoundaries(code) {
     `import { invoke } from "@tauri-apps/api/core";
     const checkForUpdates = () => invoke("check");
     const downloadUpdateAsset = (...args) => invoke("download", args);
-    const installUpdate = (...args) => invoke("install", args);
+    const installUpdate = (path, silent = false) => invoke("install", [path, silent]);
     const openUrl = (...args) => invoke("open", args);`)
     .replace(/import \{ openStorageDir \} from [^;]+;/, 'const openStorageDir = async () => {};');
 }
@@ -26,7 +28,6 @@ function deferred() {
 }
 
 test('one click downloads then installs Windows updates; busy actions cannot duplicate or reset it', async () => {
-  for (const silent of [false, true]) {
     const download = deferred();
     const install = deferred();
     const calls = [];
@@ -38,7 +39,9 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         if (command === 'install') return install.promise;
         assert.fail(command);
       }, async ({ controls: c, props, events, render }) => {
-        c.silentInstall.value = silent;
+        const initial = await render();
+        assert.doesNotMatch(initial, /type="checkbox"/);
+        assert.match(initial, /show progress/);
         const operation = c.handleAutoDownload();
         assert.deepEqual(calls.map(([command]) => command), ['check', 'download']);
         calls[1][1][2]({ downloaded_bytes: 25, total_bytes: 100, percent: 25 });
@@ -58,7 +61,7 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         // Wait for the native download boundary to settle.
         await new Promise(resolve => setImmediate(resolve));
         assert.equal(c.installing.value, true);
-        assert.deepEqual(calls.at(-1), ['install', ['C:/updates/Omera setup.exe', silent]]);
+        assert.deepEqual(calls.at(-1), ['install', ['C:/updates/Omera setup.exe', false]]);
         await c.handleInstallAndRestart();
         await c.handleAutoDownload();
         c.handleClose();
@@ -69,7 +72,6 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         await operation;
         assert.equal(c.busy.value, false);
       }, updateBoundaries);
-  }
 });
 
 test('download or signature failure never starts installation and allows a fresh retry', async () => {
@@ -145,4 +147,47 @@ test('missing compatible package opens the official release instead of attemptin
       await c.handleAutoDownload();
       assert.deepEqual(calls, [['check', undefined], ['open', [available.release.html_url]]]);
     }, updateBoundaries);
+});
+
+test('production update dialog renders Markdown and opens nested link text in the browser', async () => {
+  const calls = [];
+  await withProductionComponent('UpdateModal', { show: true, currentVersion: '0.5.0' },
+    async (command, args) => {
+      calls.push([command, args]);
+      if (command === 'check') return { ...available, release: { ...available.release, tag_name: 'v0.6.0', body: '### Fixed\n\n- **One click**\n\n[**Details**](https://example.com/notes)' } };
+    }, async ({ controls: c, render }) => {
+      const html = await render();
+      assert.match(html, /<h3>Fixed<\/h3>/);
+      assert.match(html, /<strong>One click<\/strong>/);
+      assert.doesNotMatch(html, /<pre class="changelog-text"/);
+      let prevented = false;
+      c.handleReleaseNoteLink({ target: { closest: selector => {
+        assert.equal(selector, 'a[href]');
+        return { getAttribute: () => 'https://example.com/notes' };
+      } }, preventDefault: () => { prevented = true; } });
+      assert.equal(prevented, true);
+      assert.deepEqual(calls.at(-1), ['open', ['https://example.com/notes']]);
+    }, updateBoundaries);
+});
+
+test('changing the app language updates rendered release notes without another update request', async () => {
+  const calls = [];
+  try {
+    await withProductionComponent('UpdateModal', { show: true, currentVersion: '0.5.0' },
+      async command => {
+        calls.push(command);
+        if (command === 'check') return { ...available, release: { ...available.release, tag_name: 'v0.5.1', body: '### Fixed\nLegacy English' } };
+      }, async ({ render }) => {
+        const htmlByLocale = new Set();
+        for (const locale of releaseLocales) {
+          await setLocale(locale);
+          const html = await render();
+          assert.match(html, /<h3>/);
+          assert.doesNotMatch(html, /Legacy English/);
+          htmlByLocale.add(html);
+        }
+        assert.equal(htmlByLocale.size, 7);
+        assert.deepEqual(calls, ['check']);
+      }, updateBoundaries);
+  } finally { await setLocale('en'); }
 });

@@ -508,7 +508,7 @@ export const ja: typeof en = {
     downloadComplete: "ダウンロードが完了しました。インストールの準備が整いました。",
     installAndRestart: "⚡ 今すぐインストールして再起動",
     installing: "更新のインストールを開始しています…",
-    silentInstall: "サイレント上書きインストール (バックグラウンド自動更新)",
+    installModeNotice: "セットアップウィザードの操作は不要です。進行状況を表示し、完了後に Omera を自動で開きます。",
     downloadInBrowser: "ブラウザでダウンロード",
     preserveDataNotice: "💡 更新ではライブラリと設定が保持されます。Windows はアンインストールせずに上書き更新します。macOS と Linux はパッケージのインストール手順に従ってください。",
     close: "閉じる",

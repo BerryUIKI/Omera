@@ -8,7 +8,7 @@ Selecciona **Ayuda > Buscar actualizaciones**. La comprobación al iniciar se ac
 
 ## Descargar e instalar
 
-1. En Windows, selecciona **Actualizar ahora** para descargar e instalar la actualización con un clic. Puedes elegir la instalación silenciosa antes de empezar. En macOS/Linux, selecciona primero **Descargar actualización**.
+1. En Windows, selecciona **Actualizar ahora** para descargar e instalar la actualización. La instalación muestra el progreso sin asistente y vuelve a abrir Omera al finalizar. En macOS/Linux, selecciona primero **Descargar actualización**.
 2. Omera verifica el paquete descargado y comprueba de nuevo su firma antes de iniciar el instalador. Si falla la verificación, no se instala. Si falla el inicio del instalador, puedes reintentarlo con el paquete descargado.
 3. Windows actualiza la aplicación existente sin un paso de desinstalación separado y vuelve a abrir Omera al completarse. En macOS, usa la acción de instalación para abrir el DMG verificado, completa la instalación y vuelve a abrir Omera. En Linux, la acción de instalación inicia un AppImage; los paquetes DEB/RPM requieren el gestor de paquetes. El reinicio automático no está garantizado en macOS/Linux.
 

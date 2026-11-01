@@ -508,7 +508,7 @@ export const zhTW: typeof en = {
     downloadComplete: "更新套件下載完畢，準備安裝",
     installAndRestart: "⚡ 立即安裝並重啟",
     installing: "正在啟動更新安裝…",
-    silentInstall: "無訊息覆蓋安裝 (免精靈就地升級)",
+    installModeNotice: "更新無需操作安裝精靈，會顯示安裝進度，完成後自動開啟 Omera。",
     downloadInBrowser: "在瀏覽器中下載",
     preserveDataNotice: "💡 更新會保留圖庫與設定。Windows 可直接覆蓋升級，無需先解除安裝；macOS 和 Linux 請依安裝套件提示完成更新。",
     close: "關閉",

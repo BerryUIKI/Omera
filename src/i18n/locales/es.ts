@@ -508,7 +508,7 @@ export const es: typeof en = {
     downloadComplete: "Descarga completada. Listo para instalar.",
     installAndRestart: "⚡ Instalar y reiniciar ahora",
     installing: "Iniciando la instalación de la actualización…",
-    silentInstall: "Instalación silenciosa (actualización en segundo plano)",
+    installModeNotice: "Las actualizaciones se instalan sin asistente, muestran el progreso y vuelven a abrir Omera al finalizar.",
     downloadInBrowser: "Descargar en el navegador",
     preserveDataNotice: "💡 Las actualizaciones conservan su biblioteca y ajustes. Windows se actualiza sin desinstalar; en macOS y Linux, siga los pasos de instalación del paquete.",
     close: "Cerrar",
