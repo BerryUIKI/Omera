@@ -689,9 +689,9 @@ function handleOpenUpdatesFolder() {
 .changelog-text {
   margin: 0;
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--font-reading, 14px);
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  line-height: var(--line-reading, 1.6);
   overflow-wrap: anywhere;
 }
 

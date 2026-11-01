@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -646,9 +647,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
               @click="emit('selectNav', { type: 'all' })"
             >
               <span class="item-icon" aria-hidden="true">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-                  <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3zm1 0v10h10V3H3zm2 7.5l2-2.5 1.5 2 2.5-3.5 3 4H4l1-1.5z" />
-                </svg>
+                <AppIcon name="image" />
               </span>
               <span class="item-label">{{ t.nav.allImages }}</span>
               <span v-if="counts" class="item-badge" aria-hidden="true">{{ counts.total }}</span>
@@ -663,7 +662,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
               :aria-label="t.nav.favorites + (counts?.favorites !== undefined ? ` (${counts.favorites})` : '')"
               @click="emit('selectNav', { type: 'favorites' })"
             >
-              <span class="item-icon star-icon" aria-hidden="true">★</span>
+              <span class="item-icon star-icon" aria-hidden="true"><AppIcon name="star" /></span>
               <span class="item-label">{{ t.nav.favorites }}</span>
               <span v-if="counts?.favorites !== undefined" class="item-badge" aria-hidden="true">{{ counts.favorites }}</span>
             </button>
@@ -677,7 +676,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
               :aria-label="t.nav.sensitive + (counts?.nsfw !== undefined ? ` (${counts.nsfw})` : '')"
               @click="emit('selectNav', { type: 'nsfw' })"
             >
-              <span class="item-icon nsfw-icon" aria-hidden="true">🔞</span>
+              <span class="item-icon nsfw-icon" aria-hidden="true"><AppIcon name="shield" /></span>
               <span class="item-label">{{ t.nav.sensitive }}</span>
               <span v-if="counts?.nsfw !== undefined" class="item-badge" aria-hidden="true">{{ counts.nsfw }}</span>
             </button>
@@ -737,7 +736,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
                 @keydown="onFolderKeydown($event, folder)"
               >
                 <span class="item-icon" aria-hidden="true">
-                  {{ folder.folder_type === 'pipeline' ? '⚡' : folder.folder_type === 'managed' ? '📦' : (expandedPaths.has(folder.path) ? '📂' : '📁') }}
+                  <AppIcon :name="folder.folder_type === 'pipeline' ? 'activity' : folder.folder_type === 'managed' ? 'box' : expandedPaths.has(folder.path) ? 'folderOpen' : 'folder'" />
                 </span>
                 <span class="item-label truncate">{{ getFolderName(folder.path) }}</span>
                 <span v-if="counts?.folders" class="item-badge" aria-hidden="true">{{ counts.folders[folder.id] ?? 0 }}</span>
@@ -952,7 +951,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.insights"
           @click="emit('openPromptStats')"
         >
-          <span class="tool-icon" aria-hidden="true">📊</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="chart" /></span>
           <span class="tool-text">{{ t.search.insights }}</span>
         </button>
         <button
@@ -962,7 +961,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.autoTagger"
           @click="emit('openAutoTagger')"
         >
-          <span class="tool-icon" aria-hidden="true">🤖</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="sparkles" /></span>
           <span class="tool-text">{{ t.search.autoTagger }}</span>
         </button>
         <button
@@ -972,7 +971,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.models"
           @click="emit('openModelManager')"
         >
-          <span class="tool-icon" aria-hidden="true">🧠</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="box" /></span>
           <span class="tool-text">{{ t.search.models }}</span>
         </button>
         <button
@@ -982,7 +981,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.database"
           @click="emit('openDbManager')"
         >
-          <span class="tool-icon" aria-hidden="true">🗄️</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="database" /></span>
           <span class="tool-text">{{ t.search.database }}</span>
         </button>
         <button
@@ -992,7 +991,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.shortcuts"
           @click="emit('openShortcutsHelp')"
         >
-          <span class="tool-icon" aria-hidden="true">⌨️</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="keyboard" /></span>
           <span class="tool-text">{{ t.search.shortcuts }}</span>
         </button>
       </div>

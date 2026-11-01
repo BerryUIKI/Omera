@@ -24,6 +24,7 @@ function loadProductionBatchActionBar() {
   });
 
   let scriptCode = script.content.replace("export default", "const component =");
+  scriptCode = scriptCode.replace(/import AppIcon from [^\n]+;/, `const AppIcon = { ssrRender(_ctx, push) { push('<svg aria-hidden="true"></svg>'); } };`);
   // Provide mock translations for template interpolation
   const mockI18n = `const t = {
     batch: {
