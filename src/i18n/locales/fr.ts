@@ -490,6 +490,10 @@ export const fr: typeof en = {
     about: "À propos d'Omera",
   },
   updater: {
+    verifying: "Vérification du paquet de mise à jour…",
+    otherOptions: "Autres options",
+    later: "Plus tard",
+
     title: "Vérification des mises à jour",
     checkingTitle: "Recherche de mises à jour...",
     checkingDesc: "Connexion à GitHub Releases pour vérifier la dernière version.",
@@ -515,7 +519,7 @@ export const fr: typeof en = {
     installing: "Démarrage de l’installation de la mise à jour…",
     installModeNotice: "Les mises à jour s’installent sans assistant, affichent la progression et rouvrent Omera à la fin.",
     downloadInBrowser: "Télécharger dans le navigateur",
-    preserveDataNotice: "💡 Les mises à jour conservent votre bibliothèque et vos réglages. Windows se met à jour sans désinstallation ; sur macOS et Linux, suivez les étapes d’installation du paquet.",
+    preserveDataNotice: "La mise à jour conserve votre bibliothèque et vos réglages.",
     close: "Fermer",
   },
   settings: {

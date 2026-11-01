@@ -490,6 +490,10 @@ export const es: typeof en = {
     about: "Acerca de Omera",
   },
   updater: {
+    verifying: "Verificando el paquete de actualización…",
+    otherOptions: "Otras opciones",
+    later: "Más tarde",
+
     title: "Buscar actualizaciones",
     checkingTitle: "Buscando actualizaciones...",
     checkingDesc: "Conectando con GitHub Releases para comprobar la última versión.",
@@ -515,7 +519,7 @@ export const es: typeof en = {
     installing: "Iniciando la instalación de la actualización…",
     installModeNotice: "Las actualizaciones se instalan sin asistente, muestran el progreso y vuelven a abrir Omera al finalizar.",
     downloadInBrowser: "Descargar en el navegador",
-    preserveDataNotice: "💡 Las actualizaciones conservan su biblioteca y ajustes. Windows se actualiza sin desinstalar; en macOS y Linux, siga los pasos de instalación del paquete.",
+    preserveDataNotice: "La actualización conserva la biblioteca y los ajustes.",
     close: "Cerrar",
   },
   settings: {
