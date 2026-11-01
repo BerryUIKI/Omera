@@ -11,6 +11,7 @@ import {
 } from "../utils/updater";
 import { openStorageDir } from "../utils/config";
 import { formatBytes } from "../utils/image";
+import { renderReleaseMarkdown } from "../utils/release-markdown";
 
 const props = defineProps<{
   show: boolean;
@@ -32,6 +33,17 @@ const downloadedFilePath = ref<string | null>(null);
 const installing = ref(false);
 const busy = computed(() => downloading.value || installing.value);
 const directUpdate = computed(() => /\.(exe|msi)$/i.test(result.value?.matchedAsset?.name ?? ""));
+const releaseNotesHtml = computed(() => renderReleaseMarkdown(
+  result.value?.release?.body || t.value.updater.noChangelog,
+  result.value?.release?.tag_name ?? "main",
+));
+
+function handleReleaseNoteLink(event: MouseEvent) {
+  const anchor = (event.target as Element | null)?.closest("a[href]");
+  if (!anchor) return;
+  event.preventDefault();
+  void openUrl(anchor.getAttribute("href")!);
+}
 
 function handleClose() {
   if (!busy.value) emit("close");
@@ -248,7 +260,7 @@ function handleOpenUpdatesFolder() {
               </span>
             </div>
             <div class="changelog-body">
-              <pre class="changelog-text">{{ result.release?.body || t.updater.noChangelog }}</pre>
+              <div class="changelog-text" v-html="releaseNotesHtml" @click="handleReleaseNoteLink"></div>
             </div>
           </div>
         </div>
@@ -679,9 +691,43 @@ function handleOpenUpdatesFolder() {
   font-size: 0.74rem;
   color: var(--color-text-secondary);
   line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
+
+.changelog-text :deep(h1),
+.changelog-text :deep(h2),
+.changelog-text :deep(h3),
+.changelog-text :deep(h4) {
+  color: var(--color-text-primary);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  margin: 1em 0 0.5em;
+}
+
+.changelog-text :deep(p),
+.changelog-text :deep(ul),
+.changelog-text :deep(ol),
+.changelog-text :deep(blockquote),
+.changelog-text :deep(pre) {
+  margin: 0.6em 0;
+}
+
+.changelog-text :deep(ul),
+.changelog-text :deep(ol) {
+  padding-left: 1.5em;
+}
+
+.changelog-text :deep(li + li) { margin-top: 0.3em; }
+.changelog-text :deep(a) { color: var(--accent-color, #12b5cb); text-decoration: underline; }
+.changelog-text :deep(a:focus-visible) { outline: 2px solid currentColor; outline-offset: 2px; }
+.changelog-text :deep(code) { background: var(--color-bg-secondary); padding: 0.1em 0.3em; border-radius: 3px; }
+.changelog-text :deep(pre) { overflow-x: auto; padding: 0.7em; background: var(--color-bg-secondary); }
+.changelog-text :deep(pre code) { padding: 0; }
+.changelog-text :deep(blockquote) { padding-left: 0.8em; border-left: 2px solid var(--border-color); }
+.changelog-text :deep(table) { border-collapse: collapse; display: block; overflow-x: auto; }
+.changelog-text :deep(th), .changelog-text :deep(td) { border: 1px solid var(--border-color); padding: 0.4em 0.6em; }
+.changelog-text :deep(> :first-child) { margin-top: 0; }
+.changelog-text :deep(> :last-child) { margin-bottom: 0; }
 
 .dialog-footer {
   height: 48px;

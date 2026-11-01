@@ -146,3 +146,24 @@ test('missing compatible package opens the official release instead of attemptin
       assert.deepEqual(calls, [['check', undefined], ['open', [available.release.html_url]]]);
     }, updateBoundaries);
 });
+
+test('production update dialog renders Markdown and opens nested link text in the browser', async () => {
+  const calls = [];
+  await withProductionComponent('UpdateModal', { show: true, currentVersion: '0.5.0' },
+    async (command, args) => {
+      calls.push([command, args]);
+      if (command === 'check') return { ...available, release: { ...available.release, tag_name: 'v0.6.0', body: '### Fixed\n\n- **One click**\n\n[**Details**](https://example.com/notes)' } };
+    }, async ({ controls: c, render }) => {
+      const html = await render();
+      assert.match(html, /<h3>Fixed<\/h3>/);
+      assert.match(html, /<strong>One click<\/strong>/);
+      assert.doesNotMatch(html, /<pre class="changelog-text"/);
+      let prevented = false;
+      c.handleReleaseNoteLink({ target: { closest: selector => {
+        assert.equal(selector, 'a[href]');
+        return { getAttribute: () => 'https://example.com/notes' };
+      } }, preventDefault: () => { prevented = true; } });
+      assert.equal(prevented, true);
+      assert.deepEqual(calls.at(-1), ['open', ['https://example.com/notes']]);
+    }, updateBoundaries);
+});
