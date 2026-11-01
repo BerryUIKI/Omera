@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, ref, nextTick } from "vue";
 import type { AppInfo, ScanProgress } from "../types";
 import { t } from "../i18n";
@@ -104,7 +105,7 @@ const thumbPercent = computed(() => {
         @click.stop="showActivity = !showActivity"
       >
         <span class="activity-dot"></span>
-        <span>⚡ {{ t.statusbar.activity }}<template v-if="activeTaskCount"> ({{ activeTaskCount }})</template></span>
+        <span><AppIcon name="activity" /> {{ t.statusbar.activity }}<template v-if="activeTaskCount"> ({{ activeTaskCount }})</template></span>
       </button>
     </div>
 

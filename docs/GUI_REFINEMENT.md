@@ -40,3 +40,15 @@ remaining limits. Run the full frontend/Rust suites before release integration.
   existing palette. Prompt and release-note reading text uses 14px / 1.6 line
   height. 39 focused regressions and production build pass; production App
   fixture visually checked at 1280×850.
+
+- Package 5: PR #425 merged after three-platform CI. The update dialog groups
+  fallback actions, uses Later for secondary dismissal and reports verification
+  separately from download/installer launch. Existing signed-update trust remains
+  enforced. Verification-before-install is covered by production-handler tests.
+- Package 6: exports, model downloads and update downloads share operation-owned
+  task state. Scans and thumbnail diagnostics remain in the same Activity panel.
+  A closed/reopened export dialog cannot duplicate a running export, and partial
+  export failures retain their output path/error. Focused task/updater regressions
+  and the production build pass; full frontend suite passes 335 tests. Chinese
+  fixture visually verified running progress and failure details at 1280×850.
+  Tasks are session-local; no unsupported cancel/retry controls are advertised.

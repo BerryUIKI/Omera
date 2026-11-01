@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { backgroundTasks, dismissTask } from "../utils/background-tasks";
@@ -83,7 +84,7 @@ const formattedLastReconcile = computed(() => {
   <div v-if="open" class="activity-popover-container" @click.stop @keydown.esc.stop="emit('close')">
     <div class="popover-header">
       <div class="header-title">
-        <span class="icon">⚡</span>
+        <AppIcon name="activity" />
         <span>{{ t.statusbar.activity }}</span>
       </div>
       <button type="button" class="close-btn" @click="emit('close')" :aria-label="t.updater.close">✕</button>
@@ -91,7 +92,6 @@ const formattedLastReconcile = computed(() => {
 
     <div class="popover-body">
       <section class="task-list" :aria-label="t.tasks.title">
-        <h3>{{ t.tasks.title }}</h3>
         <p v-if="!backgroundTasks.length" class="empty-tasks">{{ t.tasks.empty }}</p>
         <article v-for="task in backgroundTasks" :key="task.id" class="activity-card" :class="{ 'task-failed': task.status === 'failed' }">
           <div class="card-title"><strong>{{ t.tasks[task.kind] }}</strong><span>{{ t.tasks[task.status] }}</span></div>
