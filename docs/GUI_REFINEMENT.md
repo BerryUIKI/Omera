@@ -41,6 +41,12 @@ remaining limits. Run the full frontend/Rust suites before release integration.
   height. 39 focused regressions and production build pass; production App
   fixture visually checked at 1280×850.
 
+- Package 4: the gallery width (not total window width) chooses direct display
+  controls or a compact disclosure. One control tree preserves values and handlers.
+  Search, filters and masking remain direct. Production build and three existing
+  shortcut/header regressions pass. Browser checks at 960×640, 1280×850 and
+  1720×900 verified layout, slider changes, Escape focus restoration and no page
+  overflow. No card-width or decode behavior changed.
 - Package 5: PR #425 merged after three-platform CI. The update dialog groups
   fallback actions, uses Later for secondary dismissal and reports verification
   separately from download/installer launch. Existing signed-update trust remains

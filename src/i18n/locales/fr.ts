@@ -29,6 +29,7 @@ export const fr: typeof en = {
     roots: "Dossiers",
   },
   layout: {
+    displaySettings: "Options d’affichage",
     resizeSidebar: "Redimensionner la barre latérale",
     resizeInspector: "Redimensionner le panneau de détails",
     resizeHint: "Glissez ou utilisez les flèches. Double-cliquez ou appuyez sur Entrée pour réinitialiser.",

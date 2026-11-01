@@ -29,6 +29,7 @@ export const es: typeof en = {
     roots: "Carpetas",
   },
   layout: {
+    displaySettings: "Opciones de visualización",
     resizeSidebar: "Cambiar ancho de la barra lateral",
     resizeInspector: "Cambiar ancho del panel de detalles",
     resizeHint: "Arrastra o usa las flechas. Haz doble clic o pulsa Intro para restablecer.",

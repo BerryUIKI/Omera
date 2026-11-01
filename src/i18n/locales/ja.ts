@@ -29,6 +29,7 @@ export const ja: typeof en = {
     roots: "フォルダー",
   },
   layout: {
+    displaySettings: "表示設定",
     resizeSidebar: "サイドバーの幅を変更",
     resizeInspector: "詳細パネルの幅を変更",
     resizeHint: "ドラッグまたは矢印キーで幅を変更。ダブルクリックまたは Enter で既定値に戻します。",

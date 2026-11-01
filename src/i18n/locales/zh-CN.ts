@@ -29,6 +29,7 @@ export const zhCN: typeof en = {
     roots: "目录",
   },
   layout: {
+    displaySettings: "显示设置",
     resizeSidebar: "调整侧栏宽度",
     resizeInspector: "调整详情栏宽度",
     resizeHint: "拖动或使用方向键调整宽度；双击或按 Enter 恢复默认。",
