@@ -1,6 +1,11 @@
 import type { en } from "./en";
 
 export const zhTW: typeof en = {
+  layout: {
+    resizeSidebar: "調整側欄寬度",
+    resizeInspector: "調整詳細資料欄寬度",
+    resizeHint: "拖曳或使用方向鍵調整寬度；按兩下或按 Enter 恢復預設。",
+  },
   installer: {
     languageTitle: "安裝程式語言",
     languagePrompt: "請選擇安裝程式使用的語言。",

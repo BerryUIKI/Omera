@@ -31,6 +31,8 @@ import { getFileName } from "./utils/image";
 import TitleBar from "./components/TitleBar.vue";
 import MenuBar from "./components/MenuBar.vue";
 import Sidebar from "./components/Sidebar.vue";
+import PanelResizeHandle from "./components/PanelResizeHandle.vue";
+import { readPanelWidths, fitPanelWidths, panelBounds } from "./utils/panel-layout";
 import FileList from "./components/FileList.vue";
 import VirtualGrid from "./components/VirtualGrid.vue";
 import {
@@ -140,6 +142,26 @@ const similarityLimit = ref<number>(
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
 const lightboxFile = ref<ImageFile | null>(null);
+const studioLayoutRef = ref<HTMLElement | null>(null);
+const layoutViewport = ref(typeof window === "undefined" ? 1280 : window.innerWidth);
+const panelWidths = ref(readPanelWidths(getStorageItem));
+const galleryMinimum = computed(() => Math.max(320, gridItemWidth.value + 24));
+const fittedPanels = computed(() => fitPanelWidths(panelWidths.value, layoutViewport.value, sidebarOpen.value, inspectorOpen.value, galleryMinimum.value));
+const sidebarMax = computed(() => Math.min(panelBounds.sidebar.max, Math.max(panelBounds.sidebar.min,
+  layoutViewport.value - galleryMinimum.value - 12 - (inspectorOpen.value ? fittedPanels.value.inspector : 0))));
+const inspectorMax = computed(() => Math.min(panelBounds.inspector.max, Math.max(panelBounds.inspector.min,
+  layoutViewport.value - galleryMinimum.value - 12 - (sidebarOpen.value ? fittedPanels.value.sidebar : 0))));
+function savePanelWidths() {
+  setStorageItem("layout_sidebar_width", String(panelWidths.value.sidebar));
+  setStorageItem("layout_inspector_width", String(panelWidths.value.inspector));
+}
+let layoutObserver: ResizeObserver | null = null;
+onMounted(() => {
+  if (!studioLayoutRef.value || typeof ResizeObserver === "undefined") return;
+  layoutObserver = new ResizeObserver(([entry]) => { layoutViewport.value = entry.contentRect.width; });
+  layoutObserver.observe(studioLayoutRef.value);
+});
+onUnmounted(() => layoutObserver?.disconnect());
 
 // Modals
 const updateModalOpen = ref(false);
@@ -2393,7 +2415,7 @@ function onResetZoom() {
     </Transition>
 
     <!-- Main Three-Pane Studio Layout -->
-    <div class="studio-layout">
+    <div ref="studioLayoutRef" class="studio-layout" :style="{ '--sidebar-width': `${fittedPanels.sidebar}px`, '--panel-width': `${fittedPanels.inspector}px` }">
       <!-- Left Sidebar (Collapsible) -->
       <Sidebar
         v-if="sidebarOpen"
@@ -2425,6 +2447,9 @@ function onResetZoom() {
       />
 
       <!-- Center Gallery Canvas (Eagle Grid/Waterfall) -->
+      <PanelResizeHandle v-if="sidebarOpen" :model-value="fittedPanels.sidebar" :min="panelBounds.sidebar.min" :max="sidebarMax"
+        :initial="panelBounds.sidebar.initial" side="left" :label="t.layout.resizeSidebar" :hint="t.layout.resizeHint"
+        @update:model-value="panelWidths.sidebar = $event" @change="savePanelWidths" />
       <main class="gallery-canvas">
         <!-- Top Toolbar -->
         <div v-show="!lightboxFile" class="gallery-topbar">
@@ -2690,6 +2715,8 @@ function onResetZoom() {
         </div>
         <LightboxModal
           v-else-if="lightboxFile" ref="lightboxRef" embedded v-model:details-open="inspectorOpen"
+          :panel-width="fittedPanels.inspector" :panel-max="inspectorMax"
+          @update:panel-width="panelWidths.inspector = $event" @panel-resize-end="savePanelWidths"
           :file="lightboxFile"
           :files="files" :total-count="galleryTotal" :has-more="galleryHasMore" :load-more="loadMoreFiles"
           @close="lightboxFile = null"
@@ -2705,6 +2732,9 @@ function onResetZoom() {
       </main>
 
       <!-- Right Inspector Panel (Collapsible) -->
+      <PanelResizeHandle v-if="inspectorOpen && !lightboxFile" :model-value="fittedPanels.inspector" :min="panelBounds.inspector.min" :max="inspectorMax"
+        :initial="panelBounds.inspector.initial" side="right" :label="t.layout.resizeInspector" :hint="t.layout.resizeHint"
+        @update:model-value="panelWidths.inspector = $event" @change="savePanelWidths" />
       <InspectorPane
         v-if="inspectorOpen && !lightboxFile"
         ref="inspectorRef"

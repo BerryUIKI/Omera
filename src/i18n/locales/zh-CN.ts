@@ -1,6 +1,11 @@
 import type { en } from "./en";
 
 export const zhCN: typeof en = {
+  layout: {
+    resizeSidebar: "调整侧栏宽度",
+    resizeInspector: "调整详情栏宽度",
+    resizeHint: "拖动或使用方向键调整宽度；双击或按 Enter 恢复默认。",
+  },
   installer: {
     languageTitle: "安装器语言",
     languagePrompt: "请选择安装程序使用的语言。",
