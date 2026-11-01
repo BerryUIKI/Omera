@@ -1,4 +1,9 @@
 export const en = {
+  layout: {
+    resizeSidebar: "Resize sidebar",
+    resizeInspector: "Resize details panel",
+    resizeHint: "Drag or use arrow keys to resize. Double-click or press Enter to reset.",
+  },
   installer: {
     languageTitle: "Installer language",
     languagePrompt: "Choose the language for setup.",

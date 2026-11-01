@@ -1,6 +1,11 @@
 import type { en } from "./en";
 
 export const ja: typeof en = {
+  layout: {
+    resizeSidebar: "サイドバーの幅を変更",
+    resizeInspector: "詳細パネルの幅を変更",
+    resizeHint: "ドラッグまたは矢印キーで幅を変更。ダブルクリックまたは Enter で既定値に戻します。",
+  },
   installer: {
     languageTitle: "インストーラーの言語",
     languagePrompt: "セットアップで使用する言語を選択してください。",

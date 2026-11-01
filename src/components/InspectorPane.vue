@@ -705,9 +705,9 @@ function onWorkflowDragStart(e: DragEvent) {
 
 <style scoped>
 .inspector-eagle {
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  width: var(--panel-width, 280px);
+  min-width: var(--panel-width, 280px);
+  max-width: var(--panel-width, 280px);
   flex-shrink: 0;
   height: 100%;
   background: var(--color-bg-primary);

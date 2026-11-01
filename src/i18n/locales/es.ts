@@ -1,6 +1,11 @@
 import type { en } from "./en";
 
 export const es: typeof en = {
+  layout: {
+    resizeSidebar: "Cambiar ancho de la barra lateral",
+    resizeInspector: "Cambiar ancho del panel de detalles",
+    resizeHint: "Arrastra o usa las flechas. Haz doble clic o pulsa Intro para restablecer.",
+  },
   installer: {
     languageTitle: "Idioma del instalador",
     languagePrompt: "Elija el idioma de la instalación.",

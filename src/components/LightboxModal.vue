@@ -4,6 +4,7 @@ import type { ImageFile } from "../types";
 import { assetUrl, formatBytes, formatDuration, formatPlatformName, getFileName, isVideoContainer } from "../utils/image";
 import { useFileCuration, type CurationChange } from "../utils/file-curation";
 import InspectorPane from "./InspectorPane.vue";
+import PanelResizeHandle from "./PanelResizeHandle.vue";
 import { conditionalDialog as vViewerDialog, getTopDialog, isEditableTarget } from "../utils/dialog";
 import { fitImageScale, clampViewerScale, zoomTranslation } from "../utils/viewer-geometry";
 import { t } from "../i18n";
@@ -13,6 +14,8 @@ const props = defineProps<{
   files: ImageFile[];
   embedded?: boolean;
   detailsOpen?: boolean;
+  panelWidth?: number;
+  panelMax?: number;
   totalCount?: number;
   hasMore?: boolean;
   loadMore?: () => Promise<void>;
@@ -32,6 +35,8 @@ const emit = defineEmits<{
   openLoraManager: [];
   tagsChanged: [fileId: number];
   "update:detailsOpen": [visible: boolean];
+  "update:panelWidth": [width: number];
+  panelResizeEnd: [];
 }>();
 
 const scale = ref(1);
@@ -639,6 +644,9 @@ onUnmounted(() => {
     </footer>
 
     </div>
+    <PanelResizeHandle v-if="showDetails && embedded" :model-value="panelWidth ?? 280" :min="260" :max="panelMax ?? 480"
+      :initial="280" side="right" :label="t.layout.resizeInspector" :hint="t.layout.resizeHint"
+      @update:model-value="emit('update:panelWidth', $event)" @change="emit('panelResizeEnd')" />
     <InspectorPane v-if="showDetails" ref="detailPanel" :file="file" embedded
       @close="showDetails = false" @open-lightbox="showDetails = false"
       @curated="emit('curated', $event)" @open-tag-modal="emit('openTagModal', $event)" @open-album-modal="emit('openAlbumModal', $event)"

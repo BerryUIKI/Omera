@@ -1,8 +1,8 @@
 :root {
   color-scheme: dark;
   /* Layout Dimensions */
-  --sidebar-width: 280px;
-  --panel-width: 350px;
+  --sidebar-width: 220px;
+  --panel-width: 280px;
   --header-height: 48px;
 
   /* Spacing */
