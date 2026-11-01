@@ -8,7 +8,7 @@ Choisissez **Aide > Rechercher les mises à jour**. La vérification au démarra
 
 ## Télécharger et installer
 
-1. Sous Windows, choisissez **Mettre à jour maintenant** pour télécharger et installer la mise à jour en un clic. Vous pouvez choisir l’installation silencieuse avant de commencer. Sous macOS/Linux, choisissez d’abord **Télécharger la mise à jour**.
+1. Sous Windows, choisissez **Mettre à jour maintenant** pour télécharger et installer la mise à jour. L’installation affiche la progression sans assistant et rouvre Omera à la fin. Sous macOS/Linux, choisissez d’abord **Télécharger la mise à jour**.
 2. Omera vérifie le paquet téléchargé, puis vérifie à nouveau sa signature avant de lancer l’installateur. Un échec de vérification bloque l’installation ; un échec de lancement permet de réessayer avec le paquet téléchargé.
 3. Windows met à jour l’application existante sans étape de désinstallation séparée et rouvre Omera après réussite. Sous macOS, utilisez l’action d’installation pour ouvrir le DMG vérifié, terminez l’installation puis rouvrez Omera. Sous Linux, l’action d’installation lance un AppImage ; les paquets DEB/RPM nécessitent le gestionnaire de paquets. Le redémarrage automatique n’est pas garanti sous macOS/Linux.
 

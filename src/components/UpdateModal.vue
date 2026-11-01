@@ -29,7 +29,6 @@ const downloading = ref(false);
 const downloadProgress = ref<UpdateDownloadProgress | null>(null);
 const downloadError = ref<string | null>(null);
 const downloadedFilePath = ref<string | null>(null);
-const silentInstall = ref(false);
 const installing = ref(false);
 const busy = computed(() => downloading.value || installing.value);
 const directUpdate = computed(() => /\.(exe|msi)$/i.test(result.value?.matchedAsset?.name ?? ""));
@@ -127,7 +126,9 @@ async function handleInstallAndRestart() {
   installing.value = true;
   downloadError.value = null;
   try {
-    await installUpdate(downloadedFilePath.value, silentInstall.value);
+    // Default passive mode needs no wizard interaction, shows installation
+    // progress, and reopens Omera after success.
+    await installUpdate(downloadedFilePath.value);
   } catch (err: any) {
     downloadError.value = err?.message || String(err);
   } finally {
@@ -203,10 +204,7 @@ function handleOpenUpdatesFolder() {
             <span class="notice-text">{{ t.updater.preserveDataNotice }}</span>
           </div>
 
-          <label v-if="directUpdate" class="checkbox-label">
-            <input type="checkbox" v-model="silentInstall" :disabled="busy" />
-            <span>{{ t.updater.silentInstall }}</span>
-          </label>
+          <p v-if="directUpdate" class="install-mode-notice">{{ t.updater.installModeNotice }}</p>
 
           <!-- In-App Download Progress Card -->
           <div v-if="downloading || downloadedFilePath || downloadError" class="download-progress-card">
@@ -862,13 +860,10 @@ function handleOpenUpdatesFolder() {
   color: #10b981;
 }
 
-.checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.install-mode-notice {
+  margin: 0;
   font-size: 0.75rem;
   color: var(--color-text-secondary);
-  cursor: pointer;
 }
 
 </style>

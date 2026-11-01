@@ -25,8 +25,10 @@ The update dialog's **Update Now** action downloads the selected Windows
 installer, verifies it and immediately requests installation. The backend checks
 the signature again before launching. NSIS uses `/P /UPDATE /R` by default to
 show progress without the setup wizard, skip the previous NSIS uninstaller,
-preserve shortcuts and reopen Omera on success. The optional silent setting
-uses `/S` instead of `/P`. MSI uses `/i /norestart`, `/passive` or `/quiet`, and
+preserve shortcuts and reopen Omera on success. The dialog always uses this
+progress-only mode, without an installer-mode checkbox. The legacy IPC option
+can still select `/S`; it is not the dialog's default. MSI uses `/i /norestart`,
+`/passive` (or `/quiet` for explicit legacy callers), and
 `AUTOLAUNCHAPP=True`. See the pinned [Tauri installer source](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.11.4/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi)
 and the [updater launch configuration](https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/updater/src/config.rs).
 

@@ -8,7 +8,7 @@ Use **Help > Check for Updates**. The startup check can be enabled or disabled i
 
 ## Download and install
 
-1. Choose **Update Now** on Windows to download and install the update with one click. You can select silent installation before starting. On macOS/Linux, choose **Download Update**.
+1. Choose **Update Now** on Windows to download and install the update with one click. Installation shows progress without a setup wizard and reopens Omera when finished. On macOS/Linux, choose **Download Update**.
 2. Omera verifies the downloaded package and checks its signature again before launching the installer. Verification failures stop installation; a launch failure lets you retry with the downloaded package.
 3. Windows updates the existing application and reopens Omera on success, without a separate uninstall step. On macOS, choose **Install & Restart Now** to open the verified DMG, complete installation and reopen Omera. On Linux, the install action launches an AppImage; DEB/RPM packages require your package manager. Automatic restart is not guaranteed on macOS/Linux.
 

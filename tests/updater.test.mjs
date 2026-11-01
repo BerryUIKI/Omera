@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compareSemver, findMatchingAsset, buildSyntheticRelease, checkForUpdates, fetchReleaseViaHtmlFallback } from '../src/utils/updater.ts';
+import { compareSemver, findMatchingAsset, buildSyntheticRelease, checkForUpdates, fetchReleaseViaHtmlFallback, installUpdate } from '../src/utils/updater.ts';
+
+test('default update installation requests progress-only mode rather than hiding the installer', async () => {
+  const previousWindow = globalThis.window;
+  const calls = [];
+  globalThis.window = { __TAURI_INTERNALS__: { invoke: async (command, args) => { calls.push([command, args]); } } };
+  try {
+    await installUpdate('C:/updates/Omera.exe');
+    assert.deepEqual(calls, [['install_update', { installerPath: 'C:/updates/Omera.exe', silent: false }]]);
+  } finally {
+    globalThis.window = previousWindow;
+  }
+});
 
 test('update check uses native IPC without a WebView fetch', async () => {
   const previousWindow = globalThis.window;

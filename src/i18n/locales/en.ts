@@ -506,7 +506,7 @@ export const en = {
     downloadComplete: "Update downloaded successfully. Ready to install.",
     installAndRestart: "⚡ Install & Restart Now",
     installing: "Starting update installation…",
-    silentInstall: "Silent install (seamless in-place upgrade)",
+    installModeNotice: "Updates install without a setup wizard, show progress, and reopen Omera when finished.",
     downloadInBrowser: "Download in Browser",
     preserveDataNotice: "💡 Updates preserve your library and settings. Windows updates in place without uninstalling; on macOS and Linux, follow the package installation steps.",
     close: "Close",

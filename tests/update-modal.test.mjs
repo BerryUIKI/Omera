@@ -14,7 +14,7 @@ function updateBoundaries(code) {
     `import { invoke } from "@tauri-apps/api/core";
     const checkForUpdates = () => invoke("check");
     const downloadUpdateAsset = (...args) => invoke("download", args);
-    const installUpdate = (...args) => invoke("install", args);
+    const installUpdate = (path, silent = false) => invoke("install", [path, silent]);
     const openUrl = (...args) => invoke("open", args);`)
     .replace(/import \{ openStorageDir \} from [^;]+;/, 'const openStorageDir = async () => {};');
 }
@@ -26,7 +26,6 @@ function deferred() {
 }
 
 test('one click downloads then installs Windows updates; busy actions cannot duplicate or reset it', async () => {
-  for (const silent of [false, true]) {
     const download = deferred();
     const install = deferred();
     const calls = [];
@@ -38,7 +37,9 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         if (command === 'install') return install.promise;
         assert.fail(command);
       }, async ({ controls: c, props, events, render }) => {
-        c.silentInstall.value = silent;
+        const initial = await render();
+        assert.doesNotMatch(initial, /type="checkbox"/);
+        assert.match(initial, /show progress/);
         const operation = c.handleAutoDownload();
         assert.deepEqual(calls.map(([command]) => command), ['check', 'download']);
         calls[1][1][2]({ downloaded_bytes: 25, total_bytes: 100, percent: 25 });
@@ -58,7 +59,7 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         // Wait for the native download boundary to settle.
         await new Promise(resolve => setImmediate(resolve));
         assert.equal(c.installing.value, true);
-        assert.deepEqual(calls.at(-1), ['install', ['C:/updates/Omera setup.exe', silent]]);
+        assert.deepEqual(calls.at(-1), ['install', ['C:/updates/Omera setup.exe', false]]);
         await c.handleInstallAndRestart();
         await c.handleAutoDownload();
         c.handleClose();
@@ -69,7 +70,6 @@ test('one click downloads then installs Windows updates; busy actions cannot dup
         await operation;
         assert.equal(c.busy.value, false);
       }, updateBoundaries);
-  }
 });
 
 test('download or signature failure never starts installation and allows a fresh retry', async () => {

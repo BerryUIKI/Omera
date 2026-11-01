@@ -508,7 +508,7 @@ export const fr: typeof en = {
     downloadComplete: "Téléchargement terminé. Prêt pour l'installation.",
     installAndRestart: "⚡ Installer & redémarrer maintenant",
     installing: "Démarrage de l’installation de la mise à jour…",
-    silentInstall: "Installation silencieuse (mise à niveau directe)",
+    installModeNotice: "Les mises à jour s’installent sans assistant, affichent la progression et rouvrent Omera à la fin.",
     downloadInBrowser: "Télécharger dans le navigateur",
     preserveDataNotice: "💡 Les mises à jour conservent votre bibliothèque et vos réglages. Windows se met à jour sans désinstallation ; sur macOS et Linux, suivez les étapes d’installation du paquet.",
     close: "Fermer",
