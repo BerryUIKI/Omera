@@ -2,6 +2,7 @@ import type { en } from "./en";
 
 export const de: typeof en = {
   layout: {
+    displaySettings: "Anzeigeeinstellungen",
     resizeSidebar: "Seitenleiste vergrößern/verkleinern",
     resizeInspector: "Detailbereich vergrößern/verkleinern",
     resizeHint: "Ziehen oder Pfeiltasten verwenden. Doppelklick oder Enter setzt die Breite zurück.",

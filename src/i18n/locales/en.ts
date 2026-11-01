@@ -1,5 +1,6 @@
 export const en = {
   layout: {
+    displaySettings: "Display settings",
     resizeSidebar: "Resize sidebar",
     resizeInspector: "Resize details panel",
     resizeHint: "Drag or use arrow keys to resize. Double-click or press Enter to reset.",

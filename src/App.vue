@@ -43,6 +43,7 @@ import {
   resolveStackHeroPaths,
   summarizeResultStacks,
 } from "./utils/stack";
+import DisplaySettings from "./components/DisplaySettings.vue";
 import SortBar from "./components/SortBar.vue";
 import SearchBar from "./components/SearchBar.vue";
 import InspectorPane from "./components/InspectorPane.vue";
@@ -2503,6 +2504,7 @@ function onResetZoom() {
 
           <!-- Sort, Zoom, and View Mode Actions -->
           <div class="topbar-right">
+            <DisplaySettings>
             <!-- Sort Bar -->
             <SortBar
               v-model:sort-field="sortField"
@@ -2520,10 +2522,48 @@ function onResetZoom() {
                 max="360"
                 step="10"
                 class="zoom-slider"
+                :aria-label="t.preview.zoomGrid"
               />
               <span class="zoom-icon large">◼</span>
             </div>
 
+            <!-- View Mode Switch -->
+            <div class="view-mode-toggle">
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: viewMode === 'masonry' }"
+                :title="t.view.masonry"
+                :aria-label="t.view.masonry"
+                :aria-pressed="viewMode === 'masonry'"
+                @click="setViewMode('masonry')"
+              >
+                <AppIcon name="waterfall" />
+              </button>
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: viewMode === 'grid' }"
+                :title="t.view.grid"
+                :aria-label="t.view.grid"
+                :aria-pressed="viewMode === 'grid'"
+                @click="setViewMode('grid')"
+              >
+                <AppIcon name="grid" />
+              </button>
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: viewMode === 'table' }"
+                :title="t.view.table"
+                :aria-label="t.view.table"
+                :aria-pressed="viewMode === 'table'"
+                @click="setViewMode('table')"
+              >
+                <AppIcon name="table" />
+              </button>
+            </div>
+            </DisplaySettings>
             <button
               type="button"
               class="session-mask-btn"
@@ -2537,36 +2577,7 @@ function onResetZoom() {
               {{ blurNsfw ? t.view.maskingOn : t.view.contentVisible }}
             </button>
 
-            <!-- View Mode Switch -->
-            <div class="view-mode-toggle">
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: viewMode === 'masonry' }"
-                :title="t.view.masonry"
-                @click="setViewMode('masonry')"
-              >
-                <AppIcon name="waterfall" />
-              </button>
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: viewMode === 'grid' }"
-                :title="t.view.grid"
-                @click="setViewMode('grid')"
-              >
-                <AppIcon name="grid" />
-              </button>
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: viewMode === 'table' }"
-                :title="t.view.table"
-                @click="setViewMode('table')"
-              >
-                <AppIcon name="table" />
-              </button>
-            </div>
+
           </div>
         </div>
 
@@ -3168,7 +3179,7 @@ function onResetZoom() {
   padding: 3px 6px;
   border-radius: 5px;
   border: 1px solid var(--border-color);
-  height: 28px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -3210,7 +3221,7 @@ function onResetZoom() {
   border: 1px solid var(--border-color);
   border-radius: 5px;
   overflow: hidden;
-  height: 28px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -3303,11 +3314,6 @@ function onResetZoom() {
 }
 
 /* Responsive Adaptive Breakpoints */
-@media (max-width: 1100px) {
-  .zoom-slider-wrapper {
-    display: none;
-  }
-}
 
 @media (max-width: 900px) {
   .filter-label {
