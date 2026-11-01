@@ -1,6 +1,32 @@
 import type { en } from "./en";
 
 export const zhTW: typeof en = {
+  tasks: {
+    title: "背景工作",
+    export: "匯出",
+    modelDownload: "模型下載",
+    running: "進行中",
+    completed: "已完成",
+    failed: "失敗",
+    canceled: "已取消",
+    dismiss: "移除紀錄",
+    empty: "暫無工作紀錄",
+    partialFailure: "部分檔案未能匯出。",
+    output: "查看輸出",
+    pendingChanges: "待處理變更",
+    lastReconciled: "上次同步",
+    status: "狀態",
+    thumbnails: "縮圖",
+    diagnostics: "診斷",
+    inFlight: "正在處理",
+    queuedBatches: "排隊批次",
+    memoryCache: "記憶體快取",
+    cacheHits: "快取命中",
+    scanner: "掃描",
+    discovering: "正在探索檔案",
+    processed: "已處理",
+    roots: "目錄",
+  },
   layout: {
     resizeSidebar: "調整側欄寬度",
     resizeInspector: "調整詳細資料欄寬度",

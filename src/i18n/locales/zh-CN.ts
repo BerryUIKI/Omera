@@ -1,6 +1,32 @@
 import type { en } from "./en";
 
 export const zhCN: typeof en = {
+  tasks: {
+    title: "后台任务",
+    export: "导出",
+    modelDownload: "模型下载",
+    running: "进行中",
+    completed: "已完成",
+    failed: "失败",
+    canceled: "已取消",
+    dismiss: "移除记录",
+    empty: "暂无任务记录",
+    partialFailure: "部分文件未能导出。",
+    output: "查看输出",
+    pendingChanges: "待处理变更",
+    lastReconciled: "上次同步",
+    status: "状态",
+    thumbnails: "缩略图",
+    diagnostics: "诊断",
+    inFlight: "正在处理",
+    queuedBatches: "排队批次",
+    memoryCache: "内存缓存",
+    cacheHits: "缓存命中",
+    scanner: "扫描",
+    discovering: "正在发现文件",
+    processed: "已处理",
+    roots: "目录",
+  },
   layout: {
     resizeSidebar: "调整侧栏宽度",
     resizeInspector: "调整详情栏宽度",

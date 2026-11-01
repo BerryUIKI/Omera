@@ -2,7 +2,8 @@
 import { ref, computed, watch, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { runBackgroundTask, isTaskActive } from "../utils/background-tasks";
+import { subscribeTaskEvents } from "../utils/task-events";
 import { t } from "../i18n";
 import type {
   ExportEstimateResult,
@@ -41,7 +42,7 @@ const destinationPath = ref<string>("");
 const exportHtmlShowcase = ref<boolean>(false);
 const htmlTitle = ref<string>("");
 
-const exporting = ref<boolean>(false);
+const exporting = computed(() => isTaskActive("export"));
 const progress = ref<ExportProgressEvent | null>(null);
 const summary = ref<ExportSummary | null>(null);
 const error = ref<string | null>(null);
@@ -50,7 +51,7 @@ const estimate = ref<ExportEstimateResult | null>(null);
 const estimating = ref<boolean>(false);
 let estimateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-let unlistenProgress: UnlistenFn[] = [];
+
 
 async function runEstimate() {
   if (!props.show || props.files.length === 0) {
@@ -129,30 +130,12 @@ watch(
       summary.value = null;
       progress.value = null;
       error.value = null;
-      exporting.value = false;
       destinationPath.value = "";
       queueEstimate();
 
-      if (unlistenProgress.length === 0) {
-        const u1 = await listen<ExportProgressEvent>(
-          "omera://export-progress",
-          (event) => {
-            progress.value = event.payload;
-          }
-        );
-        const u2 = await listen<ExportProgressEvent>(
-          "berry://export-progress",
-          (event) => {
-            progress.value = event.payload;
-          }
-        );
-        unlistenProgress = [u1, u2];
-      }
     } else {
       if (estimateDebounceTimer) clearTimeout(estimateDebounceTimer);
       estimate.value = null;
-      unlistenProgress.forEach((fn) => fn());
-      unlistenProgress = [];
     }
   },
   { immediate: true }
@@ -160,8 +143,6 @@ watch(
 
 onUnmounted(() => {
   if (estimateDebounceTimer) clearTimeout(estimateDebounceTimer);
-  unlistenProgress.forEach((fn) => fn());
-  unlistenProgress = [];
 });
 
 const previewFilename = computed(() => {
@@ -219,9 +200,8 @@ async function handleBrowseDestination() {
 }
 
 async function handleStartExport() {
-  if (!destinationPath.value.trim() || props.files.length === 0) return;
+  if (exporting.value || !destinationPath.value.trim() || props.files.length === 0) return;
 
-  exporting.value = true;
   summary.value = null;
   error.value = null;
 
@@ -248,13 +228,19 @@ async function handleStartExport() {
   };
 
   try {
-    const res = await invoke<ExportSummary>("export_files_batch", { options });
+    const res = await runBackgroundTask("export", () => invoke<ExportSummary>("export_files_batch", { options }), {
+      subscribe: update => subscribeTaskEvents<ExportProgressEvent>(
+        ["omera://export-progress", "berry://export-progress"], payload => {
+          progress.value = payload;
+          update({ current: payload.current, total: payload.total, detail: payload.current_filename });
+        }),
+      result: value => ({ outputPath: value.output_path,
+        error: value.total_failed > 0 || !value.success ? value.errors.join("\n") || t.value.tasks.partialFailure : undefined }),
+    });
     summary.value = res;
     emit("exported", res);
   } catch (err: any) {
     error.value = typeof err === "string" ? err : err?.message || String(err);
-  } finally {
-    exporting.value = false;
   }
 }
 
