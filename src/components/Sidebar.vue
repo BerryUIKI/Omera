@@ -1001,9 +1001,9 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 
 <style scoped>
 .sidebar-eagle {
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
+  width: var(--sidebar-width, 220px);
+  min-width: var(--sidebar-width, 220px);
+  max-width: var(--sidebar-width, 220px);
   flex-shrink: 0;
   height: 100%;
   background: var(--color-bg-primary);

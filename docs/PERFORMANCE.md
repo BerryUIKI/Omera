@@ -10,6 +10,13 @@ Omera should remain interactive with large local libraries while keeping CPU, me
 
 ## Implemented Safeguards
 
+Panel resizing changes inherited layout widths only; the existing gallery
+ResizeObserver/windowing paths handle geometry updates. Requested panel widths
+are clamped to preserve a usable center and the user's fixed card size. Width
+preferences are written at drag completion or keyboard adjustment, not on each
+pointer movement. No library query, full image decode, or full-library mount is
+introduced by resizing.
+
 ### Cloud media transfer contract
 
 The media worker shares these primitives across all items. Snapshot archive
