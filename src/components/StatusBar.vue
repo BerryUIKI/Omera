@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, nextTick } from "vue";
 import type { AppInfo, ScanProgress } from "../types";
 import { t } from "../i18n";
+import { activeTaskCount } from "../utils/background-tasks";
 import ActivityPopover from "./ActivityPopover.vue";
 import ThumbnailDiagnosticsModal from "./ThumbnailDiagnosticsModal.vue";
 
@@ -16,6 +17,11 @@ const props = defineProps<{
 }>();
 
 const showActivity = ref(false);
+const activityTrigger = ref<HTMLButtonElement | null>(null);
+function closeActivity() {
+  showActivity.value = false;
+  void nextTick(() => activityTrigger.value?.focus());
+}
 const showDiagnosticsModal = ref(false);
 
 const progressPercent = computed(() => {
@@ -84,18 +90,21 @@ const thumbPercent = computed(() => {
           ></div>
         </div>
       </div>
+      <span v-else-if="activeTaskCount" class="ready-badge">{{ t.tasks.running }} · {{ activeTaskCount }}</span>
       <span v-else class="ready-badge">{{ t.statusbar.ready }}</span>
 
       <!-- Activity Popover Toggle Button -->
       <button
         type="button"
+        ref="activityTrigger"
         class="activity-toggle-btn"
+        :aria-expanded="showActivity"
         :class="{ active: showActivity }"
         :title="t.statusbar.activity"
         @click.stop="showActivity = !showActivity"
       >
         <span class="activity-dot"></span>
-        <span>⚡ {{ t.statusbar.activity }}</span>
+        <span>⚡ {{ t.statusbar.activity }}<template v-if="activeTaskCount"> ({{ activeTaskCount }})</template></span>
       </button>
     </div>
 
@@ -104,7 +113,7 @@ const thumbPercent = computed(() => {
       :open="showActivity"
       :scan-progress="progress"
       :thumb-progress="thumbProgress"
-      @close="showActivity = false"
+      @close="closeActivity"
       @open-thumbnail-diagnostics="showDiagnosticsModal = true"
     />
 
@@ -118,15 +127,15 @@ const thumbPercent = computed(() => {
 
 <style scoped>
 .statusbar {
-  height: 26px;
-  min-height: 26px;
+  height: 32px;
+  min-height: 32px;
   background: var(--color-bg-primary);
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
-  font-size: 0.72rem;
+  font-size: 13px;
   color: var(--color-text-muted);
   user-select: none;
   z-index: 90;
@@ -238,7 +247,7 @@ const thumbPercent = computed(() => {
   padding: 2px 8px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 13px;
   font-family: inherit;
   transition: all 0.15s ease;
 }
