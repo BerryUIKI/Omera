@@ -1,6 +1,39 @@
 import type { en } from "./en";
 
 export const de: typeof en = {
+  tasks: {
+    updateDownload: "Update-Download",
+    title: "Hintergrundaufgaben",
+    export: "Export",
+    modelDownload: "Modell-Download",
+    running: "Läuft",
+    completed: "Abgeschlossen",
+    failed: "Fehlgeschlagen",
+    canceled: "Abgebrochen",
+    dismiss: "Eintrag entfernen",
+    empty: "Keine letzten Aufgaben",
+    partialFailure: "Einige Dateien konnten nicht exportiert werden.",
+    output: "Ausgabe anzeigen",
+    pendingChanges: "Ausstehende Änderungen",
+    lastReconciled: "Letzter Abgleich",
+    status: "Status",
+    thumbnails: "Vorschaubilder",
+    diagnostics: "Diagnose",
+    inFlight: "In Bearbeitung",
+    queuedBatches: "Wartende Stapel",
+    memoryCache: "Speichercache",
+    cacheHits: "Cache-Treffer",
+    scanner: "Scanner",
+    discovering: "Suche läuft",
+    processed: "Verarbeitet",
+    roots: "Ordner",
+  },
+  layout: {
+    displaySettings: "Anzeigeeinstellungen",
+    resizeSidebar: "Seitenleiste vergrößern/verkleinern",
+    resizeInspector: "Detailbereich vergrößern/verkleinern",
+    resizeHint: "Ziehen oder Pfeiltasten verwenden. Doppelklick oder Enter setzt die Breite zurück.",
+  },
   installer: {
     languageTitle: "Sprache des Installationsprogramms",
     languagePrompt: "Wählen Sie die Sprache für die Installation.",
@@ -485,6 +518,10 @@ export const de: typeof en = {
     about: "Über Omera",
   },
   updater: {
+    verifying: "Update-Paket wird geprüft…",
+    otherOptions: "Weitere Optionen",
+    later: "Später",
+
     title: "Nach Updates suchen",
     checkingTitle: "Suche nach Updates...",
     checkingDesc: "Verbinde mit GitHub Releases, um nach der neuesten Version zu suchen.",
@@ -508,9 +545,9 @@ export const de: typeof en = {
     downloadComplete: "Download abgeschlossen. Bereit zur Installation.",
     installAndRestart: "⚡ Jetzt installieren & neu starten",
     installing: "Update-Installation wird gestartet…",
-    silentInstall: "Stille Installation (nahtlose Aktualisierung)",
+    installModeNotice: "Updates werden ohne Einrichtungsassistenten installiert, zeigen den Fortschritt an und öffnen Omera nach Abschluss erneut.",
     downloadInBrowser: "Im Browser herunterladen",
-    preserveDataNotice: "💡 Updates erhalten Ihre Bibliothek und Einstellungen. Windows aktualisiert ohne Deinstallation; unter macOS und Linux folgen Sie den Installationsschritten des Pakets.",
+    preserveDataNotice: "Bibliothek und Einstellungen bleiben beim Update erhalten.",
     close: "Schließen",
   },
   settings: {

@@ -8,7 +8,7 @@ Wählen Sie **Hilfe > Nach Updates suchen**. Die Prüfung beim Start lässt sich
 
 ## Herunterladen und installieren
 
-1. Wählen Sie unter Windows **Jetzt aktualisieren**, um das Update mit einem Klick herunterzuladen und zu installieren. Die stille Installation lässt sich vorher auswählen. Unter macOS/Linux wählen Sie zuerst **Update herunterladen**.
+1. Wählen Sie unter Windows **Jetzt aktualisieren**, um das Update herunterzuladen und zu installieren. Die Installation zeigt den Fortschritt ohne Einrichtungsassistenten und öffnet Omera nach Abschluss erneut. Unter macOS/Linux wählen Sie zuerst **Update herunterladen**.
 2. Omera prüft das heruntergeladene Paket und seine Signatur erneut vor dem Start des Installationsprogramms. Schlägt die Prüfung fehl, wird nicht installiert. Bei einem Startfehler können Sie das heruntergeladene Paket erneut verwenden.
 3. Windows aktualisiert die vorhandene Anwendung ohne separaten Deinstallationsschritt und öffnet Omera nach Erfolg erneut. Unter macOS öffnen Sie über die Installationsaktion das geprüfte DMG, schließen die Installation ab und öffnen Omera erneut. Unter Linux startet die Installationsaktion ein AppImage; DEB/RPM-Pakete benötigen den Paketmanager. Unter macOS/Linux ist ein automatischer Neustart nicht garantiert.
 

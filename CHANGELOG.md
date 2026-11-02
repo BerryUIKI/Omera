@@ -5,6 +5,35 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-11-01
+
+### Changed
+
+- Align sidebar text, icons, rounded corners, spacing and click targets while
+  preserving navigation, colors and interactions.
+- Add bounded mouse/keyboard panel resizing with per-device width preferences,
+  keeping gallery card widths fixed and work proportional to the visible range.
+- Use shared line icons and larger prompt/release-note reading text.
+- Keep sorting, view modes and thumbnail size available in a compact display
+  disclosure in narrow galleries; retain direct search, filter and privacy controls.
+- Extend Activity with bounded session-local export, model-download and update
+  history. Progress survives dialog teardown; duplicate operations are blocked
+  and partial export failures retain their error and output path.
+
+### Fixed
+
+- Default Windows updates to unattended installation with visible progress and
+  automatic relaunch. Remove the hidden-install checkbox from the update flow.
+- Render release-note Markdown safely and select authored notes in all seven
+  application languages. Group fallback actions and show signature verification
+  separately from byte transfer and installer launch.
+
+### Compatibility
+
+- Pre-1.0 legacy discovery/import and separately confirmed legacy cleanup remain.
+- Automated regression checks pass. The complete native installed-upgrade matrix
+  remains pending (#256); browser fixtures do not qualify real installations.
+
 ## [0.5.1] - 2026-10-30
 
 ### Fixed

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { runBackgroundTask, isTaskActive } from "../utils/background-tasks";
+import { subscribeTaskEvents } from "../utils/task-events";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { t } from "../i18n";
 import type {
@@ -82,10 +83,10 @@ const isApplyingBatch = ref(false);
 const isApplying = computed(() => isApplyingCurrent.value || isApplyingBatch.value);
 const batchController = new BatchAutoTagController();
 const batchProgress = ref<BatchTagProgress | null>(null);
-const isDownloading = ref(false);
+const isDownloading = computed(() => isTaskActive("modelDownload"));
 const downloadProgress = ref<TaggerDownloadProgress | null>(null);
 const downloadSource = ref<"auto" | "modelscope" | "hf-mirror" | "huggingface">("auto");
-let unlistenDownload: UnlistenFn | null = null;
+
 const predictions = ref<TagPrediction[]>([]);
 const message = ref<{ type: "success" | "error" | "info" | "warning"; text: string } | null>(null);
 
@@ -334,17 +335,21 @@ function getDownloadStatusText(): string {
 
 async function startDownloadModel() {
   if (isDownloading.value) return;
-  isDownloading.value = true;
   downloadProgress.value = null;
   message.value = null;
 
   try {
-    const summary = await invoke<TaggerModelSummary>("download_tagger_model", {
+    const summary = await runBackgroundTask("modelDownload", () => invoke<TaggerModelSummary>("download_tagger_model", {
       options: {
         model_id: "wd-v1-4-convnext-tagger-v2",
         mirror: downloadSource.value,
       },
       source: downloadSource.value,
+    }), {
+      subscribe: update => subscribeTaskEvents<TaggerDownloadProgress>(["tagger-download-progress"], payload => {
+        downloadProgress.value = payload;
+        update({ current: payload.downloaded_bytes, total: payload.total_bytes, detail: payload.current_file });
+      }),
     });
     message.value = {
       type: "success",
@@ -368,7 +373,6 @@ async function startDownloadModel() {
       };
     }
   } finally {
-    isDownloading.value = false;
     downloadProgress.value = null;
   }
 }
@@ -376,7 +380,6 @@ async function startDownloadModel() {
 async function cancelDownload() {
   try {
     await invoke("cancel_tagger_download");
-    isDownloading.value = false;
     downloadProgress.value = null;
     message.value = {
       type: "error",
@@ -416,27 +419,9 @@ watch(
   { immediate: true },
 );
 
-onMounted(async () => {
-  window.addEventListener("keydown", handleKeydown);
-  try {
-    unlistenDownload = await listen<TaggerDownloadProgress>(
-      "tagger-download-progress",
-      (event) => {
-        downloadProgress.value = event.payload;
-      },
-    );
-  } catch (err) {
-    console.error("Failed to listen to tagger-download-progress:", err);
-  }
-});
+onMounted(() => window.addEventListener("keydown", handleKeydown));
+onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
-  if (unlistenDownload) {
-    unlistenDownload();
-    unlistenDownload = null;
-  }
-});
 </script>
 
 <template>

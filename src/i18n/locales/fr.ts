@@ -1,6 +1,39 @@
 import type { en } from "./en";
 
 export const fr: typeof en = {
+  tasks: {
+    updateDownload: "Téléchargement de la mise à jour",
+    title: "Tâches en arrière-plan",
+    export: "Exportation",
+    modelDownload: "Téléchargement du modèle",
+    running: "En cours",
+    completed: "Terminé",
+    failed: "Échec",
+    canceled: "Annulé",
+    dismiss: "Retirer de l’historique",
+    empty: "Aucune tâche récente",
+    partialFailure: "Certains fichiers n’ont pas pu être exportés.",
+    output: "Afficher la sortie",
+    pendingChanges: "Modifications en attente",
+    lastReconciled: "Dernière synchronisation",
+    status: "État",
+    thumbnails: "Miniatures",
+    diagnostics: "Diagnostic",
+    inFlight: "En traitement",
+    queuedBatches: "Lots en attente",
+    memoryCache: "Cache mémoire",
+    cacheHits: "Accès au cache",
+    scanner: "Analyse",
+    discovering: "Recherche de fichiers",
+    processed: "Traités",
+    roots: "Dossiers",
+  },
+  layout: {
+    displaySettings: "Options d’affichage",
+    resizeSidebar: "Redimensionner la barre latérale",
+    resizeInspector: "Redimensionner le panneau de détails",
+    resizeHint: "Glissez ou utilisez les flèches. Double-cliquez ou appuyez sur Entrée pour réinitialiser.",
+  },
   installer: {
     languageTitle: "Langue de l’installation",
     languagePrompt: "Choisissez la langue de l’installation.",
@@ -485,6 +518,10 @@ export const fr: typeof en = {
     about: "À propos d'Omera",
   },
   updater: {
+    verifying: "Vérification du paquet de mise à jour…",
+    otherOptions: "Autres options",
+    later: "Plus tard",
+
     title: "Vérification des mises à jour",
     checkingTitle: "Recherche de mises à jour...",
     checkingDesc: "Connexion à GitHub Releases pour vérifier la dernière version.",
@@ -508,9 +545,9 @@ export const fr: typeof en = {
     downloadComplete: "Téléchargement terminé. Prêt pour l'installation.",
     installAndRestart: "⚡ Installer & redémarrer maintenant",
     installing: "Démarrage de l’installation de la mise à jour…",
-    silentInstall: "Installation silencieuse (mise à niveau directe)",
+    installModeNotice: "Les mises à jour s’installent sans assistant, affichent la progression et rouvrent Omera à la fin.",
     downloadInBrowser: "Télécharger dans le navigateur",
-    preserveDataNotice: "💡 Les mises à jour conservent votre bibliothèque et vos réglages. Windows se met à jour sans désinstallation ; sur macOS et Linux, suivez les étapes d’installation du paquet.",
+    preserveDataNotice: "La mise à jour conserve votre bibliothèque et vos réglages.",
     close: "Fermer",
   },
   settings: {

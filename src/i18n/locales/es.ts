@@ -1,6 +1,39 @@
 import type { en } from "./en";
 
 export const es: typeof en = {
+  tasks: {
+    updateDownload: "Descarga de actualización",
+    title: "Tareas en segundo plano",
+    export: "Exportación",
+    modelDownload: "Descarga del modelo",
+    running: "En curso",
+    completed: "Completado",
+    failed: "Error",
+    canceled: "Cancelado",
+    dismiss: "Quitar del historial",
+    empty: "No hay tareas recientes",
+    partialFailure: "No se pudieron exportar algunos archivos.",
+    output: "Mostrar salida",
+    pendingChanges: "Cambios pendientes",
+    lastReconciled: "Última sincronización",
+    status: "Estado",
+    thumbnails: "Miniaturas",
+    diagnostics: "Diagnóstico",
+    inFlight: "En proceso",
+    queuedBatches: "Lotes en cola",
+    memoryCache: "Caché de memoria",
+    cacheHits: "Aciertos de caché",
+    scanner: "Análisis",
+    discovering: "Buscando archivos",
+    processed: "Procesados",
+    roots: "Carpetas",
+  },
+  layout: {
+    displaySettings: "Opciones de visualización",
+    resizeSidebar: "Cambiar ancho de la barra lateral",
+    resizeInspector: "Cambiar ancho del panel de detalles",
+    resizeHint: "Arrastra o usa las flechas. Haz doble clic o pulsa Intro para restablecer.",
+  },
   installer: {
     languageTitle: "Idioma del instalador",
     languagePrompt: "Elija el idioma de la instalación.",
@@ -485,6 +518,10 @@ export const es: typeof en = {
     about: "Acerca de Omera",
   },
   updater: {
+    verifying: "Verificando el paquete de actualización…",
+    otherOptions: "Otras opciones",
+    later: "Más tarde",
+
     title: "Buscar actualizaciones",
     checkingTitle: "Buscando actualizaciones...",
     checkingDesc: "Conectando con GitHub Releases para comprobar la última versión.",
@@ -508,9 +545,9 @@ export const es: typeof en = {
     downloadComplete: "Descarga completada. Listo para instalar.",
     installAndRestart: "⚡ Instalar y reiniciar ahora",
     installing: "Iniciando la instalación de la actualización…",
-    silentInstall: "Instalación silenciosa (actualización en segundo plano)",
+    installModeNotice: "Las actualizaciones se instalan sin asistente, muestran el progreso y vuelven a abrir Omera al finalizar.",
     downloadInBrowser: "Descargar en el navegador",
-    preserveDataNotice: "💡 Las actualizaciones conservan su biblioteca y ajustes. Windows se actualiza sin desinstalar; en macOS y Linux, siga los pasos de instalación del paquete.",
+    preserveDataNotice: "La actualización conserva la biblioteca y los ajustes.",
     close: "Cerrar",
   },
   settings: {

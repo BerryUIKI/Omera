@@ -71,6 +71,8 @@ jobs:
 
       - name: Check IPC reference for drift
         run: node scripts/generate-ipc-reference.mjs --check
+      - name: Check localized release notes
+        run: node scripts/generate-release-notes.mjs --check
 
       - name: Check formatting
         run: cargo fmt --all -- --check

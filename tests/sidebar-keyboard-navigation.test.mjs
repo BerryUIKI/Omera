@@ -23,7 +23,8 @@ function loadProductionComponent(relativePath, componentId) {
     compilerOptions: { bindingMetadata: script.bindings },
   });
 
-  let scriptCode = script.content.replace("export default", "const component =");
+  let scriptCode = script.content.replace("export default", "const component =")
+    .replace(/import AppIcon from [^;]+;/, 'const AppIcon = { ssrRender(_ctx, push) { push(`<svg aria-hidden="true"></svg>`); } };');
 
   // Mock i18n
   const mockI18n = `

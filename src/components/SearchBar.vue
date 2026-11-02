@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { t } from "../i18n";
 
@@ -254,7 +255,7 @@ function toggleMode() {
         :title="isSemantic ? t.search.semanticSearch : t.search.syntaxSearch"
         @click="toggleMode"
       >
-        <span class="mode-icon">{{ isSemantic ? '🧠' : '🔍' }}</span>
+        <span class="mode-icon"><AppIcon :name="isSemantic ? 'sparkles' : 'search'" /></span>
       </button>
 
       <input

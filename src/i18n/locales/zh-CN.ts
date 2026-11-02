@@ -1,6 +1,39 @@
 import type { en } from "./en";
 
 export const zhCN: typeof en = {
+  tasks: {
+    updateDownload: "更新包下载",
+    title: "后台任务",
+    export: "导出",
+    modelDownload: "模型下载",
+    running: "进行中",
+    completed: "已完成",
+    failed: "失败",
+    canceled: "已取消",
+    dismiss: "移除记录",
+    empty: "暂无任务记录",
+    partialFailure: "部分文件未能导出。",
+    output: "查看输出",
+    pendingChanges: "待处理变更",
+    lastReconciled: "上次同步",
+    status: "状态",
+    thumbnails: "缩略图",
+    diagnostics: "诊断",
+    inFlight: "正在处理",
+    queuedBatches: "排队批次",
+    memoryCache: "内存缓存",
+    cacheHits: "缓存命中",
+    scanner: "扫描",
+    discovering: "正在发现文件",
+    processed: "已处理",
+    roots: "目录",
+  },
+  layout: {
+    displaySettings: "显示设置",
+    resizeSidebar: "调整侧栏宽度",
+    resizeInspector: "调整详情栏宽度",
+    resizeHint: "拖动或使用方向键调整宽度；双击或按 Enter 恢复默认。",
+  },
   installer: {
     languageTitle: "安装器语言",
     languagePrompt: "请选择安装程序使用的语言。",
@@ -485,6 +518,10 @@ export const zhCN: typeof en = {
     about: "关于 Omera",
   },
   updater: {
+    verifying: "正在验证更新包…",
+    otherOptions: "其他选项",
+    later: "稍后",
+
     title: "检查更新",
     checkingTitle: "正在检查更新...",
     checkingDesc: "正在连接 GitHub Releases 获取最新版本信息。",
@@ -508,9 +545,9 @@ export const zhCN: typeof en = {
     downloadComplete: "更新包下载完毕，准备安装",
     installAndRestart: "⚡ 立即安装并重启",
     installing: "正在启动更新安装…",
-    silentInstall: "静默覆盖安装 (免向导就地升级)",
+    installModeNotice: "更新无需操作安装向导，会显示安装进度，完成后自动打开 Omera。",
     downloadInBrowser: "在浏览器中下载",
-    preserveDataNotice: "💡 更新会保留图库与设置。Windows 可直接覆盖升级，无需先卸载；macOS 和 Linux 请按安装包提示完成更新。",
+    preserveDataNotice: "更新会保留图库与设置。",
     close: "关闭",
   },
   settings: {

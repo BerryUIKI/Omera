@@ -1,9 +1,12 @@
 :root {
   color-scheme: dark;
   /* Layout Dimensions */
-  --sidebar-width: 280px;
-  --panel-width: 350px;
+  --sidebar-width: 220px;
+  --panel-width: 280px;
   --header-height: 48px;
+
+  --font-reading: 14px;
+  --line-reading: 1.6;
 
   /* Spacing */
   --spacing-xs: 4px;

@@ -1,6 +1,39 @@
 import type { en } from "./en";
 
 export const zhTW: typeof en = {
+  tasks: {
+    updateDownload: "更新套件下載",
+    title: "背景工作",
+    export: "匯出",
+    modelDownload: "模型下載",
+    running: "進行中",
+    completed: "已完成",
+    failed: "失敗",
+    canceled: "已取消",
+    dismiss: "移除紀錄",
+    empty: "暫無工作紀錄",
+    partialFailure: "部分檔案未能匯出。",
+    output: "查看輸出",
+    pendingChanges: "待處理變更",
+    lastReconciled: "上次同步",
+    status: "狀態",
+    thumbnails: "縮圖",
+    diagnostics: "診斷",
+    inFlight: "正在處理",
+    queuedBatches: "排隊批次",
+    memoryCache: "記憶體快取",
+    cacheHits: "快取命中",
+    scanner: "掃描",
+    discovering: "正在探索檔案",
+    processed: "已處理",
+    roots: "目錄",
+  },
+  layout: {
+    displaySettings: "顯示設定",
+    resizeSidebar: "調整側欄寬度",
+    resizeInspector: "調整詳細資料欄寬度",
+    resizeHint: "拖曳或使用方向鍵調整寬度；按兩下或按 Enter 恢復預設。",
+  },
   installer: {
     languageTitle: "安裝程式語言",
     languagePrompt: "請選擇安裝程式使用的語言。",
@@ -485,6 +518,10 @@ export const zhTW: typeof en = {
     about: "關於 Omera",
   },
   updater: {
+    verifying: "正在驗證更新套件…",
+    otherOptions: "其他選項",
+    later: "稍後",
+
     title: "檢查更新",
     checkingTitle: "正在檢查更新...",
     checkingDesc: "正在連線至 GitHub Releases 取得最新版本資訊。",
@@ -508,9 +545,9 @@ export const zhTW: typeof en = {
     downloadComplete: "更新套件下載完畢，準備安裝",
     installAndRestart: "⚡ 立即安裝並重啟",
     installing: "正在啟動更新安裝…",
-    silentInstall: "無訊息覆蓋安裝 (免精靈就地升級)",
+    installModeNotice: "更新無需操作安裝精靈，會顯示安裝進度，完成後自動開啟 Omera。",
     downloadInBrowser: "在瀏覽器中下載",
-    preserveDataNotice: "💡 更新會保留圖庫與設定。Windows 可直接覆蓋升級，無需先解除安裝；macOS 和 Linux 請依安裝套件提示完成更新。",
+    preserveDataNotice: "更新會保留圖庫與設定。",
     close: "關閉",
   },
   settings: {

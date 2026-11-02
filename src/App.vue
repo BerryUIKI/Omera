@@ -31,6 +31,9 @@ import { getFileName } from "./utils/image";
 import TitleBar from "./components/TitleBar.vue";
 import MenuBar from "./components/MenuBar.vue";
 import Sidebar from "./components/Sidebar.vue";
+import AppIcon from "./components/AppIcon.vue";
+import PanelResizeHandle from "./components/PanelResizeHandle.vue";
+import { readPanelWidths, fitPanelWidths, panelBounds } from "./utils/panel-layout";
 import FileList from "./components/FileList.vue";
 import VirtualGrid from "./components/VirtualGrid.vue";
 import {
@@ -40,6 +43,7 @@ import {
   resolveStackHeroPaths,
   summarizeResultStacks,
 } from "./utils/stack";
+import DisplaySettings from "./components/DisplaySettings.vue";
 import SortBar from "./components/SortBar.vue";
 import SearchBar from "./components/SearchBar.vue";
 import InspectorPane from "./components/InspectorPane.vue";
@@ -140,6 +144,26 @@ const similarityLimit = ref<number>(
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
 const lightboxFile = ref<ImageFile | null>(null);
+const studioLayoutRef = ref<HTMLElement | null>(null);
+const layoutViewport = ref(typeof window === "undefined" ? 1280 : window.innerWidth);
+const panelWidths = ref(readPanelWidths(getStorageItem));
+const galleryMinimum = computed(() => Math.max(320, gridItemWidth.value + 24));
+const fittedPanels = computed(() => fitPanelWidths(panelWidths.value, layoutViewport.value, sidebarOpen.value, inspectorOpen.value, galleryMinimum.value));
+const sidebarMax = computed(() => Math.min(panelBounds.sidebar.max, Math.max(panelBounds.sidebar.min,
+  layoutViewport.value - galleryMinimum.value - 12 - (inspectorOpen.value ? fittedPanels.value.inspector : 0))));
+const inspectorMax = computed(() => Math.min(panelBounds.inspector.max, Math.max(panelBounds.inspector.min,
+  layoutViewport.value - galleryMinimum.value - 12 - (sidebarOpen.value ? fittedPanels.value.sidebar : 0))));
+function savePanelWidths() {
+  setStorageItem("layout_sidebar_width", String(panelWidths.value.sidebar));
+  setStorageItem("layout_inspector_width", String(panelWidths.value.inspector));
+}
+let layoutObserver: ResizeObserver | null = null;
+onMounted(() => {
+  if (!studioLayoutRef.value || typeof ResizeObserver === "undefined") return;
+  layoutObserver = new ResizeObserver(([entry]) => { layoutViewport.value = entry.contentRect.width; });
+  layoutObserver.observe(studioLayoutRef.value);
+});
+onUnmounted(() => layoutObserver?.disconnect());
 
 // Modals
 const updateModalOpen = ref(false);
@@ -931,7 +955,7 @@ function onSelectNav(target: NavTarget) {
 
 const targetTitle = computed(() => {
   if (similaritySourceFile.value) {
-    return `🔍 ${t.value.preview.similaritySearchTitle} ${getFileName(similaritySourceFile.value.path)}`;
+    return `${t.value.preview.similaritySearchTitle} ${getFileName(similaritySourceFile.value.path)}`;
   }
   switch (activeTarget.value.type) {
     case "all":
@@ -944,7 +968,7 @@ const targetTitle = computed(() => {
       const rootName = activeTarget.value.folder.path.split(/[\\/]/).pop() || activeTarget.value.folder.path;
       if (activeTarget.value.subfolderPath) {
         const subName = activeTarget.value.subfolderPath.split(/[\\/]/).pop() || activeTarget.value.subfolderPath;
-        return `📁 ${rootName} / ${subName}`;
+        return `${rootName} / ${subName}`;
       }
       return rootName;
     }
@@ -2393,7 +2417,7 @@ function onResetZoom() {
     </Transition>
 
     <!-- Main Three-Pane Studio Layout -->
-    <div class="studio-layout">
+    <div ref="studioLayoutRef" class="studio-layout" :style="{ '--sidebar-width': `${fittedPanels.sidebar}px`, '--panel-width': `${fittedPanels.inspector}px` }">
       <!-- Left Sidebar (Collapsible) -->
       <Sidebar
         v-if="sidebarOpen"
@@ -2425,6 +2449,9 @@ function onResetZoom() {
       />
 
       <!-- Center Gallery Canvas (Eagle Grid/Waterfall) -->
+      <PanelResizeHandle v-if="sidebarOpen" :model-value="fittedPanels.sidebar" :min="panelBounds.sidebar.min" :max="sidebarMax"
+        :initial="panelBounds.sidebar.initial" side="left" :label="t.layout.resizeSidebar" :hint="t.layout.resizeHint"
+        @update:model-value="panelWidths.sidebar = $event" @change="savePanelWidths" />
       <main class="gallery-canvas">
         <!-- Top Toolbar -->
         <div v-show="!lightboxFile" class="gallery-topbar">
@@ -2467,7 +2494,7 @@ function onResetZoom() {
               :title="t.search.filters"
               @click="filterDrawerOpen = true"
             >
-              <span class="filter-icon">🔍</span>
+              <span class="filter-icon"><AppIcon name="filter" /></span>
               <span class="filter-label">{{ t.search.filters }}</span>
               <span v-if="activeFilterCount > 0" class="filter-count-badge">
                 {{ activeFilterCount }}
@@ -2477,6 +2504,7 @@ function onResetZoom() {
 
           <!-- Sort, Zoom, and View Mode Actions -->
           <div class="topbar-right">
+            <DisplaySettings>
             <!-- Sort Bar -->
             <SortBar
               v-model:sort-field="sortField"
@@ -2494,10 +2522,48 @@ function onResetZoom() {
                 max="360"
                 step="10"
                 class="zoom-slider"
+                :aria-label="t.preview.zoomGrid"
               />
               <span class="zoom-icon large">◼</span>
             </div>
 
+            <!-- View Mode Switch -->
+            <div class="view-mode-toggle">
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: viewMode === 'masonry' }"
+                :title="t.view.masonry"
+                :aria-label="t.view.masonry"
+                :aria-pressed="viewMode === 'masonry'"
+                @click="setViewMode('masonry')"
+              >
+                <AppIcon name="waterfall" />
+              </button>
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: viewMode === 'grid' }"
+                :title="t.view.grid"
+                :aria-label="t.view.grid"
+                :aria-pressed="viewMode === 'grid'"
+                @click="setViewMode('grid')"
+              >
+                <AppIcon name="grid" />
+              </button>
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: viewMode === 'table' }"
+                :title="t.view.table"
+                :aria-label="t.view.table"
+                :aria-pressed="viewMode === 'table'"
+                @click="setViewMode('table')"
+              >
+                <AppIcon name="table" />
+              </button>
+            </div>
+            </DisplaySettings>
             <button
               type="button"
               class="session-mask-btn"
@@ -2507,47 +2573,18 @@ function onResetZoom() {
               aria-keyshortcuts="Shift+M"
               @click="onToggleGlobalMasking"
             >
-              <span aria-hidden="true">{{ blurNsfw ? '🔒' : '👁' }}</span>
+              <AppIcon :name="blurNsfw ? 'lock' : 'eye'" />
               {{ blurNsfw ? t.view.maskingOn : t.view.contentVisible }}
             </button>
 
-            <!-- View Mode Switch -->
-            <div class="view-mode-toggle">
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: viewMode === 'masonry' }"
-                :title="t.view.masonry"
-                @click="setViewMode('masonry')"
-              >
-                ▥
-              </button>
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: viewMode === 'grid' }"
-                :title="t.view.grid"
-                @click="setViewMode('grid')"
-              >
-                ⊞
-              </button>
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: viewMode === 'table' }"
-                :title="t.view.table"
-                @click="setViewMode('table')"
-              >
-                ☰
-              </button>
-            </div>
+
           </div>
         </div>
 
         <!-- Similarity Search Banner -->
         <div v-if="similaritySourceFile && !lightboxFile" class="similarity-banner">
           <div class="similarity-banner-left">
-            <span class="similarity-badge">🔍 {{ t.preview.similaritySearchTitle }}</span>
+            <span class="similarity-badge"><AppIcon name="search" /> {{ t.preview.similaritySearchTitle }}</span>
             <span class="similarity-file-name" :title="getFileName(similaritySourceFile.path)">
               {{ getFileName(similaritySourceFile.path) }}
             </span>
@@ -2690,6 +2727,8 @@ function onResetZoom() {
         </div>
         <LightboxModal
           v-else-if="lightboxFile" ref="lightboxRef" embedded v-model:details-open="inspectorOpen"
+          :panel-width="fittedPanels.inspector" :panel-max="inspectorMax"
+          @update:panel-width="panelWidths.inspector = $event" @panel-resize-end="savePanelWidths"
           :file="lightboxFile"
           :files="files" :total-count="galleryTotal" :has-more="galleryHasMore" :load-more="loadMoreFiles"
           @close="lightboxFile = null"
@@ -2705,6 +2744,9 @@ function onResetZoom() {
       </main>
 
       <!-- Right Inspector Panel (Collapsible) -->
+      <PanelResizeHandle v-if="inspectorOpen && !lightboxFile" :model-value="fittedPanels.inspector" :min="panelBounds.inspector.min" :max="inspectorMax"
+        :initial="panelBounds.inspector.initial" side="right" :label="t.layout.resizeInspector" :hint="t.layout.resizeHint"
+        @update:model-value="panelWidths.inspector = $event" @change="savePanelWidths" />
       <InspectorPane
         v-if="inspectorOpen && !lightboxFile"
         ref="inspectorRef"
@@ -3137,7 +3179,7 @@ function onResetZoom() {
   padding: 3px 6px;
   border-radius: 5px;
   border: 1px solid var(--border-color);
-  height: 28px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -3179,7 +3221,7 @@ function onResetZoom() {
   border: 1px solid var(--border-color);
   border-radius: 5px;
   overflow: hidden;
-  height: 28px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -3272,11 +3314,6 @@ function onResetZoom() {
 }
 
 /* Responsive Adaptive Breakpoints */
-@media (max-width: 1100px) {
-  .zoom-slider-wrapper {
-    display: none;
-  }
-}
 
 @media (max-width: 900px) {
   .filter-label {

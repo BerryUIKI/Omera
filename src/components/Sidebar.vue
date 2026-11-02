@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -646,9 +647,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
               @click="emit('selectNav', { type: 'all' })"
             >
               <span class="item-icon" aria-hidden="true">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-                  <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3zm1 0v10h10V3H3zm2 7.5l2-2.5 1.5 2 2.5-3.5 3 4H4l1-1.5z" />
-                </svg>
+                <AppIcon name="image" />
               </span>
               <span class="item-label">{{ t.nav.allImages }}</span>
               <span v-if="counts" class="item-badge" aria-hidden="true">{{ counts.total }}</span>
@@ -663,7 +662,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
               :aria-label="t.nav.favorites + (counts?.favorites !== undefined ? ` (${counts.favorites})` : '')"
               @click="emit('selectNav', { type: 'favorites' })"
             >
-              <span class="item-icon star-icon" aria-hidden="true">★</span>
+              <span class="item-icon star-icon" aria-hidden="true"><AppIcon name="star" /></span>
               <span class="item-label">{{ t.nav.favorites }}</span>
               <span v-if="counts?.favorites !== undefined" class="item-badge" aria-hidden="true">{{ counts.favorites }}</span>
             </button>
@@ -677,7 +676,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
               :aria-label="t.nav.sensitive + (counts?.nsfw !== undefined ? ` (${counts.nsfw})` : '')"
               @click="emit('selectNav', { type: 'nsfw' })"
             >
-              <span class="item-icon nsfw-icon" aria-hidden="true">🔞</span>
+              <span class="item-icon nsfw-icon" aria-hidden="true"><AppIcon name="shield" /></span>
               <span class="item-label">{{ t.nav.sensitive }}</span>
               <span v-if="counts?.nsfw !== undefined" class="item-badge" aria-hidden="true">{{ counts.nsfw }}</span>
             </button>
@@ -737,7 +736,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
                 @keydown="onFolderKeydown($event, folder)"
               >
                 <span class="item-icon" aria-hidden="true">
-                  {{ folder.folder_type === 'pipeline' ? '⚡' : folder.folder_type === 'managed' ? '📦' : (expandedPaths.has(folder.path) ? '📂' : '📁') }}
+                  <AppIcon :name="folder.folder_type === 'pipeline' ? 'activity' : folder.folder_type === 'managed' ? 'box' : expandedPaths.has(folder.path) ? 'folderOpen' : 'folder'" />
                 </span>
                 <span class="item-label truncate">{{ getFolderName(folder.path) }}</span>
                 <span v-if="counts?.folders" class="item-badge" aria-hidden="true">{{ counts.folders[folder.id] ?? 0 }}</span>
@@ -952,7 +951,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.insights"
           @click="emit('openPromptStats')"
         >
-          <span class="tool-icon" aria-hidden="true">📊</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="chart" /></span>
           <span class="tool-text">{{ t.search.insights }}</span>
         </button>
         <button
@@ -962,7 +961,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.autoTagger"
           @click="emit('openAutoTagger')"
         >
-          <span class="tool-icon" aria-hidden="true">🤖</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="sparkles" /></span>
           <span class="tool-text">{{ t.search.autoTagger }}</span>
         </button>
         <button
@@ -972,7 +971,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.models"
           @click="emit('openModelManager')"
         >
-          <span class="tool-icon" aria-hidden="true">🧠</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="box" /></span>
           <span class="tool-text">{{ t.search.models }}</span>
         </button>
         <button
@@ -982,7 +981,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.database"
           @click="emit('openDbManager')"
         >
-          <span class="tool-icon" aria-hidden="true">🗄️</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="database" /></span>
           <span class="tool-text">{{ t.search.database }}</span>
         </button>
         <button
@@ -992,7 +991,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
           :aria-label="t.search.shortcuts"
           @click="emit('openShortcutsHelp')"
         >
-          <span class="tool-icon" aria-hidden="true">⌨️</span>
+          <span class="tool-icon" aria-hidden="true"><AppIcon name="keyboard" /></span>
           <span class="tool-text">{{ t.search.shortcuts }}</span>
         </button>
       </div>
@@ -1002,9 +1001,9 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 
 <style scoped>
 .sidebar-eagle {
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
+  width: var(--sidebar-width, 220px);
+  min-width: var(--sidebar-width, 220px);
+  max-width: var(--sidebar-width, 220px);
   flex-shrink: 0;
   height: 100%;
   background: var(--color-bg-primary);
@@ -1013,16 +1012,22 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   flex-direction: column;
   user-select: none;
   overflow: hidden;
+  --nav-inset: 12px;
+  --nav-radius: 6px;
+  --nav-row-height: 36px;
+  --nav-font-size: 14px;
+  --nav-icon-size: 13px;
+  --nav-control-size: 28px;
 }
 
 .sidebar-scrollable {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 8px;
+  padding: 12px var(--nav-inset);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
 }
 
 .sidebar-scrollable::-webkit-scrollbar {
@@ -1036,31 +1041,33 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 .nav-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .group-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
+  padding: 0 8px;
+  min-height: 32px;
 }
 
 .group-title {
-  font-size: 0.7rem;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
+  line-height: 18px;
 }
 
 .group-action-btn {
   background: transparent;
   border: none;
   color: #64748b;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
+  width: var(--nav-control-size);
+  height: var(--nav-control-size);
+  border-radius: var(--nav-radius);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1079,7 +1086,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 4px;
 }
 
 .folder-row-container {
@@ -1087,7 +1094,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   align-items: center;
   gap: 2px;
   width: 100%;
-  border-radius: 6px;
+  border-radius: var(--nav-radius);
   position: relative;
   box-sizing: border-box;
 }
@@ -1098,9 +1105,9 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
-  border-radius: 6px;
-  font-size: 0.82rem;
+  padding: 8px;
+  border-radius: var(--nav-radius);
+  font-size: var(--nav-font-size);
   color: #94a3b8;
   cursor: pointer;
   transition: background-color 0.12s, color 0.12s;
@@ -1109,6 +1116,8 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   text-align: left;
   font-family: inherit;
   box-sizing: border-box;
+  min-height: var(--nav-row-height);
+  line-height: 20px;
 }
 
 .folder-item-btn:hover {
@@ -1139,9 +1148,9 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
-  border-radius: 6px;
-  font-size: 0.82rem;
+  padding: 8px;
+  border-radius: var(--nav-radius);
+  font-size: var(--nav-font-size);
   color: #94a3b8;
   cursor: pointer;
   transition: background-color 0.12s, color 0.12s;
@@ -1152,6 +1161,8 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   text-align: left;
   font-family: inherit;
   box-sizing: border-box;
+  min-height: var(--nav-row-height);
+  line-height: 20px;
 }
 
 .nav-item:hover {
@@ -1178,7 +1189,8 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   justify-content: center;
   width: 16px;
   color: #94a3b8;
-  font-size: 0.85rem;
+  font-size: var(--nav-icon-size);
+  flex-shrink: 0;
 }
 
 .nav-item.active .item-icon,
@@ -1188,6 +1200,11 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 
 .item-icon.star-icon {
   color: #fbbf24;
+}
+
+.item-icon :deep(svg) {
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
 }
 
 .item-label {
@@ -1249,14 +1266,14 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   border: none;
   color: #64748b;
   font-size: 0.65rem;
-  width: 16px;
-  height: 16px;
+  width: var(--nav-control-size);
+  height: var(--nav-control-size);
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--nav-radius);
   transition: all 0.12s ease;
   flex-shrink: 0;
 }
@@ -1296,7 +1313,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 4px;
 }
 
 .icon-btn {
@@ -1305,11 +1322,13 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   color: #64748b;
   cursor: pointer;
   padding: 2px;
-  border-radius: 3px;
+  border-radius: var(--nav-radius);
   font-size: 0.72rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: var(--nav-control-size);
+  min-height: var(--nav-control-size);
 }
 
 .icon-btn:hover {
@@ -1325,7 +1344,7 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 }
 
 .tag-search-box {
-  padding: 2px 6px 4px;
+  padding: 0 0 4px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1333,14 +1352,15 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 .tag-search-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   width: 100%;
   box-sizing: border-box;
   background: var(--color-bg-secondary, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 4px;
-  padding: 3px 6px;
+  border-radius: var(--nav-radius);
+  padding: 8px;
   transition: border-color 0.12s, box-shadow 0.12s;
+  min-height: 36px;
 }
 
 .tag-search-input-wrapper:focus-within {
@@ -1363,15 +1383,16 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   border: none;
   outline: none;
   color: var(--color-text-primary, #f1f5f9);
-  font-size: 0.74rem;
+  font-size: 13px;
   font-family: inherit;
   padding: 0;
   box-sizing: border-box;
+  line-height: 20px;
 }
 
 .tag-search-input::placeholder {
   color: #64748b;
-  font-size: 0.72rem;
+  font-size: inherit;
 }
 
 .tag-search-clear-btn {
@@ -1379,9 +1400,9 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
   border: none;
   color: #64748b;
   font-size: 0.68rem;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: var(--nav-control-size);
+  height: var(--nav-control-size);
+  border-radius: var(--nav-radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1409,23 +1430,25 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 .tags-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  padding: 4px 6px;
+  gap: 4px;
+  padding: 0;
 }
 
 .tag-chip-eagle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--nav-radius);
   background: var(--color-bg-hover);
-  font-size: 0.74rem;
+  font-size: 13px;
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.12s;
   border: 1px solid transparent;
   font-family: inherit;
+  min-height: 32px;
+  line-height: 18px;
 }
 
 .tag-chip-eagle:hover {
@@ -1467,32 +1490,34 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 }
 
 .sidebar-footer {
-  padding: 8px 8px 6px;
+  padding: 12px var(--nav-inset);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   background: var(--color-bg-app);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .footer-tools {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   gap: 4px;
 }
 
 .tool-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 6px;
+  gap: 8px;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 5px;
+  border-radius: var(--nav-radius);
   color: #94a3b8;
-  font-size: 0.72rem;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.12s;
+  min-height: 36px;
+  line-height: 20px;
 }
 
 .tool-btn:hover {
@@ -1508,13 +1533,16 @@ function onDropOnTag(e: DragEvent, tag: Tag) {
 }
 
 .tool-icon {
-  font-size: 0.8rem;
+  font-size: 12px;
+  width: 16px;
+  flex-shrink: 0;
 }
 
 .tool-text {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .footer-bottom-row {

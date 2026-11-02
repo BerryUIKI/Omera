@@ -244,6 +244,12 @@ Launch the canonical path whose signature was checked. The
 IPC request/response shape and both signature-verification points are unchanged.
 Command-plan tests do not establish successful installed-version upgrades.
 
+The update dialog always requests the default progress-only installation mode;
+the optional `silent: true` IPC input remains compatible for older callers.
+Release metadata keeps the existing string `body` field. Localized Markdown
+blocks and the version-exact fallback catalog are interpreted in the frontend;
+see [RELEASE_NOTES.md](RELEASE_NOTES.md). No DTO or IPC signature changes apply.
+
 Subscribe to progress before starting an operation and always dispose listeners in `finally` and component teardown. Existing events are global and mostly lack operation IDs; concurrent unrelated jobs may interleave. Do not infer ownership by listening to every event. Adding operation IDs is an explicit cross-layer contract change, not a frontend-only patch.
 
 | Event | Current payload/source | Lifecycle rule |
@@ -466,3 +472,8 @@ archives, WAL/SHM sidecars and other files are retained. A refusal is persisted;
 manual Settings entry can review it later. Only the exact reviewed eligible
 paths go to system Trash, with partial failures reported and no permanent-delete
 fallback. Older unverified receipts remain readable but never authorize cleanup.
+
+Update download progress emits `percent: 100`, `done: false` after byte transfer
+and before signature retrieval/verification, including small or fast downloads.
+The UI displays verification at this boundary. `done: true` and the resolved
+command path still require successful verification; no DTO or command changed.

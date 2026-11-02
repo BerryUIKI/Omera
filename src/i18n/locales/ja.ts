@@ -1,6 +1,39 @@
 import type { en } from "./en";
 
 export const ja: typeof en = {
+  tasks: {
+    updateDownload: "更新のダウンロード",
+    title: "バックグラウンドタスク",
+    export: "エクスポート",
+    modelDownload: "モデルのダウンロード",
+    running: "実行中",
+    completed: "完了",
+    failed: "失敗",
+    canceled: "キャンセル済み",
+    dismiss: "履歴を削除",
+    empty: "最近のタスクはありません",
+    partialFailure: "一部のファイルをエクスポートできませんでした。",
+    output: "出力を表示",
+    pendingChanges: "保留中の変更",
+    lastReconciled: "最終同期",
+    status: "状態",
+    thumbnails: "サムネイル",
+    diagnostics: "診断",
+    inFlight: "処理中",
+    queuedBatches: "待機中のバッチ",
+    memoryCache: "メモリキャッシュ",
+    cacheHits: "キャッシュヒット",
+    scanner: "スキャン",
+    discovering: "ファイルを検出中",
+    processed: "処理済み",
+    roots: "フォルダー",
+  },
+  layout: {
+    displaySettings: "表示設定",
+    resizeSidebar: "サイドバーの幅を変更",
+    resizeInspector: "詳細パネルの幅を変更",
+    resizeHint: "ドラッグまたは矢印キーで幅を変更。ダブルクリックまたは Enter で既定値に戻します。",
+  },
   installer: {
     languageTitle: "インストーラーの言語",
     languagePrompt: "セットアップで使用する言語を選択してください。",
@@ -485,6 +518,10 @@ export const ja: typeof en = {
     about: "Omera について",
   },
   updater: {
+    verifying: "更新パッケージを検証中…",
+    otherOptions: "その他のオプション",
+    later: "後で",
+
     title: "アップデートの確認",
     checkingTitle: "アップデートを確認中...",
     checkingDesc: "GitHub Releases に接続して最新バージョン情報を取得しています。",
@@ -508,9 +545,9 @@ export const ja: typeof en = {
     downloadComplete: "ダウンロードが完了しました。インストールの準備が整いました。",
     installAndRestart: "⚡ 今すぐインストールして再起動",
     installing: "更新のインストールを開始しています…",
-    silentInstall: "サイレント上書きインストール (バックグラウンド自動更新)",
+    installModeNotice: "セットアップウィザードの操作は不要です。進行状況を表示し、完了後に Omera を自動で開きます。",
     downloadInBrowser: "ブラウザでダウンロード",
-    preserveDataNotice: "💡 更新ではライブラリと設定が保持されます。Windows はアンインストールせずに上書き更新します。macOS と Linux はパッケージのインストール手順に従ってください。",
+    preserveDataNotice: "更新後もライブラリと設定は保持されます。",
     close: "閉じる",
   },
   settings: {

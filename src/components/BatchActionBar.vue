@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { t } from "../i18n";
 import type { ImageFile } from "../types";
@@ -235,7 +236,7 @@ function onTrash() {
             :class="{ active: ratingMenuOpen }"
             @click.stop="ratingMenuOpen = !ratingMenuOpen; moreMenuOpen = false"
           >
-            ★ {{ t.batch.setRating }}
+            <AppIcon name="star" /> {{ t.batch.setRating }}
           </button>
           <div v-if="ratingMenuOpen" class="rating-menu">
             <button
@@ -245,7 +246,7 @@ function onTrash() {
               class="rating-opt"
               @click="onSetRating(r)"
             >
-              ★ {{ r }}
+              <AppIcon name="star" /> {{ r }}
             </button>
             <div class="menu-divider" />
             <button
@@ -276,7 +277,7 @@ function onTrash() {
           title="Add tags to selected images"
           @click="onTag"
         >
-          🏷 {{ t.batch.tag }}
+          <AppIcon name="tag" /> {{ t.batch.tag }}
         </button>
 
         <!-- Inline Secondary Actions (visible when space permits) -->
@@ -288,7 +289,7 @@ function onTrash() {
             title="Add selected images to album"
             @click="emit('addToAlbum')"
           >
-            📁 {{ t.batch.album }}
+            <AppIcon name="folder" /> {{ t.batch.album }}
           </button>
 
           <!-- Auto-Tag (WD14) -->
@@ -380,7 +381,7 @@ function onTrash() {
             :title="t.stack.cullDrafts"
             @click="onCull"
           >
-            🧹 {{ t.stack.cullDrafts }}
+            <AppIcon name="trash" /> {{ t.stack.cullDrafts }}
           </button>
         </div>
 
@@ -393,11 +394,11 @@ function onTrash() {
             title="More actions"
             @click.stop="moreMenuOpen = !moreMenuOpen; ratingMenuOpen = false"
           >
-            ··· {{ t.batch.more }}
+            <AppIcon name="more" /> {{ t.batch.more }}
           </button>
           <div v-if="moreMenuOpen" class="more-menu">
             <button type="button" class="more-opt" @click="emit('addToAlbum'); moreMenuOpen = false">
-              📁 {{ t.batch.album }}
+              <AppIcon name="folder" /> {{ t.batch.album }}
             </button>
             <button type="button" class="more-opt" @click="emit('autoTagSelected'); moreMenuOpen = false">
               {{ t.batch.batchAutoTag }}
@@ -426,7 +427,7 @@ function onTrash() {
               {{ t.batch.transform }}
             </button>
             <button v-if="hasStacks" type="button" class="more-opt" @click="onCull(); moreMenuOpen = false">
-              🧹 {{ t.stack.cullDrafts }}
+              <AppIcon name="trash" /> {{ t.stack.cullDrafts }}
             </button>
           </div>
         </div>

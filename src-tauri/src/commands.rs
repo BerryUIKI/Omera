@@ -3947,6 +3947,20 @@ pub async fn download_update(
             .map_err(|e| format!("Failed to flush update file: {e}"))?;
         drop(file);
 
+        // Byte transfer is complete; execution still requires the verified
+        // command result. Publish this boundary even for fast/small downloads.
+        let _ = app_clone.emit(
+            "update-download-progress",
+            UpdateDownloadProgress {
+                downloaded_bytes,
+                total_bytes: downloaded_bytes,
+                percent: 100.0,
+                speed_bytes_per_sec: 0,
+                done: false,
+                target_file: None,
+            },
+        );
+
         let signature_response = agent
             .get(&format!("{url_clone}.minisig"))
             .call()
