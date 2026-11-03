@@ -58,7 +58,14 @@ impl Fixture {
                         let _=socket.send(Message::Text("x".repeat(omera_comfy::protocol::FRAME_LIMIT+1).into()));
                         let _=socket.send(Message::Text(r#"{"type":"execution_cached","data":{"prompt_id":"fixture-job"}}"#.into()));
                         let _=socket.send(Message::Binary(vec![0,1,2].into()));
-                        if disconnect_first && number==0 {let _=socket.close(None);return;}
+                        if disconnect_first && number==0 {
+                            let _=socket.close(None);
+                            // Complete the closing handshake before dropping TCP.
+                            // Windows may otherwise reset the socket while the
+                            // client is reconciling HTTP, discarding queued frames.
+                            let _=socket.read();
+                            return;
+                        }
                         socket.get_mut().set_read_timeout(Some(Duration::from_millis(100))).unwrap();
                         while !cancel.load(Ordering::Relaxed) {
                             match socket.read() {
@@ -127,26 +134,39 @@ fn real_http_websocket_reconnect_preserves_client_and_cleans_up() {
             Arc::new(move |event| tx.send(event).is_ok()),
         )
         .unwrap();
-    receive_until(
-        &rx,
-        |event| matches!(event,MonitorEvent::Snapshot{snapshot} if snapshot.pending_total==1 && snapshot.devices[0].vram_free==Some(4000)),
-    );
-    receive_until(
-        &rx,
-        |event| matches!(event,MonitorEvent::Execution{message} if message.kind=="progress" && message.node.as_deref()==Some("3")),
-    );
-    receive_until(
-        &rx,
-        |event| matches!(event,MonitorEvent::Execution{message} if message.kind=="execution_cached"),
-    );
-    receive_until(
-        &rx,
-        |event| matches!(event,MonitorEvent::Connection{status,..} if status=="reconnecting"),
-    );
-    receive_until(
-        &rx,
-        |event| matches!(event,MonitorEvent::Connection{status,..} if status=="connected"),
-    );
+    let mut snapshot_seen = false;
+    let mut progress_seen = false;
+    let mut cached_seen = false;
+    let mut reconnect_seen = false;
+    let mut reconnected = false;
+    // Reconciliation and socket events are independent observations. Retain
+    // evidence across both connections instead of discarding earlier events.
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !(snapshot_seen && progress_seen && cached_seen && reconnect_seen && reconnected) {
+        let event = rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap_or_else(|error| panic!("{error:?}: snapshot={snapshot_seen}, progress={progress_seen}, cached={cached_seen}, reconnect={reconnect_seen}, reconnected={reconnected}"));
+        match event {
+            MonitorEvent::Snapshot { snapshot } => {
+                snapshot_seen |= snapshot.pending_total == 1
+                    && snapshot
+                        .devices
+                        .first()
+                        .is_some_and(|device| device.vram_free == Some(4000))
+            }
+            MonitorEvent::Execution { message } => {
+                progress_seen |= message.kind == "progress" && message.node.as_deref() == Some("3");
+                cached_seen |= message.kind == "execution_cached";
+            }
+            MonitorEvent::Connection { status, .. } => {
+                if status == "reconnecting" {
+                    reconnect_seen = true;
+                }
+                if status == "connected" && reconnect_seen {
+                    reconnected = true;
+                }
+            }
+        }
+    }
     assert!(fixture.sockets.load(Ordering::Relaxed) >= 2);
     let clients = fixture.clients.lock().unwrap();
     assert_eq!(clients[0], clients[1]);
