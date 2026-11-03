@@ -1,6 +1,26 @@
 import type { en } from "./en";
 
 export const zhCN: typeof en = {
+  comfy: {
+    graphTitle: "工作流图",
+    viewGraph: "查看工作流",
+    searchNodes: "搜索节点 · Enter 定位",
+    zoomOut: "缩小",
+    zoomIn: "放大",
+    fit: "适应窗口",
+    graphHint: "拖动空白处平移，Ctrl + 滚轮缩放；方向键切换节点。",
+    skipped: "已跳过的连接／节点",
+    nodeDetails: "节点详情",
+    selectNode: "选择节点查看输入参数。",
+    invalid: "工作流 JSON 无效。",
+    limit: "工作流超出显示上限（2 MiB、500 个节点、2500 条连接）。",
+    empty: "没有可显示的工作流节点。",
+    prompt: "提示词",
+    sampler: "采样器",
+    controlnet: "ControlNet",
+    lora: "LoRA",
+    other: "其他",
+  },
   tasks: {
     updateDownload: "更新包下载",
     title: "后台任务",

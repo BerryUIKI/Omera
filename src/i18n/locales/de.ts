@@ -1,6 +1,26 @@
 import type { en } from "./en";
 
 export const de: typeof en = {
+  comfy: {
+    graphTitle: "Workflow-Graph",
+    viewGraph: "Workflow anzeigen",
+    searchNodes: "Knoten suchen · Enter zum Anzeigen",
+    zoomOut: "Verkleinern",
+    zoomIn: "Vergrößern",
+    fit: "Einpassen",
+    graphHint: "Leere Fläche ziehen zum Verschieben; Strg + Mausrad zum Zoomen. Pfeiltasten wechseln Knoten.",
+    skipped: "Übersprungene Verbindungen/Knoten",
+    nodeDetails: "Knotendetails",
+    selectNode: "Knoten auswählen, um Eingaben zu sehen.",
+    invalid: "Ungültiges Workflow-JSON.",
+    limit: "Anzeigegrenze überschritten (2 MiB, 500 Knoten, 2500 Verbindungen).",
+    empty: "Keine unterstützten Workflow-Knoten.",
+    prompt: "Prompt",
+    sampler: "Sampler",
+    controlnet: "ControlNet",
+    lora: "LoRA",
+    other: "Sonstige",
+  },
   tasks: {
     updateDownload: "Update-Download",
     title: "Hintergrundaufgaben",

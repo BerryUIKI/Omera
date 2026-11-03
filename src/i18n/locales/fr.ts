@@ -1,6 +1,26 @@
 import type { en } from "./en";
 
 export const fr: typeof en = {
+  comfy: {
+    graphTitle: "Graphe du workflow",
+    viewGraph: "Afficher le workflow",
+    searchNodes: "Rechercher un nœud · Entrée pour afficher",
+    zoomOut: "Réduire",
+    zoomIn: "Agrandir",
+    fit: "Ajuster",
+    graphHint: "Glissez une zone vide pour déplacer ; Ctrl + molette pour zoomer. Les flèches changent de nœud.",
+    skipped: "Liens/nœuds ignorés",
+    nodeDetails: "Détails du nœud",
+    selectNode: "Sélectionnez un nœud pour voir ses entrées.",
+    invalid: "JSON du workflow invalide.",
+    limit: "Limite dépassée (2 MiB, 500 nœuds, 2500 liens).",
+    empty: "Aucun nœud compatible à afficher.",
+    prompt: "Prompt",
+    sampler: "Échantillonneur",
+    controlnet: "ControlNet",
+    lora: "LoRA",
+    other: "Autres",
+  },
   tasks: {
     updateDownload: "Téléchargement de la mise à jour",
     title: "Tâches en arrière-plan",
