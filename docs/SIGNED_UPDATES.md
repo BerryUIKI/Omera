@@ -1,7 +1,41 @@
 # Signed update delivery
 
-Updated: 2026-10-30. Lead-owned follow-up for #256; integration targets `dev`.
+Updated: 2026-11-03. Lead-owned follow-up for #256; integration targets `dev`.
 This contract precedes release integration. It does not authorize publishing a release.
+
+## v0.6.0 ComfyUI studio release preparation — 2026-11-03
+
+Continue delivery under the owner's delegated release scheduling and continuation
+request. The latest stable release is v0.5.2. The new node viewer, live queue and
+Prompt Diff are user features, so the repository's minor-version rule selects
+v0.6.0. Synchronize the three manifests, workspace lockfile, English changelog and
+all seven authored release-note translations through a preparation PR to `dev`.
+Then open the release integration PR from `dev` to `main`, preserving small
+commits and the required approving review. Do not bypass branch protection.
+
+The functional baseline is `dev` at `2da8f6d`. All three platforms passed CI.
+The pre-versioning Windows NSIS qualification at source
+`8d57b5677701d4de06fecf8ce11a23a624db8543` measured 17,899,220 bytes
+(17.07 MiB), 126,005 bytes above published v0.5.2. Its
+[non-publishing receipt](https://github.com/BerryUIKI/Omera/actions/runs/41588327512)
+does not qualify the versioned, signed v0.6.0 installers. Candidate signing,
+production macOS notarization/Gatekeeper, final installer-size budgets and
+downloaded-byte verification must pass against this release candidate.
+
+Schema, identity, update trust, native inference dependencies and the Windows
+runtime floor are unchanged. ComfyUI testing remains limited to local protocol
+fixtures as requested. Retain the owner's deferred installed-update testing
+decision, disclose the incomplete native platform matrix in every release-note
+language, and keep #256 open. Do not run a real installer or personal ComfyUI
+instance as part of these automated release checks. Existing published assets
+remain immutable.
+
+Release ancestry reconciliation: merge published `main` at `68c799b` into the
+candidate based on `dev` at `7d0e7ba`. Reviewed overlaps retain the complete
+v0.6.0 candidate, including the prior GUI, release-note catalogs and update tests.
+The reconciliation merge's Git tree is identical to `7d0e7ba`; this follow-up
+receipt is the only subsequent file change. Application sources, manifests,
+lockfile, catalog content and IPC stay byte-identical to the qualified candidate.
 
 ## Owner-approved v0.5.1 patch release — 2026-10-30
 

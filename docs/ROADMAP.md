@@ -160,18 +160,18 @@ Delivered in the v0.4.x line. The remaining facet work is limited to resolution,
 - [x] **Duration & Frame-Rate Facets**: Filter videos by duration range and frame rate, with an Images/Videos media-type filter.
 - [ ] **Remaining Video Facets**: Resolution, container-codec and motion-score filters are not implemented yet.
 
-### 🟡 Milestone 16: Next-Gen Model Architectures & Ecosystem (2 of 3 complete)
+### ✅ Milestone 16: Next-Gen Model Architectures & Ecosystem (complete)
 
-Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactive workflow graph remains.
+Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactive workflow graph is implemented on `dev`; see [COMFY_STUDIO.md](COMFY_STUDIO.md) for bounds and acceptance evidence.
 
 - [x] **Flux.1 & SD3.5 Parameter Parsers**: Parse Guidance Scale, Distilled CFG Scale, Shift, schedule type, and dual CLIP-L / T5-XXL text-encoder prompts (ComfyUI). A1111 `Size` continues to supply the resolution bucket dimensions.
 - [x] **Civitai Direct API Integration**: Remote model reverse lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click merge of trained trigger words into the local LoRA catalog.
-- [ ] **ComfyUI Workflow Visualizer Enhancements**: Interactive workflow graph viewer highlighting prompt input nodes, KSamplers, ControlNet chains, and LoRA loaders.
+- [x] **ComfyUI Workflow Visualizer Enhancements**: On-demand interactive workflow graph viewer with prompt, sampler, ControlNet and LoRA categories, selection, search, keyboard navigation, connected-edge highlighting and pan/zoom.
 
-### 🎯 Milestone 17: Bi-Directional ComfyUI Studio, Live Queue & Prompt Diff
-- [ ] **Real-Time ComfyUI WebSocket Monitor**: Direct integration with ComfyUI `/ws` API, displaying live execution progress, queue position, active node execution, and GPU VRAM telemetry in the status bar and Activity popover.
+### 🟡 Milestone 17: Bi-Directional ComfyUI Studio, Live Queue & Prompt Diff (2 of 3 complete)
+- [x] **Real-Time ComfyUI WebSocket Monitor**: Explicit native HTTP/WebSocket connection, reconnect and bounded queue/history reconciliation; node progress, queue order, outcomes and VRAM in the studio, with status bar and Activity summaries. Qualified with local protocol fixtures only.
 - [ ] **Zero-Latency Ingestion Pipeline**: Stream newly generated images directly into Omera database and UI memory via IPC upon workflow completion, eliminating filesystem polling delay.
-- [ ] **Prompt Diff & Matrix Workbench**: Side-by-side visual diff tool highlighting changes in positive/negative prompt syntax, weights `(keyword:1.2)`, and negative keywords across seeds, model versions, and samplers.
+- [x] **Prompt Diff & Matrix Workbench**: Select A/B images in comparison mode; compare positive/negative and optional dual text-encoder prompts, explicit weights `(keyword:1.2)`, seeds, models, samplers and other generation parameters. Full details load on demand; long text has bounded section fallback and display limits.
 
 ### 🎯 Milestone 18: Local LAN Web Companion (Omera Remote)
 - [ ] **Embedded Lightweight HTTP Web Server**: Built-in Axum/Tokio web server in Tauri backend for local network access with secure PIN/passcode authentication.

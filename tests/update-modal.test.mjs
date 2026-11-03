@@ -5,9 +5,9 @@ import { withProductionComponent } from './helpers/production-component.mjs';
 import { setLocale } from '../src/i18n/index.ts';
 import { releaseLocales } from '../scripts/generate-release-notes.mjs';
 
-const asset = { name: 'Omera_0.6.0_x64-setup.exe', browser_download_url: 'https://github.com/BerryUIKI/Omera/releases/download/v0.6.0/Omera_0.6.0_x64-setup.exe', size: 100 };
-const available = { status: 'update_available', latestVersion: '0.6.0', matchedAsset: asset,
-  release: { html_url: 'https://github.com/BerryUIKI/Omera/releases/tag/v0.6.0', body: '' } };
+const asset = { name: 'Omera_99.0.0_x64-setup.exe', browser_download_url: 'https://github.com/BerryUIKI/Omera/releases/download/v99.0.0/Omera_99.0.0_x64-setup.exe', size: 100 };
+const available = { status: 'update_available', latestVersion: '99.0.0', matchedAsset: asset,
+  release: { html_url: 'https://github.com/BerryUIKI/Omera/releases/tag/v99.0.0', body: '' } };
 
 // Stub native/network boundaries while executing the production component's
 // setup, watchers, action handlers and template in the shared Vue harness.
@@ -159,7 +159,7 @@ test('production update dialog renders Markdown and opens nested link text in th
   await withProductionComponent('UpdateModal', { show: true, currentVersion: '0.5.0' },
     async (command, args) => {
       calls.push([command, args]);
-      if (command === 'check') return { ...available, release: { ...available.release, tag_name: 'v0.6.0', body: '### Fixed\n\n- **One click**\n\n[**Details**](https://example.com/notes)' } };
+      if (command === 'check') return { ...available, release: { ...available.release, tag_name: 'v99.0.0', body: '### Fixed\n\n- **One click**\n\n[**Details**](https://example.com/notes)' } };
     }, async ({ controls: c, render }) => {
       const html = await render();
       assert.match(html, /<h3>Fixed<\/h3>/);

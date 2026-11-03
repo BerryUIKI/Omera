@@ -8,9 +8,10 @@ members = [
     "crates/omera-storage",
     "crates/omera-tagger",
     "crates/omera-clip",
+    "crates/omera-comfy",
 ]
 
 [workspace.package]
-version = "0.5.2"
+version = "0.6.0"
 edition = "2021"
 license = "Apache-2.0"

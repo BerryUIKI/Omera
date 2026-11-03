@@ -5,6 +5,43 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-03
+
+### Added
+
+- View ComfyUI API prompt and UI workflow nodes on demand from Inspector or the
+  live queue. Inspect inputs, search, navigate with the keyboard, highlight
+  connections, and pan/zoom a bounded graph with prompt, sampler, ControlNet and
+  LoRA categories.
+- Explicit native HTTP/WebSocket monitoring for queue order, active node and
+  step progress, recent outcomes and GPU memory. Reconnects retain client
+  identity and reconcile snapshots; closing the studio preserves monitoring,
+  while Disconnect or application exit stops it. Status bar and Activity expose
+  queue/progress/memory summaries. Monitoring does not mutate the queue.
+- Prompt Diff in image comparison: select images A/B, compare positive/negative
+  and optional CLIP-L/T5 prompts, highlight insertions/deletions and explicit
+  weight edits, and compare models, seeds, samplers and other parameters. Full
+  details load only for the active pair; late replies are fenced and long-text
+  comparison/rendering is bounded. Complete originals remain available to copy.
+- Translate the studio and comparison controls into all seven application
+  languages. Node viewing uses existing Vue/HTML/SVG and loads on demand.
+
+### Packaging
+
+- Enforce installer size budgets before signed upload and final publication:
+  Windows NSIS EXE/macOS DMG 25 MiB, MSI/DEB/RPM 40 MiB, AppImage 120 MiB.
+- Add a non-publishing Windows NSIS qualification workflow with exact byte size,
+  source revision and SHA-256 receipts. ComfyUI and model weights are not bundled.
+
+### Compatibility
+
+- Database schema, application identity, signing trust and Windows runtime floor
+  remain unchanged. Pre-1.0 legacy discovery/import and separately confirmed
+  legacy cleanup remain supported.
+- ComfyUI validation used local HTTP/WebSocket fixtures; compatibility with all
+  real server/custom-node variants is not established by those fixtures.
+- The complete native installed-upgrade matrix remains pending (#256).
+
 ## [0.5.2] - 2026-11-01
 
 ### Changed

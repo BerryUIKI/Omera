@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from "./AppIcon.vue";
-import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { computed, ref, watch, onBeforeUnmount, defineAsyncComponent } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { DetectedLora, ImageFile, Tag } from "../types";
 import { assetUrl, formatBytes, formatDuration, formatPlatformName, getFileName, normalizePath } from "../utils/image";
@@ -17,6 +17,9 @@ import {
 import { loadAppConfig } from "../utils/config";
 import { useFileCuration, type CurationChange } from "../utils/file-curation";
 import { useNotification } from "../utils/notification";
+
+const WorkflowGraphModal = defineAsyncComponent(() => import("./WorkflowGraphModal.vue"));
+const workflowGraphOpen = ref(false);
 
 const props = defineProps<{
   file: ImageFile | null;
@@ -71,6 +74,7 @@ let lorasRequest = 0;
 onBeforeUnmount(() => { thumbnailRequest++; tagsRequest++; lorasRequest++; });
 const isCurrent = (file: ImageFile) => props.file?.id === file.id && props.file?.path === file.path && props.file?.modified_at === file.modified_at;
 watch([() => props.file?.id, () => props.file?.path, () => props.file?.modified_at], () => {
+  workflowGraphOpen.value = false;
   const snapshot = props.file;
   const request = ++thumbnailRequest;
   rawExpanded.value = false;
@@ -450,6 +454,7 @@ function onWorkflowDragStart(e: DragEvent) {
           </button>
         </div>
 
+<button v-if="hasComfyWorkflow(file)" type="button" class="workflow-drag-pill" @click="workflowGraphOpen = true"><AppIcon name="box" /> {{ t.comfy.viewGraph }}</button>
         <!-- Draggable Workflow Chip -->
         <button
           v-if="hasComfyWorkflow(file)"
@@ -702,6 +707,7 @@ function onWorkflowDragStart(e: DragEvent) {
       </details>
     </div>
   </aside>
+  <WorkflowGraphModal v-if="workflowGraphOpen && file" :source="extractWorkflowJson(file)" :title="getFileName(file.path)" @close="workflowGraphOpen = false" />
 </template>
 
 <style scoped>

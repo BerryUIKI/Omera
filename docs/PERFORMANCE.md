@@ -323,3 +323,30 @@ operations of the same kind are blocked because existing events have no operatio
 IDs. Completed history is capped at 20 records; it is session-local and adds no
 startup IPC or filesystem work. Activity diagnostics poll only while open, with
 no overlapping requests and a generation fence against stale replies.
+
+The ComfyUI monitor is inert until explicitly connected. One native worker owns
+HTTP/WebSocket I/O, reconnect backoff and cancellation; closing its UI preserves
+the session, while Disconnect or application exit stops it. Queue rows are capped
+at 100, history at 20, HTTP bodies at 8 MiB and parsed JSON events at 256 KiB.
+Preview frames are discarded; progress reaches the WebView at most ten times per
+second. Snapshot reconciliation runs every three seconds with debounced event
+refreshes. OS DNS resolution has no hard cancellation deadline. Workflow viewers
+mount on demand and bound graphs to 500 nodes and 2,500 edges.
+
+Prompt comparison mounts only in the explicit text mode and hydrates the active
+pair, with stale-selection and unmount fences. Image stages unmount while this
+mode is open. Alignment accepts at most 32,768 input characters, 1,500 tokens per
+side and 400,000 dynamic-programming cells; larger inputs use bounded common
+prefix/suffix section comparison. Rendering stops at 20,000 characters per side.
+Complete originals remain available to explicit copy actions. No gallery-wide
+metadata hydration or startup work is introduced.
+
+Installer size is a publication gate, checked before detached signing/upload and
+again against downloaded installers before a draft release can become public.
+`scripts/installer-budget.mjs` caps NSIS EXE and macOS DMG at 25 MiB, MSI/DEB/RPM
+at 40 MiB and Linux AppImage at 120 MiB (its portable runtime is included).
+The public v0.5.2 baselines were 16.95 MiB EXE, 33.29 MiB MSI, 18.08 MiB DMG,
+32.04 MiB DEB/RPM and 100.72 MiB AppImage. These limits allow bounded growth;
+exceeding one requires reducing the artifact before publication. The workflow
+viewer uses existing Vue/HTML/SVG; no graph editor runtime, ComfyUI server or
+model weights are bundled for the studio features.
