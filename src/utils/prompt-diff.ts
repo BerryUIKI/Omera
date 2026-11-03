@@ -41,7 +41,7 @@ function tokens(source: string): Token[] {
 }
 function append(parts: DiffPart[], part: DiffPart) {
   if (!part.text) return;
-  const last = parts.at(-1);
+  const last = parts[parts.length - 1];
   if (last && last.kind === part.kind && part.kind !== 'weight') last.text += part.text;
   else parts.push(part);
 }
