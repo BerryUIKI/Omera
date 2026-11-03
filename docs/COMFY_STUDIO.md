@@ -58,3 +58,12 @@ production Inspector, graph and queue components at 960x640 and 1440x900, Chines
 dark and English light themes: search, keyboard selection, pan/zoom, active-node
 highlight, real step counts, pending selection, explicit disconnect, focus return
 and reduced-motion styles. No personal ComfyUI instance was contacted.
+
+Prompt Diff acceptance (2026-11-03): lossless Unicode/whitespace reconstruction,
+explicit weight edits, reorder/empty/escaped input, adversarial nesting and long
+text limits passed. Production component tests cover seven locales, HTML escaping,
+zero versus missing parameters, selected-pair hydration and late reply disposal.
+Local browser fixtures verified 1440x900 and 960x640, Chinese/dark and English/light,
+positive/negative text, partial-detail notices, long-text section fallback and
+20,000-character display caps, with no hidden image stages or horizontal overflow.
+The image mode keeps synchronized zoom/pan and existing stack-cover actions.

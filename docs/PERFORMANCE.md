@@ -332,3 +332,11 @@ Preview frames are discarded; progress reaches the WebView at most ten times per
 second. Snapshot reconciliation runs every three seconds with debounced event
 refreshes. OS DNS resolution has no hard cancellation deadline. Workflow viewers
 mount on demand and bound graphs to 500 nodes and 2,500 edges.
+
+Prompt comparison mounts only in the explicit text mode and hydrates the active
+pair, with stale-selection and unmount fences. Image stages unmount while this
+mode is open. Alignment accepts at most 32,768 input characters, 1,500 tokens per
+side and 400,000 dynamic-programming cells; larger inputs use bounded common
+prefix/suffix section comparison. Rendering stops at 20,000 characters per side.
+Complete originals remain available to explicit copy actions. No gallery-wide
+metadata hydration or startup work is introduced.
