@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { collectInstallers, signAssets, validateInputs, verifyAssets } from './update-signing.mjs';
 import { requireDraftRelease } from './release-preflight.mjs';
+import { requireInstallerBudgets } from './installer-budget.mjs';
 
 const targets = {
   'x86_64-pc-windows-msvc': /x64.*\.exe$/i,
@@ -34,6 +35,7 @@ function signedBundle(target, canonicalAsset) {
     assets.push(canonicalAsset);
   }
   requireCoverage(assets, target);
+  requireInstallerBudgets(assets);
   signAssets(assets);
   return assets;
 }
@@ -61,6 +63,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       validateInputs(process.env, undefined, false);
       const assets = collectInstallers(resolve(argument));
       requireCoverage(assets);
+      requireInstallerBudgets(assets);
       verifyAssets(assets);
     } else throw new Error('Usage: release-update-assets.mjs upload|qualify <target> [canonical-dmg]|verify <download-directory>');
   } catch (error) { console.error(error.message); process.exitCode = 1; }

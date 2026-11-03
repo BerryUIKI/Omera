@@ -340,3 +340,13 @@ side and 400,000 dynamic-programming cells; larger inputs use bounded common
 prefix/suffix section comparison. Rendering stops at 20,000 characters per side.
 Complete originals remain available to explicit copy actions. No gallery-wide
 metadata hydration or startup work is introduced.
+
+Installer size is a publication gate, checked before detached signing/upload and
+again against downloaded installers before a draft release can become public.
+`scripts/installer-budget.mjs` caps NSIS EXE and macOS DMG at 25 MiB, MSI/DEB/RPM
+at 40 MiB and Linux AppImage at 120 MiB (its portable runtime is included).
+The public v0.5.2 baselines were 16.95 MiB EXE, 33.29 MiB MSI, 18.08 MiB DMG,
+32.04 MiB DEB/RPM and 100.72 MiB AppImage. These limits allow bounded growth;
+exceeding one requires reducing the artifact before publication. The workflow
+viewer uses existing Vue/HTML/SVG; no graph editor runtime, ComfyUI server or
+model weights are bundled for the studio features.
