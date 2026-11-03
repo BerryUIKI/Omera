@@ -323,3 +323,11 @@ operations of the same kind are blocked because existing events have no operatio
 IDs. Completed history is capped at 20 records; it is session-local and adds no
 startup IPC or filesystem work. Activity diagnostics poll only while open, with
 no overlapping requests and a generation fence against stale replies.
+
+Prompt comparison mounts only in the explicit text mode and hydrates the active
+pair, with stale-selection and unmount fences. Image stages unmount while this
+mode is open. Alignment accepts at most 32,768 input characters, 1,500 tokens per
+side and 400,000 dynamic-programming cells; larger inputs use bounded common
+prefix/suffix section comparison. Rendering stops at 20,000 characters per side.
+Complete originals remain available to explicit copy actions. No gallery-wide
+metadata hydration or startup work is introduced.

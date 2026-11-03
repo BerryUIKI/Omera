@@ -48,3 +48,12 @@ malformed/large frames, cancellation and partial API failures. Owner chose local
 protocol fixtures only; no running personal ComfyUI instance will be contacted.
 Browser QA covers narrow/wide layouts, keyboard access and reduced-motion styles.
 Fixture results do not establish compatibility with every custom ComfyUI node.
+
+Prompt Diff acceptance (2026-11-03): lossless Unicode/whitespace reconstruction,
+explicit weight edits, reorder/empty/escaped input, adversarial nesting and long
+text limits passed. Production component tests cover seven locales, HTML escaping,
+zero versus missing parameters, selected-pair hydration and late reply disposal.
+Local browser fixtures verified 1440x900 and 960x640, Chinese/dark and English/light,
+positive/negative text, partial-detail notices, long-text section fallback and
+20,000-character display caps, with no hidden image stages or horizontal overflow.
+The image mode keeps synchronized zoom/pan and existing stack-cover actions.
