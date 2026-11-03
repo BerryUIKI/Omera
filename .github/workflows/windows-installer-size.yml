@@ -1,0 +1,63 @@
+name: Windows Installer Size Qualification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev]
+    paths:
+      - .github/workflows/windows-installer-size.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-size-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: windows-installer-size
+      - run: pnpm install --frozen-lockfile
+      - name: Build an unsigned qualification installer
+        run: pnpm exec tauri build --target x86_64-pc-windows-msvc --bundles nsis --no-sign --ci
+      - name: Enforce budget and record exact size
+        run: |
+          @'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          import {collectInstallers} from './scripts/update-signing.mjs';
+          import {requireInstallerBudgets} from './scripts/installer-budget.mjs';
+          const files=collectInstallers('target/x86_64-pc-windows-msvc/release/bundle/nsis');
+          const installers=requireInstallerBudgets(files).map((report,i)=>({...report,
+            sha256:createHash('sha256').update(readFileSync(files[i])).digest('hex')}));
+          if(installers.length!==1)throw Error('Expected one NSIS qualification installer');
+          const report={source_commit:process.env.GITHUB_SHA,qualification_only:true,
+            baseline_version:'0.5.2',baseline_bytes:17773215,installers};
+          const json=JSON.stringify(report,null,2);
+          writeFileSync('target/installer-size-report.json',json+'\n');console.log(json);
+          '@ | node --input-type=module
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-nsis-qualification
+          path: |
+            target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            target/installer-size-report.json
+          if-no-files-found: error
+          retention-days: 7
