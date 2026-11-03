@@ -65,6 +65,8 @@ jobs:
           node scripts/update-signing.mjs preflight
       - name: Build actual platform installers with embedded trust
         run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Enforce installer size budgets
+        run: node scripts/installer-budget.mjs target/${{ matrix.target }}/release/bundle
       - name: Sign and verify actual installer bytes
         env:
           OMERA_UPDATE_SIGNING_KEY: ${{ secrets.OMERA_UPDATE_SIGNING_KEY }}
