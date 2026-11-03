@@ -47,6 +47,8 @@ pub struct AppState {
     pub migration_coordinator: Arc<Mutex<legacy_migration::MigrationCoordinator>>,
     /// Single opt-in automatic snapshot worker; status has its own short lock.
     pub backup_worker: backup_scheduler::BackupWorker,
+    /// Explicit ComfyUI connection only; construction does not contact a server.
+    pub comfy_monitor: Arc<omera_comfy::monitor::MonitorService>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -101,6 +103,7 @@ pub fn run() {
                     }
                 };
             app.manage(AppState {
+                comfy_monitor: Arc::new(omera_comfy::monitor::MonitorService::default()),
                 db: Mutex::new(db),
                 tagger: Mutex::new(None),
                 clip: Mutex::new(None),
@@ -303,6 +306,8 @@ pub fn run() {
             commands::auto_stack_images,
             commands::check_generation_service,
             commands::send_to_comfyui,
+            commands::start_comfyui_monitor,
+            commands::stop_comfyui_monitor,
             commands::send_to_webui,
             commands::cloud_backup_test_connection,
             commands::cloud_backup_create_snapshot,
@@ -328,6 +333,7 @@ pub fn run() {
             if matches!(event, tauri::RunEvent::Exit) {
                 if let Some(state) = app.try_state::<AppState>() {
                     state.backup_worker.stop();
+                    state.comfy_monitor.shutdown();
                 }
             }
         });

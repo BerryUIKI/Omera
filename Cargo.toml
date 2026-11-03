@@ -8,6 +8,7 @@ members = [
     "crates/omera-storage",
     "crates/omera-tagger",
     "crates/omera-clip",
+    "crates/omera-comfy",
 ]
 
 [workspace.package]

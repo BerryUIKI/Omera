@@ -26,6 +26,7 @@ omera-scan = { path = "../crates/omera-scan" }
 omera-storage = { path = "../crates/omera-storage" }
 omera-tagger = { path = "../crates/omera-tagger" }
 omera-clip = { path = "../crates/omera-clip" }
+omera-comfy = { path = "../crates/omera-comfy" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 tauri = { version = "2", features = ["protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
