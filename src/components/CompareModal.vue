@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { assetUrl, getFileName } from "../utils/image";
 import { t } from "../i18n";
 import type { ImageFile } from "../types";
@@ -13,6 +13,9 @@ const emit = defineEmits<{
   (e: "setHero", image: ImageFile): void;
 }>();
 
+const PromptDiffPanel = defineAsyncComponent(() => import("./PromptDiffPanel.vue"));
+const mode = ref<"images" | "diff">("images");
+const choices = computed(() => props.images.slice(0, 200));
 const leftImage = ref<ImageFile | null>(null);
 const rightImage = ref<ImageFile | null>(null);
 
@@ -22,14 +25,7 @@ const panY = ref(0);
 const isPanning = ref(false);
 const startPan = ref({ x: 0, y: 0 });
 
-onMounted(() => {
-  resetComparison();
-  window.addEventListener("keydown", onKeyDown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("keydown", onKeyDown);
-});
+watch(() => props.images, resetComparison, {immediate: true});
 
 function resetComparison() {
   if (props.images.length >= 2) {
@@ -69,12 +65,6 @@ function onMouseUp() {
   isPanning.value = false;
 }
 
-function onKeyDown(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    close();
-  }
-}
-
 function close() {
   emit("close");
 }
@@ -90,10 +80,10 @@ function setHero(img: ImageFile) {
       <div class="toolbar-left">
         <span class="toolbar-icon">⚖️</span>
         <span class="toolbar-title">{{ t.compare.title }}</span>
-        <span class="toolbar-hint">{{ t.compare.syncHint }}</span>
+        <span v-if="mode === 'images'" class="toolbar-hint">{{ t.compare.syncHint }}</span>
       </div>
 
-      <div class="toolbar-center">
+      <div v-if="mode === 'images'" class="toolbar-center">
         <button type="button" class="tool-btn" @click="zoom = Math.max(0.5, zoom - 0.2)">－</button>
         <span class="zoom-display">{{ Math.round(zoom * 100) }}%</span>
         <button type="button" class="tool-btn" @click="zoom = Math.min(5, zoom + 0.2)">＋</button>
@@ -103,12 +93,27 @@ function setHero(img: ImageFile) {
       </div>
 
       <div class="toolbar-right">
-        <button type="button" class="btn-close" @click="close">✕</button>
+        <button type="button" class="btn-close" :aria-label="t.preview.close" @click="close">✕</button>
       </div>
     </div>
 
+    <div class="comparison-options">
+      <div class="mode-switch">
+        <button type="button" :aria-pressed="mode === 'images'" @click="mode = 'images'">{{ t.compare.images }}</button>
+        <button type="button" :aria-pressed="mode === 'diff'" @click="mode = 'diff'">{{ t.compare.promptDiff }}</button>
+      </div>
+      <label>{{ t.compare.slotA }}<select v-model="leftImage" :aria-label="t.compare.slotA" @change="zoom = 1; panX = 0; panY = 0">
+        <option v-for="image in choices" :key="image.path" :value="image">{{ getFileName(image.path) }}</option>
+      </select></label>
+      <label>{{ t.compare.slotB }}<select v-model="rightImage" :aria-label="t.compare.slotB" @change="zoom = 1; panX = 0; panY = 0">
+        <option v-for="image in choices" :key="image.path" :value="image">{{ getFileName(image.path) }}</option>
+      </select></label>
+      <span v-if="images.length > 200" class="selection-limit">{{ t.compare.selectionLimit }}</span>
+    </div>
+    <PromptDiffPanel v-if="mode === 'diff'" :left="leftImage" :right="rightImage" />
     <!-- Split View Containers -->
     <div
+      v-else
       class="compare-viewport"
       @wheel="onWheel"
       @mousedown="onMouseDown"
@@ -136,9 +141,9 @@ function setHero(img: ImageFile) {
             />
           </div>
           <div class="metadata-hud">
-            <span>{{ leftImage.metadata?.model_name || 'Unknown Model' }}</span>
-            <span>Seed: {{ leftImage.metadata?.seed || '-' }}</span>
-            <span>Steps: {{ leftImage.metadata?.steps || '-' }}</span>
+            <span>{{ leftImage.metadata?.model_name ?? t.compare.unknown }}</span>
+            <span>{{ t.preview.seed }}: {{ leftImage.metadata?.seed ?? t.compare.unknown }}</span>
+            <span>{{ t.preview.steps }}: {{ leftImage.metadata?.steps ?? t.compare.unknown }}</span>
           </div>
         </div>
         <div v-else class="pane-empty">
@@ -168,9 +173,9 @@ function setHero(img: ImageFile) {
             />
           </div>
           <div class="metadata-hud">
-            <span>{{ rightImage.metadata?.model_name || 'Unknown Model' }}</span>
-            <span>Seed: {{ rightImage.metadata?.seed || '-' }}</span>
-            <span>Steps: {{ rightImage.metadata?.steps || '-' }}</span>
+            <span>{{ rightImage.metadata?.model_name ?? t.compare.unknown }}</span>
+            <span>{{ t.preview.seed }}: {{ rightImage.metadata?.seed ?? t.compare.unknown }}</span>
+            <span>{{ t.preview.steps }}: {{ rightImage.metadata?.steps ?? t.compare.unknown }}</span>
           </div>
         </div>
         <div v-else class="pane-empty">
@@ -185,15 +190,19 @@ function setHero(img: ImageFile) {
 .compare-overlay {
   position: fixed;
   inset: 0;
-  background: #121212;
+  background: var(--color-bg-primary);
+  color: var(--text-primary);
   z-index: 500;
   display: flex;
   flex-direction: column;
 }
 
 .compare-toolbar {
-  height: 48px;
-  background: rgba(24, 24, 24, 0.95);
+  min-height: 48px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--color-bg-secondary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
@@ -215,7 +224,7 @@ function setHero(img: ImageFile) {
 .toolbar-title {
   font-weight: 600;
   font-size: 0.95em;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .toolbar-hint {
@@ -257,7 +266,7 @@ function setHero(img: ImageFile) {
 .btn-close {
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 1.1rem;
   cursor: pointer;
   padding: 0.2rem 0.5rem;
@@ -390,4 +399,11 @@ function setHero(img: ImageFile) {
   color: #666;
   font-size: 0.9em;
 }
+.comparison-options { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border-color); }
+.mode-switch { display:flex; gap:6px; } .comparison-options label { display:flex; gap:8px; align-items:center; min-width:0; font-size:12px; }
+.comparison-options button,.comparison-options select { min-height:32px; border:1px solid var(--border-color); border-radius:6px; background:var(--color-bg-secondary); color:inherit; padding:5px 10px; }
+.comparison-options select { max-width:220px; } .comparison-options button[aria-pressed=true] { border-color:var(--color-accent); color:var(--color-accent); }
+.selection-limit { font-size:12px; } .split-pane { min-width:0; } .compare-viewport { min-height:0; }
+@media(max-width:900px) { .toolbar-hint { display:none; } .comparison-options select { max-width:150px; } }
+@media(prefers-reduced-motion:reduce) { .image-stage img { transition:none; } }
 </style>

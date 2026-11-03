@@ -68,19 +68,19 @@ async function copy(side: number) {
   </section>
 </template>
 <style scoped>
-.prompt-diff-panel { flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; overflow:hidden; color:var(--text-primary); background:var(--bg-primary); }
+.prompt-diff-panel { flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; overflow:hidden; color:var(--text-primary); background:var(--color-bg-primary); }
 p { margin:0; font-size:12px; } .notice,.empty { color:var(--text-secondary); }
 .parameter-scroll { max-height:26vh; overflow:auto; flex-shrink:0; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; }
 th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border-color); overflow-wrap:anywhere; }
-th { font-weight:600; } .changed td { background:var(--bg-tertiary); font-weight:600; }
+th { font-weight:600; } .changed td { background:var(--color-bg-tertiary); font-weight:600; }
 .prompt-tabs,.diff-legend { display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0; }
-button { min-height:32px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px; color:inherit; background:var(--bg-secondary); cursor:pointer; }
-button[aria-pressed=true] { border-color:var(--accent-color); color:var(--accent-color); } button:disabled { opacity:.5; cursor:default; }
+button { min-height:32px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px; color:inherit; background:var(--color-bg-secondary); cursor:pointer; }
+button[aria-pressed=true] { border-color:var(--color-accent); color:var(--color-accent); } button:disabled { opacity:.5; cursor:default; }
 .diff-legend { font-size:12px; } ins { background:#14784244; color:inherit; text-decoration:underline; } del { background:#b5304244; color:inherit; } mark { background:#b5821c55; color:inherit; text-decoration:underline dotted; }
 .diff-panes { display:flex; flex:1; min-height:100px; gap:12px; overflow:hidden; }
 article { flex:1; min-width:0; display:flex; flex-direction:column; border:1px solid var(--border-color); border-radius:8px; overflow:hidden; }
-header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:var(--bg-secondary); }
+header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:var(--color-bg-secondary); }
 .diff-text { flex:1; min-height:0; overflow:auto; padding:14px; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.8; font-size:13px; }
 @media(max-width:600px) { .prompt-diff-panel { padding:8px; gap:6px; } .diff-panes { gap:6px; } th,td { padding:5px; } }
 </style>
