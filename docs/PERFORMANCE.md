@@ -324,6 +324,15 @@ IDs. Completed history is capped at 20 records; it is session-local and adds no
 startup IPC or filesystem work. Activity diagnostics poll only while open, with
 no overlapping requests and a generation fence against stale replies.
 
+The ComfyUI monitor is inert until explicitly connected. One native worker owns
+HTTP/WebSocket I/O, reconnect backoff and cancellation; closing its UI preserves
+the session, while Disconnect or application exit stops it. Queue rows are capped
+at 100, history at 20, HTTP bodies at 8 MiB and parsed JSON events at 256 KiB.
+Preview frames are discarded; progress reaches the WebView at most ten times per
+second. Snapshot reconciliation runs every three seconds with debounced event
+refreshes. OS DNS resolution has no hard cancellation deadline. Workflow viewers
+mount on demand and bound graphs to 500 nodes and 2,500 edges.
+
 Prompt comparison mounts only in the explicit text mode and hydrates the active
 pair, with stale-selection and unmount fences. Image stages unmount while this
 mode is open. Alignment accepts at most 32,768 input characters, 1,500 tokens per

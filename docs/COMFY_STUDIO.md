@@ -49,6 +49,16 @@ protocol fixtures only; no running personal ComfyUI instance will be contacted.
 Browser QA covers narrow/wide layouts, keyboard access and reduced-motion styles.
 Fixture results do not establish compatibility with every custom ComfyUI node.
 
+Graph and queue acceptance (2026-11-03): native local TCP HTTP/WebSocket fixtures
+passed reconnect/client identity, stale-session cancellation, endpoint replacement,
+partial API failures and malformed/large frames. Shared Serde/TypeScript fixtures
+validate DTO compatibility separately from the 169-command IPC inventory. Rust
+workspace fmt, clippy with warnings denied and tests passed. Browser fixtures used
+production Inspector, graph and queue components at 960x640 and 1440x900, Chinese
+dark and English light themes: search, keyboard selection, pan/zoom, active-node
+highlight, real step counts, pending selection, explicit disconnect, focus return
+and reduced-motion styles. No personal ComfyUI instance was contacted.
+
 Prompt Diff acceptance (2026-11-03): lossless Unicode/whitespace reconstruction,
 explicit weight edits, reorder/empty/escaped input, adversarial nesting and long
 text limits passed. Production component tests cover seven locales, HTML escaping,

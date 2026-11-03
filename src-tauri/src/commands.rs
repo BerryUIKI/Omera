@@ -4541,21 +4541,51 @@ pub async fn check_generation_service(
     .map_err(|e| e.to_string())?
 }
 
-pub fn prepare_comfyui_prompt_payload(parsed: &serde_json::Value) -> serde_json::Value {
-    if parsed.get("prompt").is_some() {
-        parsed.clone()
-    } else {
-        serde_json::json!({
-            "prompt": parsed
-        })
+pub fn prepare_comfyui_prompt_payload(
+    parsed: &serde_json::Value,
+    client_id: Option<&str>,
+) -> serde_json::Value {
+    omera_comfy::protocol::submission_payload(parsed, client_id)
+}
+
+#[tauri::command]
+pub async fn start_comfyui_monitor(
+    endpoint: String,
+    on_event: tauri::ipc::Channel<omera_comfy::protocol::MonitorEvent>,
+    state: State<'_, AppState>,
+) -> Result<omera_comfy::protocol::SessionInfo, String> {
+    let monitor = state.comfy_monitor.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        monitor.start(
+            &endpoint,
+            std::sync::Arc::new(move |event| on_event.send(event).is_ok()),
+        )
+    })
+    .await
+    .map_err(|_| "ComfyUI monitor worker failed".to_string())?
+}
+
+#[tauri::command]
+pub async fn stop_comfyui_monitor(
+    session_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if session_id.is_empty() || session_id.len() > 128 {
+        return Err("Invalid monitor session ID".into());
     }
+    let monitor = state.comfy_monitor.clone();
+    tauri::async_runtime::spawn_blocking(move || monitor.stop(&session_id))
+        .await
+        .map_err(|_| "ComfyUI monitor worker failed".to_string())?
 }
 
 #[tauri::command]
 pub async fn send_to_comfyui(
     endpoint: String,
     workflow_json: String,
+    state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
+    let client_id = state.comfy_monitor.client_for_endpoint(&endpoint);
     tauri::async_runtime::spawn_blocking(move || {
         let base = endpoint.trim_end_matches('/');
         let target_url = format!("{base}/prompt");
@@ -4563,7 +4593,7 @@ pub async fn send_to_comfyui(
         let parsed: serde_json::Value = serde_json::from_str(&workflow_json)
             .map_err(|e| format!("Invalid workflow JSON: {e}"))?;
 
-        let payload = prepare_comfyui_prompt_payload(&parsed);
+        let payload = prepare_comfyui_prompt_payload(&parsed, client_id.as_deref());
         let body = serde_json::to_string(&payload)
             .map_err(|e| format!("Failed to serialize ComfyUI payload: {e}"))?;
 
@@ -4972,7 +5002,7 @@ mod tests {
                 "inputs": { "seed": 12345 }
             }
         });
-        let payload = prepare_comfyui_prompt_payload(&direct_nodes);
+        let payload = prepare_comfyui_prompt_payload(&direct_nodes, None);
         assert!(payload.get("prompt").is_some());
         assert_eq!(payload["prompt"]["3"]["class_type"], "KSampler");
 
@@ -4981,7 +5011,7 @@ mod tests {
                 "4": { "class_type": "VAEDecode" }
             }
         });
-        let payload2 = prepare_comfyui_prompt_payload(&wrapped);
+        let payload2 = prepare_comfyui_prompt_payload(&wrapped, None);
         assert_eq!(payload2["prompt"]["4"]["class_type"], "VAEDecode");
     }
 

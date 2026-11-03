@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import AppIcon from "./AppIcon.vue";
-import { computed, ref, nextTick } from "vue";
+import { computed, ref, nextTick, defineAsyncComponent } from "vue";
 import type { AppInfo, ScanProgress } from "../types";
 import { t } from "../i18n";
 import { activeTaskCount } from "../utils/background-tasks";
+import { comfyMonitor } from "../utils/comfy-monitor";
+import { formatBytes } from "../utils/image";
 import ActivityPopover from "./ActivityPopover.vue";
 import ThumbnailDiagnosticsModal from "./ThumbnailDiagnosticsModal.vue";
 
@@ -17,6 +19,13 @@ const props = defineProps<{
   hasFilter?: boolean;
 }>();
 
+const ComfyStudioModal = defineAsyncComponent(() => import("./ComfyStudioModal.vue"));
+const comfyState = comfyMonitor.state;
+const comfyGpu = computed(() => comfyState.snapshot?.devices.find(device => device.device_type !== 'cpu'));
+const showComfyStudio = ref(false);
+const comfyTrigger = ref<HTMLButtonElement | null>(null);
+function openComfyStudio() { showActivity.value = false; showComfyStudio.value = true; }
+function closeComfyStudio() { showComfyStudio.value = false; void nextTick(() => comfyTrigger.value?.focus()); }
 const showActivity = ref(false);
 const activityTrigger = ref<HTMLButtonElement | null>(null);
 function closeActivity() {
@@ -94,6 +103,12 @@ const thumbPercent = computed(() => {
       <span v-else-if="activeTaskCount" class="ready-badge">{{ t.tasks.running }} · {{ activeTaskCount }}</span>
       <span v-else class="ready-badge">{{ t.statusbar.ready }}</span>
 
+      <button ref="comfyTrigger" type="button" class="activity-toggle-btn comfy-status" :class="{ active: comfyState.status === 'connected' }"
+        :title="t.comfy.queueTitle + ': ' + t.comfy[comfyState.status] + (comfyState.snapshot && !comfyState.fresh ? ' · ' + t.comfy.stale : '')" :aria-label="t.comfy.queueTitle + ': ' + t.comfy[comfyState.status]" @click="openComfyStudio">
+        ComfyUI <span v-if="comfyState.snapshot">({{ comfyState.snapshot.running_total + comfyState.snapshot.pending_total }})</span>
+        <span v-if="comfyState.node">#{{ comfyState.node }}<template v-if="comfyState.max > 0"> · {{ comfyState.value }}/{{ comfyState.max }}</template></span>
+        <span v-if="comfyGpu" :title="comfyGpu.name">{{ t.comfy.vram }} {{ comfyGpu.vram_free === null ? t.comfy.unknown : formatBytes(comfyGpu.vram_free) }} / {{ comfyGpu.vram_total === null ? t.comfy.unknown : formatBytes(comfyGpu.vram_total) }}</span>
+      </button>
       <!-- Activity Popover Toggle Button -->
       <button
         type="button"
@@ -115,9 +130,11 @@ const thumbPercent = computed(() => {
       :scan-progress="progress"
       :thumb-progress="thumbProgress"
       @close="closeActivity"
+      @open-comfy-studio="openComfyStudio"
       @open-thumbnail-diagnostics="showDiagnosticsModal = true"
     />
 
+    <ComfyStudioModal v-if="showComfyStudio" @close="closeComfyStudio" />
     <!-- Full Thumbnail Diagnostics Modal -->
     <ThumbnailDiagnosticsModal
       :show="showDiagnosticsModal"
@@ -259,6 +276,9 @@ const thumbPercent = computed(() => {
   border-color: var(--badge-cyan-border, rgba(56, 189, 248, 0.4));
   color: var(--badge-cyan-text, #155e75);
 }
+
+.comfy-status { max-width: 340px; white-space: nowrap; }
+.comfy-status span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 .activity-dot {
   width: 6px;
