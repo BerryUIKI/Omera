@@ -58,8 +58,12 @@ impl Fixture {
                             r#"{"type":"custom","data":{"secret":"must not be forwarded"}}"#,
                             "malformed",
                         ] {let _=socket.send(Message::Text(text.into()));}
-                        let _=socket.send(Message::Text("x".repeat(omera_comfy::protocol::FRAME_LIMIT+1).into()));
-                        let _=socket.send(Message::Text(r#"{"type":"execution_cached","data":{"prompt_id":"fixture-job"}}"#.into()));
+                        if let Err(error)=socket.send(Message::Text("x".repeat(omera_comfy::protocol::FRAME_LIMIT+1).into())) {
+                            eprintln!("Fixture large frame send failed: {error}"); return;
+                        }
+                        if let Err(error)=socket.send(Message::Text(r#"{"type":"execution_cached","data":{"prompt_id":"fixture-job"}}"#.into())) {
+                            eprintln!("Fixture marker send failed: {error}"); return;
+                        }
                         let _=socket.send(Message::Binary(vec![0,1,2].into()));
                         if disconnect_first && number==0 {
                             socket.get_mut().set_read_timeout(Some(Duration::from_secs(10))).unwrap();
@@ -170,7 +174,10 @@ fn real_http_websocket_reconnect_preserves_client_and_cleans_up() {
                 if status == "reconnecting" {
                     reconnect_seen = true;
                 }
-                if status == "connected" && reconnect_seen {
+                if status == "connected"
+                    && reconnect_seen
+                    && fixture.sockets.load(Ordering::Relaxed) >= 2
+                {
                     reconnected = true;
                 }
             }

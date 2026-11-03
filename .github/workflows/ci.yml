@@ -63,6 +63,10 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check Windows ComfyUI transport before the workspace build
+        if: runner.os == 'Windows'
+        run: cargo test -p omera-comfy -- --nocapture
+
       - name: Build frontend
         run: pnpm build
 

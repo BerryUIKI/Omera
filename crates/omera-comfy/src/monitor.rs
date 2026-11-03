@@ -285,7 +285,27 @@ fn run(base: Url, client_id: String, stop: Arc<AtomicBool>, emit: Emit) {
                                 error.kind(),
                                 std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
                             ) => {}
-                        Err(_) => break,
+                        Err(_error) => {
+                            // Keep diagnostics free of frame contents and HTTP
+                            // response bodies. Release builds emit no debug log.
+                            #[cfg(debug_assertions)]
+                            {
+                                let reason = match &_error {
+                                    tungstenite::Error::Io(error) => {
+                                        format!("I/O {:?}", error.kind())
+                                    }
+                                    tungstenite::Error::Protocol(error) => {
+                                        format!("protocol {error}")
+                                    }
+                                    tungstenite::Error::Capacity(error) => {
+                                        format!("capacity {error}")
+                                    }
+                                    _ => format!("category {:?}", std::mem::discriminant(&_error)),
+                                };
+                                eprintln!("ComfyUI socket read stopped: {reason}");
+                            }
+                            break;
+                        }
                         _ => {}
                     }
                 }
