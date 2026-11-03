@@ -188,6 +188,7 @@ fn partial_api_failure_retains_queue_and_replacing_endpoint_retires_old_session(
         |event| matches!(event,MonitorEvent::Snapshot{snapshot} if snapshot.history_error.is_none()),
     );
     service.stop(&new.session_id).unwrap();
+    assert!(service.client_for_endpoint(&second.endpoint).is_none());
 }
 #[test]
 fn disconnected_backoff_is_cancelable_and_dead_channels_stop_workers() {

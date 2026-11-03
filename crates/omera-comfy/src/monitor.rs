@@ -25,6 +25,14 @@ pub struct MonitorService {
 }
 
 impl MonitorService {
+    /// Nonblocking exit signal; no network join is performed on the app thread.
+    pub fn shutdown(&self) {
+        if let Ok(active) = self.active.lock() {
+            if let Some(worker) = active.as_ref() {
+                worker.stop.store(true, Ordering::Relaxed);
+            }
+        }
+    }
     pub fn start(&self, raw: &str, emit: Emit) -> Result<SessionInfo, String> {
         let base = protocol::endpoint(raw)?;
         // Reject concurrent transitions rather than accumulating blocked workers.
@@ -111,6 +119,9 @@ fn read_json(agent: &ureq::Agent, url: &Url) -> Result<serde_json::Value, String
         .get(url.as_str())
         .call()
         .map_err(|_| "ComfyUI HTTP request failed")?;
+    if response.status() != 200 {
+        return Err("ComfyUI HTTP request did not return 200".into());
+    }
     let mut bytes = Vec::new();
     response
         .into_reader()
@@ -121,6 +132,42 @@ fn read_json(agent: &ureq::Agent, url: &Url) -> Result<serde_json::Value, String
         return Err("ComfyUI response exceeds 8 MiB".into());
     }
     serde_json::from_slice(&bytes).map_err(|_| "Invalid ComfyUI JSON response".into())
+}
+
+#[cfg(test)]
+mod bounds_tests {
+    use super::*;
+    #[test]
+    fn http_body_and_redirect_boundaries_are_enforced() {
+        let mut server = mockito::Server::new();
+        let oversized = server
+            .mock("GET", "/large")
+            .with_body(vec![b'x'; RESPONSE_LIMIT + 1])
+            .create();
+        let redirect = server
+            .mock("GET", "/redirect")
+            .with_status(302)
+            .with_header("Location", "http://must-not-contact.invalid/queue")
+            .with_body("{\"queue_running\":[],\"queue_pending\":[]}")
+            .create();
+        let agent = ureq::AgentBuilder::new()
+            .redirects(0)
+            .timeout(Duration::from_secs(3))
+            .build();
+        assert!(read_json(
+            &agent,
+            &Url::parse(&format!("{}/large", server.url())).unwrap()
+        )
+        .unwrap_err()
+        .contains("8 MiB"));
+        assert!(read_json(
+            &agent,
+            &Url::parse(&format!("{}/redirect", server.url())).unwrap()
+        )
+        .is_err());
+        oversized.assert();
+        redirect.assert();
+    }
 }
 fn snapshot(agent: &ureq::Agent, base: &Url, stop: &AtomicBool) -> Result<Snapshot, String> {
     let value = read_json(agent, &protocol::route(base, "queue"))?;
