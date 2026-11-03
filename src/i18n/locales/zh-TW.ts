@@ -1,6 +1,26 @@
 import type { en } from "./en";
 
 export const zhTW: typeof en = {
+  comfy: {
+    graphTitle: "工作流程圖",
+    viewGraph: "查看工作流程",
+    searchNodes: "搜尋節點 · Enter 定位",
+    zoomOut: "縮小",
+    zoomIn: "放大",
+    fit: "符合視窗",
+    graphHint: "拖曳空白處平移，Ctrl + 滾輪縮放；方向鍵切換節點。",
+    skipped: "已略過的連線／節點",
+    nodeDetails: "節點詳細資料",
+    selectNode: "選取節點查看輸入參數。",
+    invalid: "工作流程 JSON 無效。",
+    limit: "工作流程超出顯示上限（2 MiB、500 個節點、2500 條連線）。",
+    empty: "沒有可顯示的工作流程節點。",
+    prompt: "提示詞",
+    sampler: "採樣器",
+    controlnet: "ControlNet",
+    lora: "LoRA",
+    other: "其他",
+  },
   tasks: {
     updateDownload: "更新套件下載",
     title: "背景工作",

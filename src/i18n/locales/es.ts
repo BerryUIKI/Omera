@@ -1,6 +1,26 @@
 import type { en } from "./en";
 
 export const es: typeof en = {
+  comfy: {
+    graphTitle: "Grafo del flujo",
+    viewGraph: "Ver flujo",
+    searchNodes: "Buscar nodos · Intro para localizar",
+    zoomOut: "Alejar",
+    zoomIn: "Acercar",
+    fit: "Ajustar",
+    graphHint: "Arrastra el espacio vacío para desplazar; Ctrl + rueda para ampliar. Las flechas cambian de nodo.",
+    skipped: "Enlaces/nodos omitidos",
+    nodeDetails: "Detalles del nodo",
+    selectNode: "Selecciona un nodo para ver sus entradas.",
+    invalid: "JSON del flujo no válido.",
+    limit: "Se superó el límite (2 MiB, 500 nodos, 2500 enlaces).",
+    empty: "No hay nodos compatibles para mostrar.",
+    prompt: "Prompt",
+    sampler: "Muestreador",
+    controlnet: "ControlNet",
+    lora: "LoRA",
+    other: "Otros",
+  },
   tasks: {
     updateDownload: "Descarga de actualización",
     title: "Tareas en segundo plano",

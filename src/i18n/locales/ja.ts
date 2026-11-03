@@ -1,6 +1,26 @@
 import type { en } from "./en";
 
 export const ja: typeof en = {
+  comfy: {
+    graphTitle: "ワークフローグラフ",
+    viewGraph: "ワークフローを表示",
+    searchNodes: "ノードを検索 · Enterで移動",
+    zoomOut: "縮小",
+    zoomIn: "拡大",
+    fit: "全体表示",
+    graphHint: "空白をドラッグして移動、Ctrl＋ホイールで拡大縮小。矢印キーでノードを移動します。",
+    skipped: "省略した接続／ノード",
+    nodeDetails: "ノード詳細",
+    selectNode: "ノードを選択すると入力を表示します。",
+    invalid: "無効なワークフローJSONです。",
+    limit: "表示上限を超えています（2 MiB、500ノード、2500接続）。",
+    empty: "表示可能なノードがありません。",
+    prompt: "プロンプト",
+    sampler: "サンプラー",
+    controlnet: "ControlNet",
+    lora: "LoRA",
+    other: "その他",
+  },
   tasks: {
     updateDownload: "更新のダウンロード",
     title: "バックグラウンドタスク",
