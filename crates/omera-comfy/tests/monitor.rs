@@ -39,6 +39,9 @@ impl Fixture {
                 let ids = ids.clone();
                 let count = count.clone();
                 workers.push(thread::spawn(move || {
+                    // Accepted sockets can inherit the listener's nonblocking
+                    // mode on Windows. The fixture uses blocking tungstenite.
+                    stream.set_nonblocking(false).unwrap();
                     stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
                     // HTTP reconciliation can delay reading WebSocket frames;
                     // allow backpressure instead of truncating a large send.
