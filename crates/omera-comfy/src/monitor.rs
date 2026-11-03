@@ -134,41 +134,6 @@ fn read_json(agent: &ureq::Agent, url: &Url) -> Result<serde_json::Value, String
     serde_json::from_slice(&bytes).map_err(|_| "Invalid ComfyUI JSON response".into())
 }
 
-#[cfg(test)]
-mod bounds_tests {
-    use super::*;
-    #[test]
-    fn http_body_and_redirect_boundaries_are_enforced() {
-        let mut server = mockito::Server::new();
-        let oversized = server
-            .mock("GET", "/large")
-            .with_body(vec![b'x'; RESPONSE_LIMIT + 1])
-            .create();
-        let redirect = server
-            .mock("GET", "/redirect")
-            .with_status(302)
-            .with_header("Location", "http://must-not-contact.invalid/queue")
-            .with_body("{\"queue_running\":[],\"queue_pending\":[]}")
-            .create();
-        let agent = ureq::AgentBuilder::new()
-            .redirects(0)
-            .timeout(Duration::from_secs(3))
-            .build();
-        assert!(read_json(
-            &agent,
-            &Url::parse(&format!("{}/large", server.url())).unwrap()
-        )
-        .unwrap_err()
-        .contains("8 MiB"));
-        assert!(read_json(
-            &agent,
-            &Url::parse(&format!("{}/redirect", server.url())).unwrap()
-        )
-        .is_err());
-        oversized.assert();
-        redirect.assert();
-    }
-}
 fn snapshot(agent: &ureq::Agent, base: &Url, stop: &AtomicBool) -> Result<Snapshot, String> {
     let value = read_json(agent, &protocol::route(base, "queue"))?;
     let (running, pending, running_total, pending_total) = protocol::queue(&value)?;
@@ -346,4 +311,40 @@ fn run(base: Url, client_id: String, stop: Arc<AtomicBool>, emit: Emit) {
         pause(&stop, Duration::from_secs(1u64 << failures.min(4)));
     }
     stop.store(true, Ordering::Relaxed);
+}
+
+#[cfg(test)]
+mod bounds_tests {
+    use super::*;
+    #[test]
+    fn http_body_and_redirect_boundaries_are_enforced() {
+        let mut server = mockito::Server::new();
+        let oversized = server
+            .mock("GET", "/large")
+            .with_body(vec![b'x'; RESPONSE_LIMIT + 1])
+            .create();
+        let redirect = server
+            .mock("GET", "/redirect")
+            .with_status(302)
+            .with_header("Location", "http://must-not-contact.invalid/queue")
+            .with_body("{\"queue_running\":[],\"queue_pending\":[]}")
+            .create();
+        let agent = ureq::AgentBuilder::new()
+            .redirects(0)
+            .timeout(Duration::from_secs(3))
+            .build();
+        assert!(read_json(
+            &agent,
+            &Url::parse(&format!("{}/large", server.url())).unwrap()
+        )
+        .unwrap_err()
+        .contains("8 MiB"));
+        assert!(read_json(
+            &agent,
+            &Url::parse(&format!("{}/redirect", server.url())).unwrap()
+        )
+        .is_err());
+        oversized.assert();
+        redirect.assert();
+    }
 }
