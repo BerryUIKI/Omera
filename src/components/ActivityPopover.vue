@@ -97,6 +97,8 @@ const formattedLastReconcile = computed(() => {
         <div class="card-title"><strong>ComfyUI</strong><button type="button" class="action-link" @click="emit('openComfyStudio')">{{ t.comfy.queueTitle }} ↗</button></div>
         <p>{{ t.comfy[comfyMonitor.state.status] }}</p>
         <p v-if="comfyMonitor.state.snapshot">{{ t.comfy.running }}: {{ comfyMonitor.state.snapshot.running_total }} · {{ t.comfy.pending }}: {{ comfyMonitor.state.snapshot.pending_total }}</p>
+        <p v-for="(device,i) in comfyMonitor.state.snapshot?.devices" :key="i">{{ device.name }} · {{ device.device_type === 'cpu' ? t.comfy.memory : t.comfy.vram }}:
+          {{ device.vram_free === null ? t.comfy.unknown : formatBytes(device.vram_free) }} / {{ device.vram_total === null ? t.comfy.unknown : formatBytes(device.vram_total) }}</p>
         <p v-if="comfyMonitor.state.snapshot && !comfyMonitor.state.fresh">{{ t.comfy.stale }}</p>
       </section>
       <section class="task-list" :aria-label="t.tasks.title">

@@ -5,6 +5,7 @@ import type { AppInfo, ScanProgress } from "../types";
 import { t } from "../i18n";
 import { activeTaskCount } from "../utils/background-tasks";
 import { comfyMonitor } from "../utils/comfy-monitor";
+import { formatBytes } from "../utils/image";
 import ActivityPopover from "./ActivityPopover.vue";
 import ThumbnailDiagnosticsModal from "./ThumbnailDiagnosticsModal.vue";
 
@@ -20,6 +21,7 @@ const props = defineProps<{
 
 const ComfyStudioModal = defineAsyncComponent(() => import("./ComfyStudioModal.vue"));
 const comfyState = comfyMonitor.state;
+const comfyGpu = computed(() => comfyState.snapshot?.devices.find(device => device.device_type !== 'cpu'));
 const showComfyStudio = ref(false);
 const comfyTrigger = ref<HTMLButtonElement | null>(null);
 function openComfyStudio() { showActivity.value = false; showComfyStudio.value = true; }
@@ -102,9 +104,10 @@ const thumbPercent = computed(() => {
       <span v-else class="ready-badge">{{ t.statusbar.ready }}</span>
 
       <button ref="comfyTrigger" type="button" class="activity-toggle-btn comfy-status" :class="{ active: comfyState.status === 'connected' }"
-        :title="t.comfy.queueTitle" :aria-label="t.comfy.queueTitle + ': ' + t.comfy[comfyState.status]" @click="openComfyStudio">
+        :title="t.comfy.queueTitle + ': ' + t.comfy[comfyState.status] + (comfyState.snapshot && !comfyState.fresh ? ' · ' + t.comfy.stale : '')" :aria-label="t.comfy.queueTitle + ': ' + t.comfy[comfyState.status]" @click="openComfyStudio">
         ComfyUI <span v-if="comfyState.snapshot">({{ comfyState.snapshot.running_total + comfyState.snapshot.pending_total }})</span>
         <span v-if="comfyState.node">#{{ comfyState.node }}<template v-if="comfyState.max > 0"> · {{ comfyState.value }}/{{ comfyState.max }}</template></span>
+        <span v-if="comfyGpu" :title="comfyGpu.name">{{ t.comfy.vram }} {{ comfyGpu.vram_free === null ? t.comfy.unknown : formatBytes(comfyGpu.vram_free) }} / {{ comfyGpu.vram_total === null ? t.comfy.unknown : formatBytes(comfyGpu.vram_total) }}</span>
       </button>
       <!-- Activity Popover Toggle Button -->
       <button
@@ -274,7 +277,7 @@ const thumbPercent = computed(() => {
   color: var(--badge-cyan-text, #155e75);
 }
 
-.comfy-status { max-width: 220px; white-space: nowrap; }
+.comfy-status { max-width: 340px; white-space: nowrap; }
 .comfy-status span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 .activity-dot {
