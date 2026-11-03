@@ -4,6 +4,7 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { backgroundTasks, dismissTask } from "../utils/background-tasks";
 import { formatBytes } from "../utils/image";
+import { comfyMonitor } from "../utils/comfy-monitor";
 import { t } from "../i18n";
 import { getThumbnailDiagnostics, type ThumbnailDiagnosticsSummary } from "../utils/thumbnail";
 import type { ScanProgress } from "../types";
@@ -25,6 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "openThumbnailDiagnostics"): void;
+  (e: "openComfyStudio"): void;
 }>();
 
 const watcherStatus = ref<WatcherStatus | null>(null);
@@ -91,6 +93,12 @@ const formattedLastReconcile = computed(() => {
     </div>
 
     <div class="popover-body">
+      <section class="activity-card">
+        <div class="card-title"><strong>ComfyUI</strong><button type="button" class="action-link" @click="emit('openComfyStudio')">{{ t.comfy.queueTitle }} ↗</button></div>
+        <p>{{ t.comfy[comfyMonitor.state.status] }}</p>
+        <p v-if="comfyMonitor.state.snapshot">{{ t.comfy.running }}: {{ comfyMonitor.state.snapshot.running_total }} · {{ t.comfy.pending }}: {{ comfyMonitor.state.snapshot.pending_total }}</p>
+        <p v-if="comfyMonitor.state.snapshot && !comfyMonitor.state.fresh">{{ t.comfy.stale }}</p>
+      </section>
       <section class="task-list" :aria-label="t.tasks.title">
         <p v-if="!backgroundTasks.length" class="empty-tasks">{{ t.tasks.empty }}</p>
         <article v-for="task in backgroundTasks" :key="task.id" class="activity-card" :class="{ 'task-failed': task.status === 'failed' }">
