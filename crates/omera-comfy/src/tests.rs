@@ -2,6 +2,24 @@ use crate::protocol::*;
 use serde_json::json;
 
 #[test]
+fn monitor_dto_round_trips_shared_frontend_fixture_and_submission_client_scope() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../../tests/fixtures/comfy-monitor.json")).unwrap();
+    let events: Vec<MonitorEvent> = serde_json::from_value(fixture.clone()).unwrap();
+    assert_eq!(serde_json::to_value(events).unwrap(), fixture);
+    let graph = json!({"3":{"class_type":"KSampler"}});
+    let payload = submission_payload(&graph, Some("monitor-client"));
+    assert_eq!(payload["client_id"], "monitor-client");
+    assert_eq!(payload["prompt"], graph);
+    let original = json!({"prompt":{},"client_id":"explicit-client"});
+    assert_eq!(
+        submission_payload(&original, Some("monitor-client")),
+        original
+    );
+    assert!(submission_payload(&graph, None).get("client_id").is_none());
+}
+
+#[test]
 fn endpoint_routes_preserve_proxy_prefix_and_transport_security() {
     let base = endpoint(" https://localhost:8188/comfy/ ").unwrap();
     assert_eq!(

@@ -3502,6 +3502,7 @@ dependencies = [
  "mockito",
  "notify",
  "omera-clip",
+ "omera-comfy",
  "omera-domain",
  "omera-metadata",
  "omera-scan",

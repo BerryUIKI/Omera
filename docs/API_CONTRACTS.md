@@ -26,7 +26,7 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 | Update DTOs | Rust `UpdateDownloadProgress` and `update_metadata::UpdateMetadataResponse` | `src/utils/updater.ts` |
 | Watcher events | `src-tauri/src/watcher.rs` | App refresh scheduling |
 
-[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 167 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
+[IPC_REFERENCE.md](IPC_REFERENCE.md) inventories all 169 commands currently registered in `src-tauri/src/lib.rs`, their actual request keys and Rust return types. On any checkout, validate with `node scripts/generate-ipc-reference.mjs --check`. The generator fails if a registered signature is not recognized. It does not validate nested DTOs; engineers must test Serde/TypeScript compatibility explicitly. See [VALIDATION_STATUS.md](VALIDATION_STATUS.md).
 
 Current commands are local Tauri IPC, not HTTP endpoints. Do not invent REST routes or expose these commands through a network server. Commands are restricted to the configured application WebView; IPC arguments still require backend validation.
 
@@ -477,3 +477,34 @@ Update download progress emits `percent: 100`, `done: false` after byte transfer
 and before signature retrieval/verification, including small or fast downloads.
 The UI displays verification at this boundary. `done: true` and the resolved
 command path still require successful verification; no DTO or command changed.
+
+## ComfyUI live monitor
+
+`start_comfyui_monitor({ endpoint, onEvent: Channel<MonitorEvent> })` returns
+`{ session_id, client_id, endpoint }`. `stop_comfyui_monitor({ sessionId })`
+resolves null; a stale ID cannot stop a newer session. Native startup/stop run
+on blocking workers, with no library/config/database locks held over network I/O.
+The idle service does no I/O. Explicit connection persists across dialog closure;
+Disconnect or application-state teardown cancels it. Replacing a connection retires
+the prior worker; concurrent lifecycle transitions reject rather than queue threads.
+
+The endpoint permits HTTP(S) with an optional reverse-proxy path, without embedded
+credentials, query or fragment. HTTP redirects are not followed, TLS remains
+verified, and WebView CSP is unchanged. HTTP responses and WebSocket frames are
+capped at 8 MiB. Binary previews are discarded; only documented JSON messages up
+to 256 KiB are normalized and forwarded, with progress throttled to 10 Hz. Queue
+snapshots reconcile every three seconds (debounced earlier on status changes),
+retaining at most 100 running and 100 pending jobs, 20 history entries and 8 devices.
+Graphs are capped at 500 nodes/2 MiB. Unknown fields and queue extra_data are not
+forwarded; history/statistics failures are explicit optional errors. DNS resolution
+uses the OS resolver; connect/read timeouts do not promise a hard bound on DNS.
+
+MonitorEvent is a tagged union: `connection { status, error }`,
+`snapshot { snapshot }`, or `execution { message }` with a `type` discriminator.
+Nested fields retain snake_case; absent execution IDs/nodes/progress use null,
+not inferred values. Rust DTOs in `omera-comfy::protocol` and TypeScript interfaces
+in `comfy-monitor.ts` round-trip `tests/fixtures/comfy-monitor.json` separately
+from command inventory validation. Existing generation submission gains the active
+monitor client_id only for the same normalized endpoint, preserving any explicit
+client_id already supplied. Server-scoped progress for another client's jobs may
+be unavailable; queue snapshots still report those jobs without invented progress.

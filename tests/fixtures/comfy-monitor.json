@@ -1,0 +1,6 @@
+[
+  {"type":"connection","status":"connected","error":null},
+  {"type":"snapshot","snapshot":{"running":[{"prompt_id":"fixture-job","number":1.0,"graph_json":"{}"}],"pending":[],"running_total":1,"pending_total":0,"recent":[{"prompt_id":"previous","status":"completed","error":null}],"devices":[{"name":"Fixture GPU","device_type":"cuda","vram_total":8000,"vram_free":4000}],"history_error":null,"stats_error":null}},
+  {"type":"execution","message":{"kind":"execution_start","prompt_id":"fixture-job","node":null,"value":null,"max":null,"queue_remaining":null,"error":null}},
+  {"type":"execution","message":{"kind":"progress","prompt_id":"fixture-job","node":"3","value":2.0,"max":8.0,"queue_remaining":null,"error":null}}
+]

@@ -7,6 +7,22 @@ pub const FRAME_LIMIT: usize = 256 * 1024;
 pub const QUEUE_LIMIT: usize = 100;
 pub const HISTORY_LIMIT: usize = 20;
 
+/// Preserve explicitly supplied client IDs; otherwise route Omera submissions to
+/// the active monitor so server-scoped progress reaches the same WebSocket.
+pub fn submission_payload(parsed: &Value, client_id: Option<&str>) -> Value {
+    let mut payload = if parsed.get("prompt").is_some() {
+        parsed.clone()
+    } else {
+        serde_json::json!({ "prompt": parsed })
+    };
+    if let (Some(object), Some(client_id)) = (payload.as_object_mut(), client_id) {
+        object
+            .entry("client_id")
+            .or_insert_with(|| Value::String(client_id.into()));
+    }
+    payload
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct QueueItem {
     pub prompt_id: String,

@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createComfyMonitor} from '../src/utils/comfy-monitor.ts';
+import {readFileSync} from 'node:fs';
 
 const session=id=>({session_id:id,client_id:'client-'+id,endpoint:'http://fixture/'+id});
 const snapshot={running:[{prompt_id:'a',number:1,graph_json:'{}'}],pending:[],running_total:1,pending_total:0,
   recent:[],devices:[],history_error:null,stats_error:null};
 const message=(kind,fields={})=>({type:'execution',message:{kind,prompt_id:'a',node:null,value:null,max:null,queue_remaining:null,error:null,...fields}});
+
+test('frontend consumes the exact Rust serialization fixture',async()=>{
+  const events=JSON.parse(readFileSync('tests/fixtures/comfy-monitor.json','utf8'));
+  let receive;
+  const monitor=createComfyMonitor({start:async(_,cb)=>{receive=cb;return session('dto');},stop:async()=>{}});
+  await monitor.connect('fixture');for(const event of events)receive(event);
+  assert.equal(monitor.state.status,'connected');
+  assert.equal(monitor.state.snapshot.running[0].prompt_id,'fixture-job');
+  assert.equal(monitor.state.snapshot.devices[0].vram_free,4000);
+  assert.equal(monitor.state.node,'3');assert.equal(monitor.state.max,8);
+  await monitor.disconnect();
+});
 
 test('connect is explicit; progress, terminal messages and reconnect snapshots remain consistent',async()=>{
   let receive,starts=0;
