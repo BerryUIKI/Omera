@@ -30,6 +30,13 @@ language, and keep #256 open. Do not run a real installer or personal ComfyUI
 instance as part of these automated release checks. Existing published assets
 remain immutable.
 
+Release ancestry reconciliation: merge published `main` at `68c799b` into the
+candidate based on `dev` at `7d0e7ba`. Reviewed overlaps retain the complete
+v0.6.0 candidate, including the prior GUI, release-note catalogs and update tests.
+The reconciliation merge's Git tree is identical to `7d0e7ba`; this follow-up
+receipt is the only subsequent file change. Application sources, manifests,
+lockfile, catalog content and IPC stay byte-identical to the qualified candidate.
+
 ## Owner-approved v0.5.1 patch release — 2026-10-30
 
 The owner authorized a PR to `dev`, version verification, and the release
