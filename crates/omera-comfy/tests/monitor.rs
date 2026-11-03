@@ -40,7 +40,10 @@ impl Fixture {
                 let count = count.clone();
                 workers.push(thread::spawn(move || {
                     stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
-                    stream.set_write_timeout(Some(Duration::from_secs(1))).unwrap();
+                    // HTTP reconciliation can delay reading WebSocket frames;
+                    // allow backpressure instead of truncating a large send.
+                    stream.set_write_timeout(Some(Duration::from_secs(10))).unwrap();
+                    stream.set_nodelay(true).unwrap();
                     let mut bytes=[0u8;2048];let Ok(n)=stream.peek(&mut bytes) else{return;};
                     let request=String::from_utf8_lossy(&bytes[..n]);
                     if request.starts_with("GET /ws?") {
@@ -59,6 +62,7 @@ impl Fixture {
                         let _=socket.send(Message::Text(r#"{"type":"execution_cached","data":{"prompt_id":"fixture-job"}}"#.into()));
                         let _=socket.send(Message::Binary(vec![0,1,2].into()));
                         if disconnect_first && number==0 {
+                            socket.get_mut().set_read_timeout(Some(Duration::from_secs(10))).unwrap();
                             let _=socket.close(None);
                             // Complete the closing handshake before dropping TCP.
                             // Windows may otherwise reset the socket while the
@@ -81,6 +85,11 @@ impl Fixture {
                         }
                         let request=String::from_utf8_lossy(&request);
                         let (status,body)=if request.starts_with("GET /queue ") {
+                            if disconnect_first && count.load(Ordering::Relaxed)==1 {
+                                // Exercise frames arriving during a slow first
+                                // snapshot, including Windows TCP backpressure.
+                                thread::sleep(Duration::from_millis(1500));
+                            }
                             (200,json!({"queue_running":[[1,"fixture-job",{"3":{"class_type":"KSampler","inputs":{"seed":42}}}]],"queue_pending":[[2,"waiting",{}]]}).to_string())
                         } else if request.starts_with("GET /history?") {
                             if history_fails {(503,"unavailable".into())} else {(200,json!({"previous":{"prompt":[0],"status":{"status_str":"success"}}}).to_string())}
