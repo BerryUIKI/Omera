@@ -157,7 +157,7 @@ The generator validates command coverage, not Serde field compatibility, safety,
 | `auto_stack_images` | `folderId: Option<i64>`<br>`similarityThreshold: Option<f32>`<br>`timeWindowMinutes: Option<i64>` | `Result<AutoStackResult, String>` |
 | `check_generation_service` | `endpoint: String`<br>`serviceType: String` | `Result<bool, String>` |
 | `send_to_comfyui` | `endpoint: String`<br>`workflowJson: String` | `Result<serde_json::Value, String>` |
-| `start_comfyui_monitor` | `endpoint: String`<br>`onEvent: tauri::ipc::Channel<omera_comfy::protocol::MonitorEvent>` | `Result<omera_comfy::protocol::SessionInfo, String>` |
+| `start_comfyui_monitor` | `endpoint: String`<br>`outputFolderId: Option<i64>`<br>`onEvent: tauri::ipc::Channel<omera_comfy::protocol::MonitorEvent>` | `Result<omera_comfy::protocol::SessionInfo, String>` |
 | `stop_comfyui_monitor` | `sessionId: String` | `Result<(), String>` |
 | `send_to_webui` | `endpoint: String`<br>`payload: serde_json::Value` | `Result<serde_json::Value, String>` |
 | `cloud_backup_test_connection` | `config: omera_domain::CloudBackupConfig` | `Result<omera_domain::CloudPingResult, String>` |

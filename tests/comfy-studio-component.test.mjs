@@ -13,10 +13,15 @@ test('queue UI renders native snapshots, exact node progress, unknowns and seven
   Object.assign(comfyMonitor.state,{endpoint:'http://fixture',status:'connected',snapshot,
     activePromptId:'fixture-job',node:'3',value:2,max:8,fresh:true});
   try {
-    await withProductionComponent('ComfyStudioModal',{},async()=>assert.fail('no startup network'),
+    await withProductionComponent('ComfyStudioModal',{},async command=>{
+      assert.equal(command,'list_folders');
+      return [{id:42,path:'/local/output',folder_type:'link'},{id:43,path:'/vault',folder_type:'managed'}];
+    },
       async({controls:c,render})=>{
         assert.equal(c.selected.value.prompt_id,'fixture-job');
         let html=await render();
+        assert.match(html,/local\/output/);assert.doesNotMatch(html,/\/vault/);
+        assert.equal(c.outputFolderId.value,null);
         assert.match(html,/Fixture GPU/);assert.match(html,/25%/);
         assert.match(html,/<progress[^>]*value="2"[^>]*max="8"/);
         const translated=new Set();

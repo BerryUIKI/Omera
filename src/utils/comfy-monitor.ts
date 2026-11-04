@@ -19,23 +19,25 @@ export type ComfyEvent =
 export interface ComfySession { session_id: string; client_id: string; endpoint: string }
 type Connection = "disconnected" | "connecting" | "connected" | "reconnecting" | "degraded" | "error";
 export interface ComfyMonitorState {
+  outputFolderId: number | null;
   status: Connection; endpoint: string; session: ComfySession | null; snapshot: ComfySnapshot | null;
   activePromptId: string | null; node: string | null; value: number; max: number;
   queueRemaining: number | null; error: string | null; lastUpdated: number | null; fresh: boolean;
 }
 interface Transport {
-  start(endpoint: string, receive: (event: ComfyEvent) => void): Promise<ComfySession>;
+  start(endpoint: string, receive: (event: ComfyEvent) => void, outputFolderId?: number | null): Promise<ComfySession>;
   stop(sessionId: string): Promise<void>;
 }
 const nativeTransport: Transport = {
-  start(endpoint, receive) {
+  start(endpoint, receive, outputFolderId) {
     const channel = new Channel<ComfyEvent>(); channel.onmessage = receive;
-    return invoke("start_comfyui_monitor", { endpoint, onEvent: channel });
+    return invoke("start_comfyui_monitor", { endpoint, onEvent: channel, outputFolderId: outputFolderId ?? null });
   },
   stop(sessionId) { return invoke("stop_comfyui_monitor", { sessionId }); },
 };
 export function createComfyMonitor(transport: Transport = nativeTransport) {
   const state = shallowReactive<ComfyMonitorState>({ status: "disconnected", endpoint: "", session: null,
+    outputFolderId: null,
     snapshot: null, activePromptId: null, node: null, value: 0, max: 0, queueRemaining: null,
     error: null, lastUpdated: null, fresh: false });
   let revision = 0;
@@ -83,7 +85,8 @@ export function createComfyMonitor(transport: Transport = nativeTransport) {
       } else { state.error = null; }
     }
   }
-  function connect(endpoint: string) {
+  function connect(endpoint: string, outputFolderId: number | null = null) {
+    state.outputFolderId = outputFolderId;
     const request = ++revision;
     state.status = "connecting"; state.error = null; state.fresh = false;
     state.endpoint = endpoint; state.snapshot = null; state.lastUpdated = null;
@@ -94,7 +97,7 @@ export function createComfyMonitor(transport: Transport = nativeTransport) {
       try {
         if (previous) await transport.stop(previous.session_id);
         if (request !== revision) return;
-        const session = await transport.start(endpoint, event => { if (request === revision) receive(event); });
+        const session = await transport.start(endpoint, event => { if (request === revision) receive(event); }, outputFolderId);
         if (request !== revision) { await transport.stop(session.session_id); return; }
         state.session = session; state.endpoint = session.endpoint;
       } catch (error) {

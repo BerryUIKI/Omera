@@ -4551,14 +4551,64 @@ pub fn prepare_comfyui_prompt_payload(
 #[tauri::command]
 pub async fn start_comfyui_monitor(
     endpoint: String,
+    output_folder_id: Option<i64>,
     on_event: tauri::ipc::Channel<omera_comfy::protocol::MonitorEvent>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<omera_comfy::protocol::SessionInfo, String> {
     let monitor = state.comfy_monitor.clone();
+    let mapping = if let Some(id) = output_folder_id {
+        let url = omera_comfy::protocol::endpoint(&endpoint)?;
+        if !matches!(
+            url.host_str(),
+            Some("127.0.0.1" | "localhost" | "[::1]" | "::1")
+        ) {
+            return Err("Completion indexing requires a local ComfyUI endpoint".into());
+        }
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        db.find_folder_by_id(id)
+            .map_err(|e| e.to_string())?
+            .filter(|f| f.folder_type == "link")
+            .ok_or("Select a registered linked output folder")?;
+        Some((
+            id,
+            db.path().ok_or("Database path unavailable")?.to_path_buf(),
+        ))
+    } else {
+        None
+    };
     tauri::async_runtime::spawn_blocking(move || {
-        monitor.start(
+        let errors = on_event.clone();
+        let images: Option<omera_comfy::monitor::CompletedImages> = mapping.map(|(id, path)| {
+            std::sync::Arc::new(
+                move |paths: Vec<std::path::PathBuf>, stop: &std::sync::atomic::AtomicBool| {
+                    if let Err(error) = omera_scan::comfy_ingest::index_completed_images(
+                        &path,
+                        id,
+                        &paths,
+                        stop,
+                        |stats| {
+                            let _ = app.emit(
+                                "library-files-changed",
+                                crate::watcher::LibraryFilesChanged {
+                                    folder_id: id,
+                                    stats,
+                                },
+                            );
+                        },
+                    ) {
+                        let _ = errors.send(omera_comfy::protocol::MonitorEvent::Connection {
+                            status: "degraded".into(),
+                            error: Some(error),
+                        });
+                    }
+                },
+            ) as omera_comfy::monitor::CompletedImages
+        });
+        monitor.start_with_images(
             &endpoint,
             std::sync::Arc::new(move |event| on_event.send(event).is_ok()),
+            images,
         )
     })
     .await

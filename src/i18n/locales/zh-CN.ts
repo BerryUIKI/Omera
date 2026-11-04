@@ -2,6 +2,9 @@ import type { en } from "./en";
 
 export const zhCN: typeof en = {
   comfy: {
+    outputFolder: "本地 ComfyUI 输出目录（连接或重连时应用）",
+    outputDisabled: "仅监控",
+    outputHint: "可选：选择与本地服务器输出目录对应的已登记链接目录。保存图片事件会原地索引并刷新画廊，不复制或清理源文件；漏失事件由现有文件监控处理。",
     queueTitle: "ComfyUI 实时队列",
     endpoint: "服务地址",
     connect: "连接",

@@ -17,6 +17,23 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 
 ## Sources of truth and compatibility
 
+`start_comfyui_monitor({ endpoint, onEvent, outputFolderId? })` optionally enables
+completion-driven local indexing. Omission/null retains monitoring-only behavior.
+The selected ID must name a registered `link` folder corresponding to the local
+ComfyUI output root; only loopback endpoints are accepted with a mapping. The
+mapping is session-scoped and reapplied on explicit Connect/Reconnect. Persisted
+`executed` image descriptors (`type: output`) resolve under that root; temporary,
+absolute, traversal and canonical escapes are rejected. At most 64 descriptors
+per bounded frame are considered. Indexing runs serially on the native monitor
+worker through `omera-scan`, with its own database connections and no shared app
+database lock during extraction. It preserves source bytes and existing IDs.
+Successful mutations emit the existing `library-files-changed` DTO; item failures
+report a degraded connection event with an error while subsequent items continue.
+Disconnect/replacement/exit cancel between items; an in-progress extraction may
+finish. Filesystem watching remains the recovery path for missed/oversized frames,
+offline events and unsupported output kinds. No remote download, pipeline copying,
+source disposition, history replay or new event DTO is introduced in this package.
+
 | Surface | Source of truth | Consumer |
 | --- | --- | --- |
 | Registered IPC commands | `src-tauri/src/lib.rs` `generate_handler!` and `src-tauri/src/commands.rs` | Vue `invoke` calls |

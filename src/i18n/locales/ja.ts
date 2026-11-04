@@ -2,6 +2,9 @@ import type { en } from "./en";
 
 export const ja: typeof en = {
   comfy: {
+    outputFolder: "ローカル ComfyUI 出力フォルダー（接続時に適用）",
+    outputDisabled: "監視のみ",
+    outputHint: "任意：ローカルサーバーの出力先と一致する登録済みリンクフォルダーを選択します。画像保存イベントで元の場所を索引化し、ギャラリーを更新します。コピーや元ファイルの削除は行いません。欠落イベントは既存のファイル監視で処理します。",
     queueTitle: "ComfyUI リアルタイムキュー",
     endpoint: "サーバーアドレス",
     connect: "接続",
