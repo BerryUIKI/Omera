@@ -272,3 +272,41 @@ not a claim that the new indexing feature shipped in v0.6.0.
   used. Native narrow/wide interaction and the installed-upgrade platform matrix
   remain separate acceptance work. #256 stays open. Unix-only symlink fixtures
   require Unix CI; this Windows run does not qualify those cases.
+
+## Targeted ComfyUI copy-pipeline follow-up (2026-11-04)
+
+Continuation on `codex/comfy-completion-ingestion`. The exclusive-copy prerequisite
+is committed at `b8c03ad`, targeted harvesting at `a3c16f8` and UI integration at
+`4f55bd0`, with permission compatibility at `8921eb9`. The final Rust run validates
+this source tree. Pipeline events build on the preceding local indexing package;
+these changes remain unreleased.
+
+- The selector includes registered linked roots and enabled copy-only pipelines,
+  displaying source → destination. Move/paused pipelines and standalone managed
+  folder entries are excluded. Optional IPC arguments and event DTOs are unchanged.
+- Completion harvesting visits only named outputs, including nested paths; it
+  never walks the source tree, schedules cleanup or invokes Trash. Canonical root,
+  sidecar and destination checks reject escapes, overlapping directories, linked
+  destination roots and orphan sidecars before publication. Filename collisions
+  preserve both files and report an error; identical duplicates do not refresh.
+- Exclusive file creation prevents copied imports and ordinary pipeline copies
+  from overwriting another writer's media. Targeted sidecar failure compensates
+  only files created by that operation. Explicit legacy Overwrite requests and
+  existing manual/watcher disposition remain separate and unchanged.
+  Copy publication also retains source permissions; a Unix private-mode fixture
+  is included for Unix CI rather than claimed as verified by this Windows run.
+- Production frontend build and all 353 frontend regressions passed, including
+  seven-language production selector coverage. IPC inventory remains 169 commands;
+  release-note validation for all seven languages and formatting checks passed.
+- Final strict workspace clippy passed with warnings denied. Final
+  `cargo test --offline --workspace` passed: 434 tests passed, zero failed and
+  two existing tests ignored. The scan crate passed all 82 Windows tests,
+  including copy-pipeline selection, nested outputs, sidecars, duplicate/collision
+  handling, cancellation, linked-root overlap, orphan sidecars and exclusive copy.
+- Tests use temporary files/databases and local protocol fixtures. Personal
+  ComfyUI, real libraries, native GUI and installer/Sandbox qualification were not
+  exercised. Unix symlink cases still require Unix CI. Remote transfer, reconnect
+  history replay, move/cleanup and separate ingestion-worker scheduling remain
+  follow-ups; #256 stays open.
+  Legacy pipeline fallback traversal remains top-level; nested outputs missed while
+  disconnected are not covered by this package's active-event tests.

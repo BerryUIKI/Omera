@@ -177,7 +177,7 @@ Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactiv
 ### 🟡 Milestone 17: Bi-Directional ComfyUI Studio, Live Queue & Prompt Diff (2 of 3 complete)
 - [x] **Real-Time ComfyUI WebSocket Monitor**: Explicit native HTTP/WebSocket connection, reconnect and bounded queue/history reconciliation; node progress, queue order, outcomes and VRAM in the studio, with status bar and Activity summaries. Qualified with local protocol fixtures only.
 - [ ] **Zero-Latency Ingestion Pipeline**: Stream newly generated images directly into Omera database and UI memory via IPC upon workflow completion, eliminating filesystem polling delay.
-  - First package: opt-in loopback completion events index an explicitly mapped registered linked output folder and notify the gallery. Pipeline copying, remote outputs and reconnect history catch-up remain pending; see [COMFY_STUDIO.md](COMFY_STUDIO.md).
+  - Implemented packages: opt-in loopback completion events index a registered linked output folder or copy named outputs through an enabled copy-only pipeline, preserving sources and sidecars. Move/cleanup, remote outputs and reconnect history catch-up remain pending; see [COMFY_STUDIO.md](COMFY_STUDIO.md).
 - [x] **Prompt Diff & Matrix Workbench**: Select A/B images in comparison mode; compare positive/negative and optional dual text-encoder prompts, explicit weights `(keyword:1.2)`, seeds, models, samplers and other generation parameters. Full details load on demand; long text has bounded section fallback and display limits.
 
 ### 🎯 Milestone 18: Local LAN Web Companion (Omera Remote)

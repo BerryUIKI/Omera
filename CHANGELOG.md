@@ -13,8 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   registered linked output folder when connecting, then saved image events index
   named files and refresh the gallery. Source files and existing ratings remain
   intact; duplicate unchanged events do not trigger another refresh. Monitoring
-  alone remains the default. Pipeline copying, remote outputs and reconnect
-  history catch-up are not included in this first package.
+  alone remains the default. Enabled copy-only pipelines can harvest named outputs
+  with sidecars into a separate destination; move pipelines and cleanup are excluded.
+  Remote outputs and reconnect history catch-up remain pending.
+### Fixed
+
+- Reserve copied media destinations exclusively during managed import and ordinary
+  pipeline publication, preventing a concurrent writer's file from being overwritten.
+  Source permissions are retained, including private Unix file modes.
+  Explicit legacy pipeline overwrite requests retain their existing behavior.
 
 ## [0.6.0] - 2026-11-03
 
