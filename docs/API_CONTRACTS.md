@@ -44,6 +44,8 @@ server reports persisted outputs; filesystem watching still handles missed event
 Nonidentical filename collisions report an error and preserve both files. Normal
 copy publication exclusively creates media and sidecars, compensating only files
 owned by the failed operation. Move and paused pipelines remain unavailable.
+Legacy pipeline fallback traversal remains top-level; nested outputs missed while
+disconnected still require the planned history catch-up package.
 
 | Surface | Source of truth | Consumer |
 | --- | --- | --- |
