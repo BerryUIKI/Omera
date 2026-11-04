@@ -239,3 +239,36 @@ continues to apply to the identical frontend source.
 - Native WebView, real-media, gallery/reduced-motion and installed-update
   acceptance remain open as recorded above; this frontend change does not
   qualify them.
+
+## Completion-driven local ComfyUI indexing (2026-11-04)
+
+Work is on `codex/comfy-completion-ingestion`, based on `dev` at `5cdf8b9`;
+application integration is committed at `b742ec4`. This is branch evidence,
+not a claim that the new indexing feature shipped in v0.6.0.
+
+- The GitHub stable release endpoint confirms v0.6.0 published from `8bdd80e`
+  on 2026-11-03, with six installer packages and adjacent `.minisig` files.
+  This inspection is asset-inventory evidence, not new signature/installer QA.
+- Final production build passed using an isolated output directory after a
+  concurrent build encountered the existing `dist` directory lock. TypeScript
+  checks passed. All 353 frontend regressions passed; focused monitor/component
+  checks also passed after the final test updates, covering explicit folder
+  mapping, stale sessions, seven locales and linked-only folder choices.
+- `cargo fmt --check`, strict workspace clippy and the generated IPC inventory
+  check passed. The command count stays 169; `outputFolderId` is optional and
+  omission/null preserves monitoring-only behavior. Existing Rust/TypeScript
+  event serialization fixtures remain unchanged and passed their regressions.
+- `cargo test --offline --workspace` passed: 431 tests passed, zero failed and
+  two existing tests ignored. This includes all four local WebSocket monitor
+  fixtures and both Windows indexing-service regressions. No model download or
+  personal ComfyUI server was required. Windows compilation/linking dominated
+  the elapsed check time; passing tests do not establish native UI acceptance.
+- The native monitor serializes at most 64 saved-image descriptors per frame.
+  Temporary, unsupported and unsafe paths are ignored or rejected. The reusable
+  scanner checks registered folder ownership and canonical source/sidecar bounds,
+  skips unchanged fingerprints and preserves source files. Source and destination
+  cleanup, pipeline copying and remote downloads are outside this package.
+- No personal ComfyUI server, real user library, native installer or Sandbox was
+  used. Native narrow/wide interaction and the installed-upgrade platform matrix
+  remain separate acceptance work. #256 stays open. Unix-only symlink fixtures
+  require Unix CI; this Windows run does not qualify those cases.

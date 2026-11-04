@@ -39,7 +39,24 @@ highlight insertions/deletions and distinguish weight-only edits. Bound diff wor
 on long texts and avoid HTML injection. Fetch full details on demand when gallery
 projections omit prompt data; fence late results on selection change.
 
-## Acceptance
+## Completion-driven local indexing (2026-11-04)
+
+The studio offers an optional registered linked output folder at connection time.
+It must match the loopback server's output root. Persisted `executed` image events
+index only the named files (including subfolders) and publish the existing library
+change event; gallery updates use the established bounded refresh scheduler.
+There is no full directory walk or speculative original-image decode in the WebView.
+The native monitor worker serializes indexing and may defer socket processing while
+extracting one item. Cancellation is checked between files. Duplicate events use
+the normal path upsert and unchanged files do not cause another gallery refresh.
+
+This is the first Milestone 17 ingestion package, not completion of the full
+zero-latency pipeline. Pipeline copy/cleanup, remote server downloads, video/custom
+node output descriptors, history replay after reconnect and large-batch overflow
+remain follow-ups. Existing filesystem watching remains enabled for recovery.
+Source media and legacy data are preserved; no schema or configuration field changes.
+
+## Prior graph, queue and comparison acceptance
 
 All seven UI languages, focused production-handler/parser tests, full frontend
 build/regressions and Rust fmt/clippy/workspace tests. Local HTTP/WebSocket fixtures

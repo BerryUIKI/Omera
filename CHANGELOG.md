@@ -5,6 +5,17 @@ All notable changes to the Omera project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Optional completion-driven indexing for a local ComfyUI server: select a
+  registered linked output folder when connecting, then saved image events index
+  named files and refresh the gallery. Source files and existing ratings remain
+  intact; duplicate unchanged events do not trigger another refresh. Monitoring
+  alone remains the default. Pipeline copying, remote outputs and reconnect
+  history catch-up are not included in this first package.
+
 ## [0.6.0] - 2026-11-03
 
 ### Added
