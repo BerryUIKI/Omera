@@ -1,9 +1,23 @@
 # Signed update delivery
 
-Updated: 2026-11-03. Lead-owned follow-up for #256; integration targets `dev`.
+Updated: 2026-11-04. Lead-owned follow-up for #256; integration targets `dev`.
 This contract precedes release integration. It does not authorize publishing a release.
 
-## v0.6.0 ComfyUI studio release preparation — 2026-11-03
+## v0.6.0 published release — 2026-11-04 receipt
+
+[v0.6.0](https://github.com/BerryUIKI/Omera/releases/tag/v0.6.0) was published
+on 2026-11-03 at 08:29:35 UTC from `8bdd80eec33569725e083e2921fca9e336e45ace`.
+The public release contains Windows EXE/MSI, macOS aarch64 DMG and Linux x64
+AppImage/DEB/RPM, each with an adjacent `.minisig`. This receipt confirms public
+asset inventory, not a new downloaded-byte signature or native installation test.
+The release is stable, not a draft or prerelease. #436 integrated the release;
+#437 reconciled release ancestry into `dev` without changing application sources.
+
+The preparation notes below are historical. The latest published stable version
+is now v0.6.0. Keep #256 open: native installed-upgrade acceptance remains incomplete
+and the owner's testing deferral remains in force.
+
+## v0.6.0 ComfyUI studio release preparation — historical, 2026-11-03
 
 Continue delivery under the owner's delegated release scheduling and continuation
 request. The latest stable release is v0.5.2. The new node viewer, live queue and

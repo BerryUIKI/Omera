@@ -139,7 +139,13 @@ This roadmap documents completed milestones and future engineering goals for **O
 
 ---
 
-## 🚀 Current & Upcoming Milestones (post-0.5.0)
+## 🚀 Current & Upcoming Milestones (post-0.6.0)
+
+Status reconciled 2026-11-04: [v0.6.0](https://github.com/BerryUIKI/Omera/releases/tag/v0.6.0)
+is published with workflow viewing, live queue monitoring and Prompt Diff.
+Release asset inventory and remaining native gates are recorded in
+[SIGNED_UPDATES.md](SIGNED_UPDATES.md). The next bounded implementation package
+is opt-in completion-driven indexing of an explicitly selected local output folder.
 
 ### Priority: Omera identity and review fixes
 
@@ -162,7 +168,7 @@ Delivered in the v0.4.x line. The remaining facet work is limited to resolution,
 
 ### ✅ Milestone 16: Next-Gen Model Architectures & Ecosystem (complete)
 
-Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactive workflow graph is implemented on `dev`; see [COMFY_STUDIO.md](COMFY_STUDIO.md) for bounds and acceptance evidence.
+Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactive workflow graph shipped in v0.6.0; see [COMFY_STUDIO.md](COMFY_STUDIO.md) for bounds and acceptance evidence.
 
 - [x] **Flux.1 & SD3.5 Parameter Parsers**: Parse Guidance Scale, Distilled CFG Scale, Shift, schedule type, and dual CLIP-L / T5-XXL text-encoder prompts (ComfyUI). A1111 `Size` continues to supply the resolution bucket dimensions.
 - [x] **Civitai Direct API Integration**: Remote model reverse lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click merge of trained trigger words into the local LoRA catalog.
