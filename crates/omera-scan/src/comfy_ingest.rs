@@ -1,4 +1,4 @@
-//! Bounded, read-only indexing of explicitly mapped local ComfyUI outputs.
+//! Bounded indexing and copy-only harvesting of explicitly mapped local outputs.
 use crate::{ScanStats, Scanner};
 use omera_storage::Database;
 use std::path::{Component, Path, PathBuf};
@@ -20,12 +20,48 @@ pub fn index_completed_images(
         }
         let result = (|| {
             // Recheck registration on every item; removing/changing a folder revokes
-            // subsequent work. Pipeline copy/disposition is intentionally excluded.
+            // subsequent work. Completion harvesting never disposes source files.
             let folder = db
                 .find_folder_by_id(folder_id)
                 .map_err(|e| e.to_string())?
-                .filter(|f| f.folder_type == "link")
-                .ok_or("Output folder is no longer a registered linked folder")?;
+                .ok_or("Output folder is no longer registered")?;
+            if folder.folder_type == "pipeline" {
+                let report = crate::pipeline::harvest_completed_paths(
+                    &db,
+                    folder_id,
+                    std::slice::from_ref(relative),
+                    stop,
+                )
+                .map_err(|e| e.to_string())?;
+                if report.failed_count > 0 {
+                    return Err("Pipeline output could not be harvested".into());
+                }
+                if report.items.iter().any(|item| {
+                    matches!(
+                        item,
+                        crate::pipeline::PipelineHarvestItemOutcome::SkippedCollision { .. }
+                    )
+                }) {
+                    return Err("Pipeline filename collision; source preserved".into());
+                }
+                if report.harvested_count == 0 {
+                    return Ok(None);
+                }
+                return Ok(Some(ScanStats {
+                    folder_id,
+                    found: report.harvested_count as u64,
+                    added: report.harvested_count as u64,
+                    updated: 0,
+                    unchanged: 0,
+                    removed: 0,
+                    failed: 0,
+                    duration_ms: 0,
+                    walk_errors: 0,
+                }));
+            }
+            if folder.folder_type != "link" {
+                return Err("Select a linked folder or an enabled copy-only pipeline".into());
+            }
             if relative.as_os_str().is_empty()
                 || relative
                     .components()
@@ -93,6 +129,129 @@ pub fn index_completed_images(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn copy_pipeline_harvests_only_named_nested_outputs_and_preserves_sidecars() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let dest = temp.path().join("dest");
+        std::fs::create_dir_all(source.join("nested")).unwrap();
+        std::fs::create_dir(&dest).unwrap();
+        for name in ["nested/image.png", "unrequested.png"] {
+            std::fs::write(source.join(name), b"\x89PNG\r\n\x1a\n").unwrap();
+        }
+        std::fs::write(source.join("nested/image.txt"), b"prompt").unwrap();
+        let db_path = temp.path().join("library.db");
+        let db = Database::connect(&db_path).unwrap();
+        let folder = db
+            .add_folder_with_mode(
+                dest.to_str().unwrap(),
+                "pipeline",
+                Some(source.to_str().unwrap()),
+                Some("copy"),
+                Some(0),
+                true,
+            )
+            .unwrap();
+        let paths = [PathBuf::from("nested/image.png")];
+        let stop = AtomicBool::new(false);
+        let mut added = 0;
+        index_completed_images(&db_path, folder.id, &paths, &stop, |s| added += s.added).unwrap();
+        assert_eq!(added, 1);
+        assert!(dest.join("image.png").exists());
+        assert_eq!(std::fs::read(dest.join("image.txt")).unwrap(), b"prompt");
+        assert!(!dest.join("unrequested.png").exists());
+        assert!(source.join("nested/image.png").exists());
+        assert!(db.get_cleanup_queue(10).unwrap().is_empty());
+        index_completed_images(&db_path, folder.id, &paths, &stop, |_| {
+            panic!("duplicate refresh")
+        })
+        .unwrap();
+        std::fs::write(source.join("nested/image.png"), b"different").unwrap();
+        assert!(index_completed_images(&db_path, folder.id, &paths, &stop, |_| panic!()).is_err());
+        assert_eq!(
+            std::fs::read(dest.join("image.png")).unwrap(),
+            b"\x89PNG\r\n\x1a\n"
+        );
+    }
+
+    #[test]
+    fn completion_pipeline_rejects_move_overlap_escape_and_cancellation() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let dest = temp.path().join("dest");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::create_dir(&dest).unwrap();
+        std::fs::write(source.join("image.png"), b"\x89PNG\r\n\x1a\n").unwrap();
+        let db_path = temp.path().join("library.db");
+        let db = Database::connect(&db_path).unwrap();
+        let folder = db
+            .add_folder_with_mode(
+                dest.to_str().unwrap(),
+                "pipeline",
+                Some(source.to_str().unwrap()),
+                Some("move"),
+                Some(0),
+                true,
+            )
+            .unwrap();
+        let stop = AtomicBool::new(false);
+        let paths = [PathBuf::from("image.png")];
+        assert!(crate::pipeline::harvest_completed_paths(&db, folder.id, &paths, &stop).is_err());
+        db.remove_folder(folder.id).unwrap();
+        let folder = db
+            .add_folder_with_mode(
+                dest.to_str().unwrap(),
+                "pipeline",
+                Some(source.to_str().unwrap()),
+                Some("copy"),
+                None,
+                true,
+            )
+            .unwrap();
+        assert!(crate::pipeline::harvest_completed_paths(
+            &db,
+            folder.id,
+            &[PathBuf::from("../outside.png")],
+            &stop
+        )
+        .is_err());
+        stop.store(true, Ordering::Relaxed);
+        assert!(
+            crate::pipeline::harvest_completed_paths(&db, folder.id, &paths, &stop)
+                .unwrap()
+                .cancelled
+        );
+        stop.store(false, Ordering::Relaxed);
+        db.add_folder(temp.path().to_str().unwrap()).unwrap();
+        assert!(crate::pipeline::harvest_completed_paths(&db, folder.id, &paths, &stop).is_err());
+        assert_eq!(std::fs::read_dir(&dest).unwrap().count(), 0);
+        assert!(source.join("image.png").exists());
+        db.remove_folder(folder.id).unwrap();
+        db.remove_folder(
+            db.find_folder_by_path(temp.path().to_str().unwrap())
+                .unwrap()
+                .unwrap()
+                .id,
+        )
+        .unwrap();
+        let folder = db
+            .add_folder_with_mode(
+                dest.to_str().unwrap(),
+                "pipeline",
+                Some(source.to_str().unwrap()),
+                Some("copy"),
+                None,
+                true,
+            )
+            .unwrap();
+        std::fs::write(dest.join("image.txt"), b"curated orphan").unwrap();
+        assert!(crate::pipeline::harvest_completed_paths(&db, folder.id, &paths, &stop).is_err());
+        assert!(!dest.join("image.png").exists());
+        assert_eq!(
+            std::fs::read(dest.join("image.txt")).unwrap(),
+            b"curated orphan"
+        );
+    }
     #[test]
     fn indexes_nested_outputs_once_preserves_sources_and_continues_after_missing_file() {
         let temp = tempfile::tempdir().unwrap();

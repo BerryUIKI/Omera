@@ -361,3 +361,7 @@ queries after successful mutations. Repeated unchanged descriptors do not emit
 another refresh. One active extraction may finish after cancellation, and socket
 processing waits during indexing. Filesystem watching remains the recovery path
 for missed events; no claim of zero latency or full pipeline coverage is made.
+
+Enabled copy-only pipeline mappings also reconcile only the named descriptors;
+they never enumerate the source directory. Pipeline root validation and content
+comparison occur on the native worker. Source disposition and cleanup are excluded.

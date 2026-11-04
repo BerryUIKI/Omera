@@ -221,6 +221,45 @@ pub fn harvest_pipeline_folder_with_cancellation(
     cancellation_token: Option<&AtomicBool>,
     progress_callback: Option<&dyn Fn(&PipelineHarvestItemOutcome)>,
 ) -> Result<PipelineHarvestReport, PipelineError> {
+    harvest_selected(
+        db,
+        folder_id,
+        options,
+        cancellation_token,
+        progress_callback,
+        None,
+    )
+}
+
+/// Completion events may copy named outputs only. Never enable source disposition
+/// or walk a directory based on server-provided descriptors.
+pub fn harvest_completed_paths(
+    db: &Database,
+    folder_id: i64,
+    paths: &[std::path::PathBuf],
+    stop: &AtomicBool,
+) -> Result<PipelineHarvestReport, PipelineError> {
+    harvest_selected(
+        db,
+        folder_id,
+        Some(PipelineHarvestOptions {
+            debounce_seconds: Some(0),
+            ..Default::default()
+        }),
+        Some(stop),
+        None,
+        Some(paths),
+    )
+}
+
+fn harvest_selected(
+    db: &Database,
+    folder_id: i64,
+    options: Option<PipelineHarvestOptions>,
+    cancellation_token: Option<&AtomicBool>,
+    progress_callback: Option<&dyn Fn(&PipelineHarvestItemOutcome)>,
+    selected: Option<&[std::path::PathBuf]>,
+) -> Result<PipelineHarvestReport, PipelineError> {
     let folder = db
         .find_folder_by_id(folder_id)?
         .ok_or(PipelineError::FolderNotFound(folder_id))?;
@@ -242,6 +281,86 @@ pub fn harvest_pipeline_folder_with_cancellation(
         return Err(PipelineError::SourcePathNotDirectory(source_path_str));
     }
 
+    if let Some(paths) = selected {
+        let invalid = |message| {
+            PipelineError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                message,
+            ))
+        };
+        if !folder.auto_harvest || folder.ingest_action.as_deref() != Some("copy") {
+            return Err(invalid(
+                "Completion harvesting requires an enabled copy-only pipeline",
+            ));
+        }
+        if cancellation_token.is_some_and(|stop| stop.load(Ordering::Relaxed)) {
+            return Ok(PipelineHarvestReport {
+                cancelled: true,
+                ..Default::default()
+            });
+        }
+        let source = source_dir.canonicalize()?;
+        let destination = Path::new(&folder.path).canonicalize()?;
+        if !destination.is_dir()
+            || destination.starts_with(&source)
+            || source.starts_with(&destination)
+        {
+            return Err(invalid(
+                "Pipeline source and destination must be separate existing directories",
+            ));
+        }
+        for registered in db.list_folders()? {
+            if registered.folder_type == "link" {
+                if let Ok(root) = Path::new(&registered.path).canonicalize() {
+                    if destination.starts_with(&root) || root.starts_with(&destination) {
+                        return Err(invalid("Pipeline destination overlaps a linked folder"));
+                    }
+                }
+            }
+        }
+        for path in paths.iter().take(64) {
+            if path.as_os_str().is_empty()
+                || path
+                    .components()
+                    .any(|part| !matches!(part, std::path::Component::Normal(_)))
+            {
+                return Err(invalid("Invalid relative pipeline output path"));
+            }
+            let output = source.join(path);
+            let target = destination.join(
+                path.file_name()
+                    .ok_or_else(|| invalid("Missing output filename"))?,
+            );
+            if target.symlink_metadata().is_err()
+                && [target.with_extension("txt"), target.with_extension("json")]
+                    .iter()
+                    .any(|path| path.symlink_metadata().is_ok())
+            {
+                return Err(invalid("Pipeline destination has orphan sidecars"));
+            }
+            for candidate in [
+                target.clone(),
+                target.with_extension("txt"),
+                target.with_extension("json"),
+            ] {
+                if candidate.symlink_metadata().is_ok()
+                    && !candidate.canonicalize()?.starts_with(&destination)
+                {
+                    return Err(invalid("Pipeline target escapes destination"));
+                }
+            }
+            if !output.is_file() || !output.canonicalize()?.starts_with(&source) {
+                return Err(invalid("Output escapes pipeline source"));
+            }
+            for ext in ["txt", "json"] {
+                let sidecar = output.with_extension(ext);
+                if sidecar.exists() && !sidecar.canonicalize()?.starts_with(&source) {
+                    return Err(invalid("Sidecar escapes pipeline source"));
+                }
+            }
+        }
+    }
+
     let dest_dir = Path::new(&folder.path);
     std::fs::create_dir_all(dest_dir)
         .map_err(|e| PipelineError::DestinationDirCreate(e.to_string()))?;
@@ -249,8 +368,16 @@ pub fn harvest_pipeline_folder_with_cancellation(
     let supported_exts = ["png", "jpg", "jpeg", "webp", "mp4"];
     let mut report = PipelineHarvestReport::default();
 
-    let entries =
-        std::fs::read_dir(source_dir).map_err(|e| PipelineError::SourceDirRead(e.to_string()))?;
+    let entries: Box<dyn Iterator<Item = std::path::PathBuf> + '_> = if let Some(paths) = selected {
+        Box::new(paths.iter().take(64).map(|path| source_dir.join(path)))
+    } else {
+        Box::new(
+            std::fs::read_dir(source_dir)
+                .map_err(|e| PipelineError::SourceDirRead(e.to_string()))?
+                .flatten()
+                .map(|entry| entry.path()),
+        )
+    };
 
     let now_ts = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -273,7 +400,7 @@ pub fn harvest_pipeline_folder_with_cancellation(
         }
     }
 
-    for entry in entries.flatten() {
+    for file_path in entries {
         if let Some(token) = cancellation_token {
             if token.load(Ordering::Relaxed) {
                 report.cancelled = true;
@@ -281,7 +408,6 @@ pub fn harvest_pipeline_folder_with_cancellation(
             }
         }
 
-        let file_path = entry.path();
         if !file_path.is_file() {
             continue;
         }
@@ -468,7 +594,12 @@ pub fn harvest_pipeline_folder_with_cancellation(
 
         let tgt_str = target_path.display().to_string();
 
-        if let Err(e) = std::fs::copy(&file_path, &target_path) {
+        let copy = if collision_policy == PipelineCollisionPolicy::Overwrite {
+            std::fs::copy(&file_path, &target_path).map(|_| ())
+        } else {
+            crate::publication::copy_new(&file_path, &target_path)
+        };
+        if let Err(e) = copy {
             let outcome = PipelineHarvestItemOutcome::FailedCopy {
                 source_path: src_str,
                 target_path: tgt_str,
@@ -488,7 +619,12 @@ pub fn harvest_pipeline_folder_with_cancellation(
         let mut copied_txt = false;
         if has_src_txt
             && (collision_policy == PipelineCollisionPolicy::Overwrite || !tgt_txt.exists())
-            && std::fs::copy(&src_txt, &tgt_txt).is_ok()
+            && (if collision_policy == PipelineCollisionPolicy::Overwrite {
+                std::fs::copy(&src_txt, &tgt_txt).map(|_| ())
+            } else {
+                crate::publication::copy_new(&src_txt, &tgt_txt)
+            })
+            .is_ok()
         {
             copied_txt = true;
         }
@@ -497,11 +633,37 @@ pub fn harvest_pipeline_folder_with_cancellation(
         let mut copied_json = false;
         if has_src_json
             && (collision_policy == PipelineCollisionPolicy::Overwrite || !tgt_json.exists())
-            && std::fs::copy(&src_json, &tgt_json).is_ok()
+            && (if collision_policy == PipelineCollisionPolicy::Overwrite {
+                std::fs::copy(&src_json, &tgt_json).map(|_| ())
+            } else {
+                crate::publication::copy_new(&src_json, &tgt_json)
+            })
+            .is_ok()
         {
             copied_json = true;
         }
 
+        if selected.is_some()
+            && ((has_src_txt && !copied_txt)
+                || (has_src_json && !copied_json)
+                || (tgt_txt.symlink_metadata().is_ok() && !copied_txt)
+                || (tgt_json.symlink_metadata().is_ok() && !copied_json))
+        {
+            let _ = std::fs::remove_file(&target_path);
+            if copied_txt {
+                let _ = std::fs::remove_file(&tgt_txt);
+            }
+            if copied_json {
+                let _ = std::fs::remove_file(&tgt_json);
+            }
+            report.failed_count += 1;
+            report.items.push(PipelineHarvestItemOutcome::FailedCopy {
+                source_path: src_str,
+                target_path: tgt_str,
+                error: "Sidecar publication failed or collided; source preserved".into(),
+            });
+            continue;
+        }
         let container = match ext.as_str() {
             "png" => Container::Png,
             "jpg" | "jpeg" => Container::Jpeg,
