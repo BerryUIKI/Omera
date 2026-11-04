@@ -4,7 +4,7 @@ export const zhCN: typeof en = {
   comfy: {
     outputFolder: "本地 ComfyUI 输出目录（连接或重连时应用）",
     outputDisabled: "仅监控",
-    outputHint: "可选：选择与本地服务器输出目录对应的已登记链接目录。保存图片事件会原地索引并刷新画廊，不复制或清理源文件；漏失事件由现有文件监控处理。",
+    outputHint: "可选：选择本地服务器对应的链接输出目录或已启用的复制型管道。图片会原地索引或连同旁车文件复制到管道目标，保留源文件。移动型管道不可用；文件监控处理漏失事件。",
     queueTitle: "ComfyUI 实时队列",
     endpoint: "服务地址",
     connect: "连接",

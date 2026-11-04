@@ -2,7 +2,7 @@ export const en = {
   comfy: {
     outputFolder: "Local ComfyUI output folder (apply on Connect / Reconnect)",
     outputDisabled: "Monitoring only",
-    outputHint: "Optional: select the registered linked folder matching this local server's output directory. Saved image events index files in place and refresh the gallery. No copying or source cleanup. Missed events use the existing filesystem watcher.",
+    outputHint: "Optional: select a linked output folder or an enabled copy-only pipeline for this local server. Saved images are indexed or copied with sidecars. Sources are kept. Move pipelines are unavailable; filesystem watching handles missed events.",
     queueTitle: "ComfyUI live queue",
     endpoint: "Server address",
     connect: "Connect",

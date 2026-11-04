@@ -23,7 +23,7 @@ watch(() => state.snapshot, snapshot => {
   if (!items.some(item => item.prompt_id === selectedId.value)) selectedId.value = items[0]?.prompt_id ?? null;
 }, { immediate: true });
 onMounted(async () => {
-  try { folders.value = (await invoke<Folder[]>("list_folders")).filter(folder => (folder.folder_type ?? "link") === "link"); }
+  try { folders.value = (await invoke<Folder[]>("list_folders")).filter(folder => (folder.folder_type ?? "link") === "link" || (folder.folder_type === "pipeline" && folder.auto_harvest && folder.ingest_action === "copy")); }
   catch (error) { configError.value = String(error); }
   if (endpoint.value) return;
   try { endpoint.value = (await loadAppConfig()).comfyui_url; }
@@ -46,7 +46,7 @@ function disconnect() { void comfyMonitor.disconnect(); }
       <p class="monitor-hint">{{ t.comfy.monitorHint }}</p>
       <label class="output-mapping">{{ t.comfy.outputFolder }}
         <select v-model="outputFolderId"><option :value="null">{{ t.comfy.outputDisabled }}</option>
-          <option v-for="folder in folders" :key="folder.id" :value="folder.id">{{ folder.path }}</option>
+          <option v-for="folder in folders" :key="folder.id" :value="folder.id">{{ folder.folder_type === 'pipeline' ? `${folder.source_path} → ${folder.path}` : folder.path }}</option>
         </select>
       </label>
       <p class="monitor-hint">{{ t.comfy.outputHint }}</p>

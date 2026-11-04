@@ -4,7 +4,7 @@ export const de: typeof en = {
   comfy: {
     outputFolder: "Lokaler ComfyUI-Ausgabeordner (beim Verbinden anwenden)",
     outputDisabled: "Nur überwachen",
-    outputHint: "Optional: Wählen Sie den registrierten verknüpften Ausgabeordner dieses lokalen Servers. Bildereignisse indizieren Dateien vor Ort und aktualisieren die Galerie. Kein Kopieren oder Löschen. Fehlende Ereignisse übernimmt die bestehende Dateiüberwachung.",
+    outputHint: "Optional: Wählen Sie einen verknüpften Ausgabeordner oder eine aktive Kopier-Pipeline dieses lokalen Servers. Bilder werden mit Begleitdateien indiziert oder kopiert. Quellen bleiben erhalten. Verschiebe-Pipelines sind ausgeschlossen. Fehlende Ereignisse übernimmt die Dateiüberwachung.",
     queueTitle: "ComfyUI-Live-Warteschlange",
     endpoint: "Serveradresse",
     connect: "Verbinden",

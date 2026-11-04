@@ -4568,8 +4568,13 @@ pub async fn start_comfyui_monitor(
         let db = state.db.lock().map_err(|e| e.to_string())?;
         db.find_folder_by_id(id)
             .map_err(|e| e.to_string())?
-            .filter(|f| f.folder_type == "link")
-            .ok_or("Select a registered linked output folder")?;
+            .filter(|f| {
+                f.folder_type == "link"
+                    || (f.folder_type == "pipeline"
+                        && f.auto_harvest
+                        && f.ingest_action.as_deref() == Some("copy"))
+            })
+            .ok_or("Select a linked folder or an enabled copy-only pipeline")?;
         Some((
             id,
             db.path().ok_or("Database path unavailable")?.to_path_buf(),

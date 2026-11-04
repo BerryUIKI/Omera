@@ -19,8 +19,9 @@ separately from an empty result. The older `get_prompt_stats` API remains suppor
 
 `start_comfyui_monitor({ endpoint, onEvent, outputFolderId? })` optionally enables
 completion-driven local indexing. Omission/null retains monitoring-only behavior.
-The selected ID must name a registered `link` folder corresponding to the local
-ComfyUI output root; only loopback endpoints are accepted with a mapping. The
+The selected ID must name a registered `link` folder or an enabled copy-only
+`pipeline` whose source path corresponds to the local ComfyUI output root;
+only loopback endpoints are accepted with a mapping. The
 mapping is session-scoped and reapplied on explicit Connect/Reconnect. Persisted
 `executed` image descriptors (`type: output`) resolve under that root; temporary,
 absolute, traversal and canonical escapes are rejected. At most 64 descriptors
@@ -31,8 +32,18 @@ Successful mutations emit the existing `library-files-changed` DTO; item failure
 report a degraded connection event with an error while subsequent items continue.
 Disconnect/replacement/exit cancel between items; an in-progress extraction may
 finish. Filesystem watching remains the recovery path for missed/oversized frames,
-offline events and unsupported output kinds. No remote download, pipeline copying,
+offline events and unsupported output kinds. No remote download,
 source disposition, history replay or new event DTO is introduced in this package.
+
+Copy-only pipeline mappings use targeted `harvest_completed_paths`, with no
+directory walk or cleanup scheduling. Source and destination must be existing,
+separate directories; destinations cannot overlap registered linked folders.
+Source, sidecar and existing destination paths must remain within their roots.
+Completion events bypass the manual harvester's one-second debounce because the
+server reports persisted outputs; filesystem watching still handles missed events.
+Nonidentical filename collisions report an error and preserve both files. Normal
+copy publication exclusively creates media and sidecars, compensating only files
+owned by the failed operation. Move and paused pipelines remain unavailable.
 
 | Surface | Source of truth | Consumer |
 | --- | --- | --- |

@@ -4,7 +4,7 @@ export const fr: typeof en = {
   comfy: {
     outputFolder: "Dossier de sortie ComfyUI local (appliqué à la connexion)",
     outputDisabled: "Surveillance seule",
-    outputHint: "Facultatif : sélectionnez le dossier lié enregistré correspondant à la sortie de ce serveur local. Les images enregistrées sont indexées sur place et la galerie est actualisée. Aucune copie ni suppression. La surveillance des fichiers traite les événements manqués.",
+    outputHint: "Facultatif : choisissez un dossier de sortie lié ou un pipeline actif en mode copie de ce serveur local. Les images sont indexées ou copiées avec leurs fichiers annexes. Les sources sont conservées. Les déplacements sont exclus. La surveillance traite les événements manqués.",
     queueTitle: "File ComfyUI en direct",
     endpoint: "Adresse du serveur",
     connect: "Connecter",
