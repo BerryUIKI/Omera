@@ -7,6 +7,58 @@ pub const FRAME_LIMIT: usize = 256 * 1024;
 pub const QUEUE_LIMIT: usize = 100;
 pub const HISTORY_LIMIT: usize = 20;
 
+/// Only persisted image outputs from an executed node are candidates. Raw server
+/// paths never become absolute filesystem paths without a user-selected root.
+pub fn completed_images(raw: &str) -> Vec<std::path::PathBuf> {
+    if raw.len() > FRAME_LIMIT {
+        return Vec::new();
+    }
+    let Ok(value) = serde_json::from_str::<Value>(raw) else {
+        return Vec::new();
+    };
+    if value.get("type").and_then(Value::as_str) != Some("executed") {
+        return Vec::new();
+    }
+    let Some(images) = value
+        .pointer("/data/output/images")
+        .and_then(Value::as_array)
+    else {
+        return Vec::new();
+    };
+    images
+        .iter()
+        .take(64)
+        .filter_map(|image| {
+            if image.get("type")?.as_str()? != "output" {
+                return None;
+            }
+            let filename = image.get("filename")?.as_str()?;
+            let subfolder = image.get("subfolder").and_then(Value::as_str).unwrap_or("");
+            let safe = |part: &str| {
+                !part.contains(['\\', ':', '\0'])
+                    && !part.split('/').any(|p| p == ".." || p == ".")
+                    && !part.starts_with('/')
+            };
+            if filename.is_empty()
+                || filename.contains('/')
+                || !safe(filename)
+                || !safe(subfolder)
+                || filename.len() + subfolder.len() > 2048
+            {
+                return None;
+            }
+            let ext = std::path::Path::new(filename)
+                .extension()?
+                .to_str()?
+                .to_ascii_lowercase();
+            if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
+                return None;
+            }
+            Some(std::path::Path::new(subfolder).join(filename))
+        })
+        .collect()
+}
+
 /// Preserve explicitly supplied client IDs; otherwise route Omera submissions to
 /// the active monitor so server-scoped progress reaches the same WebSocket.
 pub fn submission_payload(parsed: &Value, client_id: Option<&str>) -> Value {

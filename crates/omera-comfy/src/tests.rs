@@ -2,6 +2,31 @@ use crate::protocol::*;
 use serde_json::json;
 
 #[test]
+fn completed_output_paths_are_bounded_and_reject_non_output_and_traversal() {
+    let event = |images| json!({"type":"executed","data":{"output":{"images":images}}}).to_string();
+    let good = json!({"filename":"image.png","subfolder":"nested/run","type":"output"});
+    assert_eq!(
+        completed_images(&event(json!([good]))),
+        vec![std::path::PathBuf::from("nested/run/image.png")]
+    );
+    for (name, folder, kind) in [
+        ("../bad.png", "", "output"),
+        ("bad.png", "../escape", "output"),
+        ("C:\\bad.png", "", "output"),
+        ("bad.png", "/absolute", "output"),
+        ("bad.png", "", "temp"),
+    ] {
+        assert!(completed_images(&event(
+            json!([{"filename":name,"subfolder":folder,"type":kind}])
+        ))
+        .is_empty());
+    }
+    assert_eq!(completed_images(&event(json!(vec![good; 80]))).len(), 64);
+    assert!(completed_images("bad json").is_empty());
+    assert!(completed_images(&" ".repeat(FRAME_LIMIT + 1)).is_empty());
+}
+
+#[test]
 fn monitor_dto_round_trips_shared_frontend_fixture_and_submission_client_scope() {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("../../../tests/fixtures/comfy-monitor.json")).unwrap();
