@@ -796,7 +796,7 @@ fn publish_managed_import_item_with_sidecars(
         };
 
         if needs_copy {
-            if let Err(e) = fs::copy(src_path, &pub_path) {
+            if let Err(e) = crate::publication::copy_new(src_path, &pub_path) {
                 return PublishedImportItem {
                     receipt: TransformItemReceipt {
                         source_id_or_path: src_path_str.to_string(),
