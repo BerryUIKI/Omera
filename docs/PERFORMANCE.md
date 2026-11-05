@@ -350,3 +350,18 @@ The public v0.5.2 baselines were 16.95 MiB EXE, 33.29 MiB MSI, 18.08 MiB DMG,
 exceeding one requires reducing the artifact before publication. The workflow
 viewer uses existing Vue/HTML/SVG; no graph editor runtime, ComfyUI server or
 model weights are bundled for the studio features.
+## ComfyUI completion-driven indexing
+
+The optional local output mapping processes at most 64 persisted image descriptors
+from one bounded WebSocket frame. Only named paths are reconciled; no output-tree
+walk is performed. Work runs serially on the native monitor worker with separate
+SQLite connections, never under the global application database guard or on the
+WebView thread. The existing library change scheduler refreshes bounded gallery
+queries after successful mutations. Repeated unchanged descriptors do not emit
+another refresh. One active extraction may finish after cancellation, and socket
+processing waits during indexing. Filesystem watching remains the recovery path
+for missed events; no claim of zero latency or full pipeline coverage is made.
+
+Enabled copy-only pipeline mappings also reconcile only the named descriptors;
+they never enumerate the source directory. Pipeline root validation and content
+comparison occur on the native worker. Source disposition and cleanup are excluded.

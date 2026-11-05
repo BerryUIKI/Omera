@@ -239,3 +239,74 @@ continues to apply to the identical frontend source.
 - Native WebView, real-media, gallery/reduced-motion and installed-update
   acceptance remain open as recorded above; this frontend change does not
   qualify them.
+
+## Completion-driven local ComfyUI indexing (2026-11-04)
+
+Work is on `codex/comfy-completion-ingestion`, based on `dev` at `5cdf8b9`;
+application integration is committed at `b742ec4`. This is branch evidence,
+not a claim that the new indexing feature shipped in v0.6.0.
+
+- The GitHub stable release endpoint confirms v0.6.0 published from `8bdd80e`
+  on 2026-11-03, with six installer packages and adjacent `.minisig` files.
+  This inspection is asset-inventory evidence, not new signature/installer QA.
+- Final production build passed using an isolated output directory after a
+  concurrent build encountered the existing `dist` directory lock. TypeScript
+  checks passed. All 353 frontend regressions passed; focused monitor/component
+  checks also passed after the final test updates, covering explicit folder
+  mapping, stale sessions, seven locales and linked-only folder choices.
+- `cargo fmt --check`, strict workspace clippy and the generated IPC inventory
+  check passed. The command count stays 169; `outputFolderId` is optional and
+  omission/null preserves monitoring-only behavior. Existing Rust/TypeScript
+  event serialization fixtures remain unchanged and passed their regressions.
+- `cargo test --offline --workspace` passed: 431 tests passed, zero failed and
+  two existing tests ignored. This includes all four local WebSocket monitor
+  fixtures and both Windows indexing-service regressions. No model download or
+  personal ComfyUI server was required. Windows compilation/linking dominated
+  the elapsed check time; passing tests do not establish native UI acceptance.
+- The native monitor serializes at most 64 saved-image descriptors per frame.
+  Temporary, unsupported and unsafe paths are ignored or rejected. The reusable
+  scanner checks registered folder ownership and canonical source/sidecar bounds,
+  skips unchanged fingerprints and preserves source files. Source and destination
+  cleanup, pipeline copying and remote downloads are outside this package.
+- No personal ComfyUI server, real user library, native installer or Sandbox was
+  used. Native narrow/wide interaction and the installed-upgrade platform matrix
+  remain separate acceptance work. #256 stays open. Unix-only symlink fixtures
+  require Unix CI; this Windows run does not qualify those cases.
+
+## Targeted ComfyUI copy-pipeline follow-up (2026-11-04)
+
+Continuation on `codex/comfy-completion-ingestion`. The exclusive-copy prerequisite
+is committed at `b8c03ad`, targeted harvesting at `a3c16f8` and UI integration at
+`4f55bd0`, with permission compatibility at `8921eb9`. The final Rust run validates
+this source tree. Pipeline events build on the preceding local indexing package;
+these changes remain unreleased.
+
+- The selector includes registered linked roots and enabled copy-only pipelines,
+  displaying source → destination. Move/paused pipelines and standalone managed
+  folder entries are excluded. Optional IPC arguments and event DTOs are unchanged.
+- Completion harvesting visits only named outputs, including nested paths; it
+  never walks the source tree, schedules cleanup or invokes Trash. Canonical root,
+  sidecar and destination checks reject escapes, overlapping directories, linked
+  destination roots and orphan sidecars before publication. Filename collisions
+  preserve both files and report an error; identical duplicates do not refresh.
+- Exclusive file creation prevents copied imports and ordinary pipeline copies
+  from overwriting another writer's media. Targeted sidecar failure compensates
+  only files created by that operation. Explicit legacy Overwrite requests and
+  existing manual/watcher disposition remain separate and unchanged.
+  Copy publication also retains source permissions; a Unix private-mode fixture
+  is included for Unix CI rather than claimed as verified by this Windows run.
+- Production frontend build and all 353 frontend regressions passed, including
+  seven-language production selector coverage. IPC inventory remains 169 commands;
+  release-note validation for all seven languages and formatting checks passed.
+- Final strict workspace clippy passed with warnings denied. Final
+  `cargo test --offline --workspace` passed: 434 tests passed, zero failed and
+  two existing tests ignored. The scan crate passed all 82 Windows tests,
+  including copy-pipeline selection, nested outputs, sidecars, duplicate/collision
+  handling, cancellation, linked-root overlap, orphan sidecars and exclusive copy.
+- Tests use temporary files/databases and local protocol fixtures. Personal
+  ComfyUI, real libraries, native GUI and installer/Sandbox qualification were not
+  exercised. Unix symlink cases still require Unix CI. Remote transfer, reconnect
+  history replay, move/cleanup and separate ingestion-worker scheduling remain
+  follow-ups; #256 stays open.
+  Legacy pipeline fallback traversal remains top-level; nested outputs missed while
+  disconnected are not covered by this package's active-event tests.

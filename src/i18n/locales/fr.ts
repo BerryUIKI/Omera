@@ -2,6 +2,9 @@ import type { en } from "./en";
 
 export const fr: typeof en = {
   comfy: {
+    outputFolder: "Dossier de sortie ComfyUI local (appliqué à la connexion)",
+    outputDisabled: "Surveillance seule",
+    outputHint: "Facultatif : choisissez un dossier de sortie lié ou un pipeline actif en mode copie de ce serveur local. Les images sont indexées ou copiées avec leurs fichiers annexes. Les sources sont conservées. Les déplacements sont exclus. La surveillance traite les événements manqués.",
     queueTitle: "File ComfyUI en direct",
     endpoint: "Adresse du serveur",
     connect: "Connecter",

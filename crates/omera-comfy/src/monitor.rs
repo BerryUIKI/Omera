@@ -13,6 +13,7 @@ use tungstenite::{
 use url::Url;
 
 type Emit = Arc<dyn Fn(MonitorEvent) -> bool + Send + Sync>;
+pub type CompletedImages = Arc<dyn Fn(Vec<std::path::PathBuf>, &AtomicBool) + Send + Sync>;
 struct Worker {
     info: SessionInfo,
     stop: Arc<AtomicBool>,
@@ -34,6 +35,14 @@ impl MonitorService {
         }
     }
     pub fn start(&self, raw: &str, emit: Emit) -> Result<SessionInfo, String> {
+        self.start_with_images(raw, emit, None)
+    }
+    pub fn start_with_images(
+        &self,
+        raw: &str,
+        emit: Emit,
+        images: Option<CompletedImages>,
+    ) -> Result<SessionInfo, String> {
         let base = protocol::endpoint(raw)?;
         // Reject concurrent transitions rather than accumulating blocked workers.
         let _transition = self
@@ -58,7 +67,7 @@ impl MonitorService {
         let client_id = info.client_id.clone();
         let handle = thread::Builder::new()
             .name("omera-comfy-monitor".into())
-            .spawn(move || run(base, client_id, cancel, emit))
+            .spawn(move || run(base, client_id, cancel, emit, images))
             .map_err(|_| "Cannot start ComfyUI monitor")?;
         *self.active.lock().map_err(|_| "Monitor lock failed")? = Some(Worker {
             info: info.clone(),
@@ -207,7 +216,13 @@ fn connect(
         .map_err(|_| "Cannot configure socket")?;
     Ok(socket)
 }
-fn run(base: Url, client_id: String, stop: Arc<AtomicBool>, emit: Emit) {
+fn run(
+    base: Url,
+    client_id: String,
+    stop: Arc<AtomicBool>,
+    emit: Emit,
+    images: Option<CompletedImages>,
+) {
     let agent = ureq::AgentBuilder::new()
         .redirects(0)
         .timeout(Duration::from_secs(3))
@@ -262,6 +277,12 @@ fn run(base: Url, client_id: String, stop: Arc<AtomicBool>, emit: Emit) {
                     }
                     match socket.read() {
                         Ok(Message::Text(text)) if text.len() <= FRAME_LIMIT => {
+                            if let Some(callback) = &images {
+                                let paths = protocol::completed_images(text.as_str());
+                                if !paths.is_empty() && !stop.load(Ordering::Relaxed) {
+                                    callback(paths, &stop);
+                                }
+                            }
                             if let Some(message) = protocol::execution(text.as_str()) {
                                 queue_changed |=
                                     message.kind != "progress" && message.kind != "executing";

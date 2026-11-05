@@ -55,6 +55,7 @@ impl Fixture {
                         let number=count.fetch_add(1,Ordering::Relaxed);
                         let Ok(mut socket)=tungstenite::accept(stream) else{return;};
                         for text in [
+                            r#"{"type":"executed","data":{"prompt_id":"fixture-job","output":{"images":[{"filename":"image.png","subfolder":"nested","type":"output"}]}}}"#,
                             r#"{"type":"status","data":{"status":{"exec_info":{"queue_remaining":2}}}}"#,
                             r#"{"type":"execution_start","data":{"prompt_id":"fixture-job"}}"#,
                             r#"{"type":"progress","data":{"prompt_id":"fixture-job","node":"3","value":2,"max":8}}"#,
@@ -258,4 +259,27 @@ fn disconnected_backoff_is_cancelable_and_dead_channels_stop_workers() {
     }
     assert!(service.client_for_endpoint(&fixture.endpoint).is_none());
     service.stop(&session.session_id).unwrap();
+}
+
+#[test]
+fn saved_image_frames_reach_optional_native_hook_and_stop_with_session() {
+    let fixture = Fixture::new(false, false);
+    let service = MonitorService::default();
+    let (tx, rx) = mpsc::channel();
+    let session = service
+        .start_with_images(
+            &fixture.endpoint,
+            Arc::new(|_| true),
+            Some(Arc::new(move |paths, stop| {
+                assert!(!stop.load(Ordering::Relaxed));
+                tx.send(paths).unwrap();
+            })),
+        )
+        .unwrap();
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(10)).unwrap(),
+        vec![std::path::PathBuf::from("nested/image.png")]
+    );
+    service.stop(&session.session_id).unwrap();
+    assert!(rx.recv_timeout(Duration::from_millis(300)).is_err());
 }

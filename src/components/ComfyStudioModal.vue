@@ -5,9 +5,13 @@ import { comfyMonitor } from "../utils/comfy-monitor";
 import { loadAppConfig } from "../utils/config";
 import { formatBytes } from "../utils/image";
 import { t } from "../i18n";
+import { invoke } from "@tauri-apps/api/core";
+import type { Folder } from "../types";
 const emit = defineEmits<{ close: [] }>();
 const state = comfyMonitor.state;
 const endpoint = ref(state.endpoint);
+const folders = ref<Folder[]>([]);
+const outputFolderId = ref<number | null>(state.outputFolderId);
 const configError = ref("");
 const selectedId = ref<string | null>(null);
 const selected = computed(() => [...(state.snapshot?.running ?? []), ...(state.snapshot?.pending ?? [])]
@@ -19,11 +23,13 @@ watch(() => state.snapshot, snapshot => {
   if (!items.some(item => item.prompt_id === selectedId.value)) selectedId.value = items[0]?.prompt_id ?? null;
 }, { immediate: true });
 onMounted(async () => {
+  try { folders.value = (await invoke<Folder[]>("list_folders")).filter(folder => (folder.folder_type ?? "link") === "link" || (folder.folder_type === "pipeline" && folder.auto_harvest && folder.ingest_action === "copy")); }
+  catch (error) { configError.value = String(error); }
   if (endpoint.value) return;
   try { endpoint.value = (await loadAppConfig()).comfyui_url; }
   catch (error) { configError.value = String(error); }
 });
-function connect() { configError.value = ""; void comfyMonitor.connect(endpoint.value.trim()); }
+function connect() { configError.value = ""; void comfyMonitor.connect(endpoint.value.trim(), outputFolderId.value); }
 function disconnect() { void comfyMonitor.disconnect(); }
 </script>
 
@@ -38,6 +44,12 @@ function disconnect() { void comfyMonitor.disconnect(); }
         <span class="connection-status" role="status">{{ t.comfy[state.status] }}</span>
       </form>
       <p class="monitor-hint">{{ t.comfy.monitorHint }}</p>
+      <label class="output-mapping">{{ t.comfy.outputFolder }}
+        <select v-model="outputFolderId"><option :value="null">{{ t.comfy.outputDisabled }}</option>
+          <option v-for="folder in folders" :key="folder.id" :value="folder.id">{{ folder.folder_type === 'pipeline' ? `${folder.source_path} → ${folder.path}` : folder.path }}</option>
+        </select>
+      </label>
+      <p class="monitor-hint">{{ t.comfy.outputHint }}</p>
       <p v-if="configError || state.error" class="comfy-error" role="alert">{{ configError || state.error }}</p>
       <p v-if="state.snapshot && !state.fresh" class="stale-notice">{{ t.comfy.stale }}</p>
       <div class="studio-content">
@@ -85,6 +97,11 @@ function disconnect() { void comfyMonitor.disconnect(); }
 </template>
 
 <style scoped>
+.output-mapping { display: grid; gap: 4px; min-width: 0; }
+.output-mapping select { max-width: 100%; min-height: 32px; color: inherit; background: var(--color-bg-secondary); border: 1px solid var(--border-color); }
+.output-mapping select:focus-visible { outline: 2px solid var(--color-accent); }
+.comfy-dialog { overflow-y: auto; }
+.comfy-dialog > .studio-content { flex-shrink: 0; min-height: 340px; }
 .comfy-overlay { position: fixed; inset: 0; z-index: 2200; background: #0009; display: grid; place-items: center; }
 .comfy-dialog { width: min(1400px,96vw); height: 92vh; padding: 16px; display: flex; flex-direction: column; gap: 10px; color: var(--color-text-primary); background: var(--color-bg-primary); border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; }
 header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }h3 { margin: 0; font-size: 16px; }h4 { margin: 0 0 8px; font-size: 13px; }

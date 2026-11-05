@@ -2,6 +2,9 @@ import type { en } from "./en";
 
 export const es: typeof en = {
   comfy: {
+    outputFolder: "Carpeta de salida local de ComfyUI (aplicar al conectar)",
+    outputDisabled: "Solo supervisión",
+    outputHint: "Opcional: seleccione una carpeta enlazada o un flujo de copia activo de este servidor local. Las imágenes se indexan o se copian con archivos auxiliares. Se conservan los originales. Se excluyen los flujos de movimiento. El monitor gestiona los eventos perdidos.",
     queueTitle: "Cola ComfyUI en directo",
     endpoint: "Dirección del servidor",
     connect: "Conectar",

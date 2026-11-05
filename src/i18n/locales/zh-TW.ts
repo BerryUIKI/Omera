@@ -2,6 +2,9 @@ import type { en } from "./en";
 
 export const zhTW: typeof en = {
   comfy: {
+    outputFolder: "本機 ComfyUI 輸出目錄（連線或重新連線時套用）",
+    outputDisabled: "僅監控",
+    outputHint: "選用：選擇本機伺服器對應的連結輸出目錄或已啟用的複製型管道。圖片會原地索引或連同附屬檔案複製至管道目標，保留來源。移動型管道不可用；檔案監控處理遺漏事件。",
     queueTitle: "ComfyUI 即時佇列",
     endpoint: "服務位址",
     connect: "連線",

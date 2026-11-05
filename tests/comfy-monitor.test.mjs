@@ -8,6 +8,16 @@ const snapshot={running:[{prompt_id:'a',number:1,graph_json:'{}'}],pending:[],ru
   recent:[],devices:[],history_error:null,stats_error:null};
 const message=(kind,fields={})=>({type:'execution',message:{kind,prompt_id:'a',node:null,value:null,max:null,queue_remaining:null,error:null,...fields}});
 
+test('completion folder mapping is explicit and passed to each new native session', async()=>{
+  const mappings=[];
+  const monitor=createComfyMonitor({start:async(endpoint,receive,id)=>{mappings.push(id);return session(String(mappings.length));},stop:async()=>{}});
+  await monitor.connect('http://localhost:8188');
+  await monitor.connect('http://localhost:8188',42);
+  assert.deepEqual(mappings,[null,42]);
+  assert.equal(monitor.state.outputFolderId,42);
+  await monitor.disconnect();
+});
+
 test('frontend consumes the exact Rust serialization fixture',async()=>{
   const events=JSON.parse(readFileSync('tests/fixtures/comfy-monitor.json','utf8'));
   let receive;

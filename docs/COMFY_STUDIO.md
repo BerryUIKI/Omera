@@ -39,7 +39,49 @@ highlight insertions/deletions and distinguish weight-only edits. Bound diff wor
 on long texts and avoid HTML injection. Fetch full details on demand when gallery
 projections omit prompt data; fence late results on selection change.
 
-## Acceptance
+## Completion-driven local indexing (2026-11-04)
+
+The studio offers an optional registered linked output folder at connection time.
+It must match the loopback server's output root. Persisted `executed` image events
+index only the named files (including subfolders) and publish the existing library
+change event; gallery updates use the established bounded refresh scheduler.
+There is no full directory walk or speculative original-image decode in the WebView.
+The native monitor worker serializes indexing and may defer socket processing while
+extracting one item. Cancellation is checked between files. Duplicate events use
+the normal path upsert and unchanged files do not cause another gallery refresh.
+
+This was the first Milestone 17 ingestion package, not completion of the full
+zero-latency pipeline. Pipeline copy/cleanup, remote server downloads, video/custom
+node output descriptors, history replay after reconnect and large-batch overflow
+remain follow-ups. Existing filesystem watching remains enabled for recovery.
+Source media and legacy data are preserved; no schema or configuration field changes.
+
+## Targeted copy-pipeline follow-up (2026-11-04)
+
+The same optional folder selector now includes enabled copy-only pipelines,
+displayed as source → destination. Persisted outputs use their registered source
+root and the existing pipeline collision/sidecar logic, visiting only named files.
+Targets must be existing separate directories outside registered linked roots.
+Canonical source, sidecar and target checks precede publication. Copy publication
+uses exclusive file creation to close the check/copy overwrite race, also for
+ordinary managed imports. Source permissions are retained, with private Unix modes
+applied at file creation. Duplicate identical outputs do not refresh the gallery;
+different-byte collisions report a failure while preserving both files.
+Destination filenames remain flat, matching existing pipeline harvesting; nested
+source directories are not reproduced under the destination.
+
+This completion path never invokes or schedules cleanup. Paused and move pipelines
+are excluded. Existing filesystem watchers and explicitly configured legacy manual
+harvest/cleanup remain separate; this package does not change their disposition
+settings. Remote output transfer, reconnect history replay, video/custom descriptors
+and queue-worker isolation remain follow-ups. No schema, config or event DTO changes.
+
+The legacy pipeline fallback harvester still enumerates only its source directory's
+top-level files. Active completion events can copy nested outputs, but this package
+does not recover nested outputs missed during a disconnect; history catch-up remains
+required for that case. Existing watcher/manual traversal behavior is not widened.
+
+## Prior graph, queue and comparison acceptance
 
 All seven UI languages, focused production-handler/parser tests, full frontend
 build/regressions and Rust fmt/clippy/workspace tests. Local HTTP/WebSocket fixtures
