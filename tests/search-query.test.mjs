@@ -16,6 +16,38 @@ test("serializes video search criteria correctly", () => {
   assert.equal(criteriaToQuery({ min_fps: 24 }), "fps:>=24");
 });
 
+test("serializes video resolution and codec criteria", () => {
+  assert.equal(criteriaToQuery({ min_width: 1920 }), "width:>=1920");
+  assert.equal(criteriaToQuery({ max_width: 1920 }), "width:<=1920");
+  assert.equal(criteriaToQuery({ min_width: 1280, max_width: 1920 }), "width:1280..1920");
+  assert.equal(criteriaToQuery({ min_width: 1920, max_width: 1920 }), "width:1920");
+  assert.equal(criteriaToQuery({ min_height: 720 }), "height:>=720");
+  assert.equal(criteriaToQuery({ min_height: 720, max_height: 1080 }), "height:720..1080");
+  assert.equal(criteriaToQuery({ video_codec: "h264" }), "codec:h264");
+});
+
+test("round-trips video resolution and codec through the query string", () => {
+  const query = criteriaToQuery({
+    min_width: 1280,
+    max_width: 1920,
+    min_height: 720,
+    video_codec: "av1",
+  });
+  const parsed = parseSearchQuery(query);
+  assert.equal(parsed.min_width, 1280);
+  assert.equal(parsed.max_width, 1920);
+  assert.equal(parsed.min_height, 720);
+  assert.equal(parsed.video_codec, "av1");
+});
+
+test("normalizes codec tokens and rounds resolution to whole pixels", () => {
+  const parsed = parseSearchQuery("codec:HEVC width:>=1919.6 height:1.5..719.4");
+  assert.equal(parsed.video_codec, "hevc");
+  assert.equal(parsed.min_width, 1920);
+  assert.equal(parsed.min_height, 2);
+  assert.equal(parsed.max_height, 719);
+});
+
 test("parses structured tokens and freeform text via parseSearchQuery", () => {
   const criteria = parseSearchQuery('cyberpunk rainy street model:"SDXL Turbo" rating:>=5 fav:true steps:20..40');
   assert.equal(criteria.text, "cyberpunk rainy street");

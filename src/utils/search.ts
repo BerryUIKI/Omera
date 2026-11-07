@@ -127,6 +127,36 @@ export function criteriaToQuery(c: SearchCriteria): string {
     parts.push(`fps:<=${c.max_fps}`);
   }
 
+  // Resolution
+  if (c.min_width != null && c.max_width != null) {
+    if (c.min_width === c.max_width) {
+      parts.push(`width:${c.min_width}`);
+    } else {
+      parts.push(`width:${c.min_width}..${c.max_width}`);
+    }
+  } else if (c.min_width != null) {
+    parts.push(`width:>=${c.min_width}`);
+  } else if (c.max_width != null) {
+    parts.push(`width:<=${c.max_width}`);
+  }
+
+  if (c.min_height != null && c.max_height != null) {
+    if (c.min_height === c.max_height) {
+      parts.push(`height:${c.min_height}`);
+    } else {
+      parts.push(`height:${c.min_height}..${c.max_height}`);
+    }
+  } else if (c.min_height != null) {
+    parts.push(`height:>=${c.min_height}`);
+  } else if (c.max_height != null) {
+    parts.push(`height:<=${c.max_height}`);
+  }
+
+  // Codec
+  if (c.video_codec) {
+    parts.push(`codec:${c.video_codec}`);
+  }
+
   return parts.join(" ");
 }
 
@@ -148,6 +178,9 @@ export function countActiveFilters(c: SearchCriteria): number {
   if (c.media_type) count++;
   if (c.min_duration != null || c.max_duration != null) count++;
   if (c.min_fps != null || c.max_fps != null) count++;
+  if (c.min_width != null || c.max_width != null) count++;
+  if (c.min_height != null || c.max_height != null) count++;
+  if (c.video_codec?.trim()) count++;
   return count;
 }
 
@@ -336,6 +369,21 @@ export function parseSearchQuery(query: string): SearchCriteria {
           criteria.max_fps = max;
           break;
         }
+        case "width": {
+          const [min, max] = parseRange(val);
+          criteria.min_width = min != null ? Math.round(min) : null;
+          criteria.max_width = max != null ? Math.round(max) : null;
+          break;
+        }
+        case "height": {
+          const [min, max] = parseRange(val);
+          criteria.min_height = min != null ? Math.round(min) : null;
+          criteria.max_height = max != null ? Math.round(max) : null;
+          break;
+        }
+        case "codec":
+          criteria.video_codec = val.trim().toLowerCase() || null;
+          break;
         default:
           bareTerms.push(token);
           break;
