@@ -75,6 +75,22 @@ pub struct SearchCriteria {
     /// Maximum video frame rate (fps).
     #[serde(default)]
     pub max_fps: Option<f64>,
+    /// Minimum pixel width, matched against the record's stored geometry.
+    #[serde(default)]
+    pub min_width: Option<u32>,
+    /// Maximum pixel width, matched against the record's stored geometry.
+    #[serde(default)]
+    pub max_width: Option<u32>,
+    /// Minimum pixel height, matched against the record's stored geometry.
+    #[serde(default)]
+    pub min_height: Option<u32>,
+    /// Maximum pixel height, matched against the record's stored geometry.
+    #[serde(default)]
+    pub max_height: Option<u32>,
+    /// Exact video codec identifier (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
+    /// Comparison is case-insensitive; other identifiers match verbatim.
+    #[serde(default)]
+    pub video_codec: Option<String>,
     /// Field to sort results by. Defaults to `ModifiedAt`.
     pub sort: Option<FileSortField>,
     /// Sort direction. Defaults to `Desc`.
@@ -141,6 +157,11 @@ mod tests {
             max_duration: Some(30.0),
             min_fps: Some(24.0),
             max_fps: Some(60.0),
+            min_width: Some(1280),
+            max_width: Some(1920),
+            min_height: Some(720),
+            max_height: Some(1080),
+            video_codec: Some("h264".to_string()),
             sort: Some(FileSortField::Rating),
             direction: Some(SortDirection::Desc),
             limit: Some(100),

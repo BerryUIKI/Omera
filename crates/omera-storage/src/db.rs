@@ -1038,6 +1038,35 @@ impl Database {
             params.push(rusqlite::types::Value::Real(max_fps));
         }
 
+        if let Some(min_width) = criteria.min_width {
+            conditions.push("CAST(json_extract(metadata, '$.width') AS INTEGER) >= ?".to_string());
+            params.push(rusqlite::types::Value::Integer(i64::from(min_width)));
+        }
+
+        if let Some(max_width) = criteria.max_width {
+            conditions.push("CAST(json_extract(metadata, '$.width') AS INTEGER) <= ?".to_string());
+            params.push(rusqlite::types::Value::Integer(i64::from(max_width)));
+        }
+
+        if let Some(min_height) = criteria.min_height {
+            conditions.push("CAST(json_extract(metadata, '$.height') AS INTEGER) >= ?".to_string());
+            params.push(rusqlite::types::Value::Integer(i64::from(min_height)));
+        }
+
+        if let Some(max_height) = criteria.max_height {
+            conditions.push("CAST(json_extract(metadata, '$.height') AS INTEGER) <= ?".to_string());
+            params.push(rusqlite::types::Value::Integer(i64::from(max_height)));
+        }
+
+        // Codec identifiers are normalized to lowercase by the video parsers, but
+        // sidecars and older records may carry other spellings, so compare on the
+        // folded value rather than requiring the caller to match the stored case.
+        if let Some(codec) = &criteria.video_codec {
+            conditions
+                .push("LOWER(json_extract(metadata, '$.video_codec')) = LOWER(?)".to_string());
+            params.push(rusqlite::types::Value::Text(codec.clone()));
+        }
+
         (conditions, params)
     }
 
@@ -4462,6 +4491,8 @@ mod tests {
         let video_meta = ExtractedMetadata {
             format: omera_domain::MetadataFormat::ComfyUI,
             prompt: Some("AnimateDiff smooth motion".to_string()),
+            width: Some(1920),
+            height: Some(1080),
             duration_seconds: Some(12.5),
             fps: Some(30.0),
             video_codec: Some("h264".to_string()),
@@ -4475,6 +4506,8 @@ mod tests {
         let webm_meta = ExtractedMetadata {
             format: omera_domain::MetadataFormat::ComfyUI,
             prompt: Some("Wan2.1 video generation".to_string()),
+            width: Some(832),
+            height: Some(480),
             duration_seconds: Some(4.0),
             fps: Some(24.0),
             video_codec: Some("vp9".to_string()),
@@ -4525,6 +4558,65 @@ mod tests {
             .unwrap();
         assert_eq!(film_fps_videos.len(), 1);
         assert_eq!(film_fps_videos[0].path, "/videos/clip.webm");
+
+        // 5. Filter by minimum width (>= 1280 keeps only the 1920-wide mp4)
+        let wide_videos = db
+            .search_files(&SearchCriteria {
+                min_width: Some(1280),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(wide_videos.len(), 1);
+        assert_eq!(wide_videos[0].path, "/videos/animation.mp4");
+
+        // 6. Filter by maximum height (<= 720 keeps the 480-high webm)
+        let short_videos = db
+            .search_files(&SearchCriteria {
+                max_height: Some(720),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(short_videos.len(), 1);
+        assert_eq!(short_videos[0].path, "/videos/clip.webm");
+
+        // 7. Combined width window selects exactly the mp4.
+        let full_hd = db
+            .search_files(&SearchCriteria {
+                min_width: Some(1800),
+                max_width: Some(2000),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(full_hd.len(), 1);
+        assert_eq!(full_hd[0].path, "/videos/animation.mp4");
+
+        // 8. Filter by codec, case-insensitively.
+        let h264_videos = db
+            .search_files(&SearchCriteria {
+                video_codec: Some("H264".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(h264_videos.len(), 1);
+        assert_eq!(h264_videos[0].path, "/videos/animation.mp4");
+
+        let vp9_videos = db
+            .search_files(&SearchCriteria {
+                video_codec: Some("vp9".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(vp9_videos.len(), 1);
+        assert_eq!(vp9_videos[0].path, "/videos/clip.webm");
+
+        // 9. An unknown codec matches nothing rather than everything.
+        let av1_videos = db
+            .search_files(&SearchCriteria {
+                video_codec: Some("av1".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(av1_videos.is_empty());
     }
 
     #[test]

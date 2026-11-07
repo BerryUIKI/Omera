@@ -506,6 +506,11 @@ export interface SearchCriteria {
   max_duration?: number | null;
   min_fps?: number | null;
   max_fps?: number | null;
+  min_width?: number | null;
+  max_width?: number | null;
+  min_height?: number | null;
+  max_height?: number | null;
+  video_codec?: string | null;
   sort?: FileSortField | null;
   direction?: SortDirection | null;
   limit?: number | null;

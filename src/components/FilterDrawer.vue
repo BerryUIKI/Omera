@@ -36,11 +36,33 @@ const minDuration = ref<number | "">("");
 const maxDuration = ref<number | "">("");
 const minFps = ref<number | "">("");
 const maxFps = ref<number | "">("");
+const minWidth = ref<number | "">("");
+const maxWidth = ref<number | "">("");
+const minHeight = ref<number | "">("");
+const maxHeight = ref<number | "">("");
+const videoCodec = ref<string>("");
 
 function setDurationPreset(min: number | "", max: number | "") {
   minDuration.value = min;
   maxDuration.value = max;
 }
+
+function setResolutionPreset(minWidthValue: number | "", maxWidthValue: number | "") {
+  minWidth.value = minWidthValue;
+  maxWidth.value = maxWidthValue;
+}
+
+/**
+ * Codec identifiers the metadata parsers emit, normalized to lowercase.
+ * Kept as a fixed list because the stored value is a closed vocabulary.
+ */
+const codecOptions = [
+  { value: "h264", label: "H.264 (AVC)" },
+  { value: "hevc", label: "H.265 (HEVC)" },
+  { value: "vp8", label: "VP8" },
+  { value: "vp9", label: "VP9" },
+  { value: "av1", label: "AV1" },
+];
 
 // Sync form state when drawer opens or initialCriteria changes
 watch(
@@ -66,6 +88,11 @@ watch(
       maxDuration.value = c.max_duration ?? "";
       minFps.value = c.min_fps ?? "";
       maxFps.value = c.max_fps ?? "";
+      minWidth.value = c.min_width ?? "";
+      maxWidth.value = c.max_width ?? "";
+      minHeight.value = c.min_height ?? "";
+      maxHeight.value = c.max_height ?? "";
+      videoCodec.value = c.video_codec ?? "";
     }
   },
   { immediate: true },
@@ -103,6 +130,11 @@ function apply() {
     max_duration: maxDuration.value !== "" ? Number(maxDuration.value) : null,
     min_fps: minFps.value !== "" ? Number(minFps.value) : null,
     max_fps: maxFps.value !== "" ? Number(maxFps.value) : null,
+    min_width: minWidth.value !== "" ? Number(minWidth.value) : null,
+    max_width: maxWidth.value !== "" ? Number(maxWidth.value) : null,
+    min_height: minHeight.value !== "" ? Number(minHeight.value) : null,
+    max_height: maxHeight.value !== "" ? Number(maxHeight.value) : null,
+    video_codec: videoCodec.value || null,
   };
   emit("apply", criteria);
   close();
@@ -127,6 +159,11 @@ function reset() {
   maxDuration.value = "";
   minFps.value = "";
   maxFps.value = "";
+  minWidth.value = "";
+  maxWidth.value = "";
+  minHeight.value = "";
+  maxHeight.value = "";
+  videoCodec.value = "";
   emit("reset");
   close();
 }
@@ -401,6 +438,94 @@ function reset() {
             <button type="button" class="quick-chip" @click="minFps = 30">30 FPS+</button>
             <button type="button" class="quick-chip" @click="minFps = 60">60 FPS+</button>
           </div>
+        </div>
+
+        <!-- Video Resolution (pixels) -->
+        <div v-if="mediaType !== 'image'" class="filter-group">
+          <label class="group-label">{{ t.filterDrawer.resolutionLabel }}</label>
+          <div class="range-inputs">
+            <input
+              v-model.number="minWidth"
+              type="number"
+              min="1"
+              max="16384"
+              :placeholder="t.filterDrawer.minWidthPlaceholder"
+              class="form-input range-field"
+            />
+            <span class="range-sep">—</span>
+            <input
+              v-model.number="maxWidth"
+              type="number"
+              min="1"
+              max="16384"
+              :placeholder="t.filterDrawer.maxWidthPlaceholder"
+              class="form-input range-field"
+            />
+          </div>
+          <div class="range-inputs">
+            <input
+              v-model.number="minHeight"
+              type="number"
+              min="1"
+              max="16384"
+              :placeholder="t.filterDrawer.minHeightPlaceholder"
+              class="form-input range-field"
+            />
+            <span class="range-sep">—</span>
+            <input
+              v-model.number="maxHeight"
+              type="number"
+              min="1"
+              max="16384"
+              :placeholder="t.filterDrawer.maxHeightPlaceholder"
+              class="form-input range-field"
+            />
+          </div>
+          <div class="quick-chips">
+            <button
+              type="button"
+              class="quick-chip"
+              :title="t.filterDrawer.resolutionSdTitle"
+              @click="setResolutionPreset(720, 960)"
+            >
+              SD
+            </button>
+            <button
+              type="button"
+              class="quick-chip"
+              :title="t.filterDrawer.resolutionHdTitle"
+              @click="setResolutionPreset(1280, 1920)"
+            >
+              HD
+            </button>
+            <button
+              type="button"
+              class="quick-chip"
+              :title="t.filterDrawer.resolutionFullHdTitle"
+              @click="setResolutionPreset(1920, 2560)"
+            >
+              FHD+
+            </button>
+            <button
+              type="button"
+              class="quick-chip"
+              :title="t.filterDrawer.resolution4kTitle"
+              @click="setResolutionPreset(3840, '')"
+            >
+              4K+
+            </button>
+          </div>
+        </div>
+
+        <!-- Video Codec -->
+        <div v-if="mediaType !== 'image'" class="filter-group">
+          <label class="group-label">{{ t.filterDrawer.codecLabel }}</label>
+          <select v-model="videoCodec" class="form-input">
+            <option value="">{{ t.filterDrawer.anyCodec }}</option>
+            <option v-for="codec in codecOptions" :key="codec.value" :value="codec.value">
+              {{ codec.label }}
+            </option>
+          </select>
         </div>
 
         <!-- Prompt Substring -->
