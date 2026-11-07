@@ -94,7 +94,7 @@ Automatically extracts and indexes Prompt, Negative Prompt, Model, Hash, Sampler
 - **AIGC video metadata** — MP4/WebM containers with ComfyUI AnimateDiff, Wan2.1, HunyuanVideo, CogVideoX, LTX-Video and SVD workflows.
 - **Hover scrubbing** — Scrub through video frames directly on Grid and Waterfall cards.
 - **Fullscreen player** — Loop, 0.25x–2x speed, frame-by-frame stepping (`.` / `,`), mute, and the shared Inspector.
-- **Video facets** — Filter by duration range, frame rate (FPS) and media type; resolution, container-codec and motion-score filters are planned.
+- **Video facets** — Filter by duration range, frame rate (FPS), pixel width/height, video codec and media type; a motion-score filter is planned.
 
 ### 🗃️ Multi-Mode Ingestion & Smart Stacking
 
@@ -246,7 +246,7 @@ Output: `src-tauri/target/release/bundle/`
   <img alt="Omera roadmap status at v0.6.0: fourteen milestones complete, video and ComfyUI studio milestones in progress, and milestones 18–19 planned" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15 (video)** needs resolution, codec and motion-score facets, and **Milestone 17 (ComfyUI studio)** still needs remote output transfer and reconnect history replay. Milestone 20 (image compression) is delivered; Milestones 18–19 cover the LAN web companion and color analytics.
+**Milestone 15 (video)** needs only its motion-score facet, and **Milestone 17 (ComfyUI studio)** still needs remote output transfer and reconnect history replay. Milestone 20 (image compression) is delivered; Milestones 18–19 cover the LAN web companion and color analytics.
 
 📖 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full checklist.
 

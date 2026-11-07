@@ -156,15 +156,15 @@ Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [E
 - [x] Complete review issues #98–#117 with regression coverage. All twenty issues are closed as completed and their regression suites run in CI.
 - [ ] Measure and implement [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md) without rewriting applied migrations. Baseline benchmarks currently cover gallery pagination and directory fingerprinting only; filtering, full-text search and sidebar aggregation still need p50/p95 measurements before any schema or index change.
 
-### 🟡 Milestone 15: Video & Animation AIGC Ingestion & Playback (core features complete; extended facets pending)
+### 🟡 Milestone 15: Video & Animation AIGC Ingestion & Playback (4 of 5 complete; motion score pending)
 
-Delivered in the v0.4.x line. The remaining facet work is limited to resolution, container codec and motion score.
+Delivered in the v0.4.x line, with the resolution and codec facets following in v0.6.x. The remaining facet work is limited to motion score.
 
 - [x] **AIGC Video Metadata Extraction**: Parse embedded generation workflows and prompts from MP4 and WebM video containers (ComfyUI AnimateDiff, Wan2.1, HunyuanVideo, CogVideoX, LTX-Video, and Stable Video Diffusion).
 - [x] **Video Thumbnail Generation & Hover Scrubbing**: Capture frame thumbnails and scrub through video frames while hovering cards in Grid and Waterfall views.
 - [x] **Fullscreen Lightbox Video Player**: Seamless loop toggle, playback speed selector (0.25x–2x), frame-by-frame stepping (`.` / `,`), audio toggle, and sidecar prompt/workflow inspection.
-- [x] **Duration & Frame-Rate Facets**: Filter videos by duration range and frame rate, with an Images/Videos media-type filter.
-- [ ] **Remaining Video Facets**: Resolution, container-codec and motion-score filters are not implemented yet. `width`, `height` and `video_codec` are already extracted into asset metadata and the existing duration/FPS facet pattern in `SearchCriteria`, `build_search_query`, `src/utils/search.ts` and `FilterDrawer.vue` is the wiring point. Motion score needs a new derived metric and its own schema decision.
+- [x] **Duration, Frame-Rate, Resolution & Codec Facets**: Filter videos by duration range, frame rate, pixel width/height and video codec, with an Images/Videos media-type filter. Codec matching folds case so sidecars and older records still match, and the drawer offers SD / HD / FHD+ / 4K+ resolution presets.
+- [ ] **Motion Score Facet**: The remaining video filter. It needs a derived motion metric (frame-difference or optical-flow based), a decision on whether to persist it as a new column or compute it on demand, and a backfill strategy for existing records; nothing is implemented and no schema exists for it yet.
 
 ### ✅ Milestone 16: Next-Gen Model Architectures & Ecosystem (complete)
 
