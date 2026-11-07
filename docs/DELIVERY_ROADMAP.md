@@ -1,6 +1,6 @@
 # Omera delivery roadmap
 
-> **Historical delivery plan.** Phase 5 stabilization is the current phase; see [ROADMAP.md](ROADMAP.md) and [STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md).
+> **Historical delivery plan.** Phases 0–4 are complete and Phase 5 stabilization is the current phase; see [ROADMAP.md](ROADMAP.md) and [STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md). The only release gate still open is installed-update acceptance in [#256](https://github.com/BerryUIKI/Omera/issues/256).
 
 This roadmap separates lead-owned safety work from general-engineer implementation. Detailed task cards and issue links are in [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md). No dates are promised before dependencies and validation are complete.
 
@@ -54,19 +54,26 @@ Exit: required automated checks and platform/manual matrix pass; release blocker
 
 ## Phase 5 — Stabilization and 1.0 review (in progress)
 
-The current October review task sequence and acceptance ledger is
-[STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md). September baseline and
-assignment snapshots are historical; use current approved `dev` for fixes.
+The October review task sequence and acceptance ledger is
+[STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md). All of its rows except
+[#256](https://github.com/BerryUIKI/Omera/issues/256) are closed, as are the six
+GUI refinement packages in [GUI_REFINEMENT.md](GUI_REFINEMENT.md). September
+baseline and assignment snapshots are historical; use current approved `dev` for
+fixes.
 
 All pre-1.0 releases retain legacy detection and supported import. Keep cleanup optional. Resolve verified migration problems before removing compatibility paths. Decide the 1.0 import policy explicitly and document it; never use version 1.0 as permission to erase legacy data. Remote collaboration remains a separate product decision after stabilization.
 
 ### Stabilization Gates for 1.0 Readiness:
 
+Status: gates 1–3 are implemented and exercised by CI and the signed release
+pipeline; gate 4's query and layout boundaries are met, while its measured
+storage-evolution work is still pending in [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md).
+
 1. **Installer and Desktop Integration**:
    - Windows NSIS installer configures Start Menu folder (`Omera`), native 7-language installer localization (`tauri.conf.json`), optional desktop shortcut creation (`$(createDesktop)`), pre-install process termination and uninstall cleanup (`hooks.nsh`), and in-app desktop shortcut management (`commands::create_desktop_shortcut`), ensuring consistent system indexing and user preference adherence.
    - macOS DMG/App bundle and Linux AppImage/deb/rpm packages continuously built and verified via GitHub Actions release matrix.
 2. **In-App Update Resilience**:
-   - `src/utils/updater.ts` implements automated fallback from GitHub REST API (rate-limited) to HTML 302 tag redirection and canonical release asset matching, ensuring seamless update notifications from v0.4.1/v0.4.2 onward.
+   - `src/utils/updater.ts` falls back from the GitHub REST API to the `releases/latest` redirect when the API rate-limits, behind the native `fetch_update_metadata` command, and matches assets by OS and architecture. Signature verification remains mandatory and fails closed.
 3. **Data Safety and Migration Verification**:
    - Append-only migrations (`omera-storage`) preserve historical schemas.
    - Legacy Berry database discovery and WAL preservation validated without touching source files.

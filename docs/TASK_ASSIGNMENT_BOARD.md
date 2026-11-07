@@ -1,6 +1,8 @@
 # Engineering assignment board
 
 > **Historical (2026-09-23).** Superseded by [ROADMAP.md](ROADMAP.md) and [STABILIZATION_EXECUTION.md](STABILIZATION_EXECUTION.md). Use the current approved `dev` and open GitHub issues for dispatch.
+>
+> **Every issue referenced below is closed.** #102, #107, #110, #118, #124, #128, #134, #135 and #137 are all resolved, and #119–#133 were reconciled through the October stabilization ledger. #256 is the only open issue. This page is kept only for the ownership reasoning behind each role boundary, not as a dispatch list.
 
 Updated: 2026-09-23. Named people can be assigned by the product owner; role labels below are proposed work packages, not claims that someone is already working.
 

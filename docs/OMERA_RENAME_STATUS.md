@@ -1,6 +1,8 @@
 # Omera rename: current context and next actions
 
-Updated: 2026-09-24. This is a handoff snapshot, not a release-readiness statement. For the full work inventory and dependency gates, read [OMERA_RENAME_EXECUTION.md](OMERA_RENAME_EXECUTION.md); for data safety, read [OMERA_MIGRATION.md](OMERA_MIGRATION.md).
+> **Historical snapshot (2026-09-24).** R0–R6 are complete and [#134](https://github.com/BerryUIKI/Omera/issues/134) is closed. The identity, crate, database, settings and credential-service rename is live in released builds; the obligation that remains is standing pre-1.0 legacy discovery and supported import, described in [OMERA_MIGRATION.md](OMERA_MIGRATION.md). Not a release-readiness statement.
+
+For the full work inventory and dependency gates, read [OMERA_RENAME_EXECUTION.md](OMERA_RENAME_EXECUTION.md); for data safety, read [OMERA_MIGRATION.md](OMERA_MIGRATION.md).
 
 ## Verified repository state
 

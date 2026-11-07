@@ -243,10 +243,10 @@ Output: `src-tauri/target/release/bundle/`
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/roadmap_status_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/roadmap_status_light.svg">
-  <img alt="Omera roadmap status at v0.5.0: thirteen milestones complete, video and model-ecosystem milestones partially complete, and milestones 17–19 planned" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
+  <img alt="Omera roadmap status at v0.6.0: fourteen milestones complete, video and ComfyUI studio milestones in progress, and milestones 18–19 planned" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15 (video)** and **Milestone 16 (Flux.1 / SD3.5 + Civitai)** are partially complete. The remaining items are resolution/codec/motion-score facets and the ComfyUI workflow visualizer. Milestone 20 (image compression) is delivered; Milestones 17–19 cover real-time ComfyUI workflows, the LAN web companion and color analytics.
+**Milestone 15 (video)** needs resolution, codec and motion-score facets, and **Milestone 17 (ComfyUI studio)** still needs remote output transfer and reconnect history replay. Milestone 20 (image compression) is delivered; Milestones 18–19 cover the LAN web companion and color analytics.
 
 📖 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full checklist.
 
