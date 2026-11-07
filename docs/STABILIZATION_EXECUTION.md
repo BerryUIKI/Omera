@@ -1,11 +1,16 @@
 # Remaining review fixes
 
-Updated: 2026-10-12. Integration target: `dev`; `main` remains release-only.
+Updated: 2026-11-07. Integration target: `dev`; `main` remains release-only.
 
-This execution ledger supersedes the historical September dispatch status for the
-October review reports. The handoff ownership boundaries, migration safeguards,
-and release qualification requirements still apply. An implemented feature is
-not evidence of native or platform qualification.
+This ledger covers the October 2026 review reports. Rows 0–15 are closed with
+merged regression coverage. Row 16 (#256) is the only item still open: its
+automated and production-signing work is merged, while installed-to-next-version
+acceptance per platform remains a release gate. The GUI refinement packages that
+followed this ledger are recorded in [GUI_REFINEMENT.md](GUI_REFINEMENT.md).
+
+The handoff ownership boundaries, migration safeguards, and release
+qualification requirements still apply. An implemented feature is not evidence
+of native or platform qualification.
 
 ## Sequence and acceptance
 

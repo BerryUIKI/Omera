@@ -1,6 +1,6 @@
 # Omera identity and pre-1.0 migration contract
 
-Status: accepted product direction; implementation and release verification pending.
+Status: implemented in R0–R6 and verified per [OMERA_RENAME_STATUS.md](OMERA_RENAME_STATUS.md); this document remains the data-safety contract for changes to it.
 
 Ownership: lead maintainer/Codex. General engineers consume the migration contracts and implement presentation only after the safety services are ready. See [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md).
 
@@ -50,6 +50,13 @@ Require renewed confirmation if the source changed after migration. Use OS trash
 - Publish only after Berry -> Omera -> next Omera upgrade tests pass on every supported target. Keep version numbers increasing and retain recovery snapshots; binary downgrade is not a safe database rollback after schema upgrades.
 
 ## Delivery and verification
+
+Items 1–4 are complete: the services exist (`src-tauri/src/legacy_migration.rs`
+provides status, preview, staged execution, receipts, cleanup preview/confirm
+and defer), the runtime identity is activated, and the required suites run in
+CI. Item 5's fault matrix and item 6's real-installer next-update path remain
+release acceptance work, and the installed-update matrix stays open in
+[#256](https://github.com/BerryUIKI/Omera/issues/256).
 
 1. Update documentation and track migration/release/storage tasks in GitHub issues.
 2. Implement and test migration/cleanup services before switching the runtime identity.

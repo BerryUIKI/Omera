@@ -5,7 +5,7 @@ This roadmap documents completed milestones and future engineering goals for **O
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/roadmap_status_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="screenshots/roadmap_status_light.svg">
-  <img alt="Omera roadmap status at v0.5.0: thirteen milestones complete, video and model-ecosystem milestones partially complete, and milestones 17–19 planned" src="screenshots/roadmap_status_dark.svg" width="100%">
+  <img alt="Omera roadmap status at v0.6.0: fourteen milestones complete, video and ComfyUI studio milestones in progress, and milestones 18–19 planned" src="screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
 ---
@@ -151,10 +151,10 @@ is opt-in completion-driven indexing of an explicitly selected local output fold
 
 Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [ENGINEERING_HANDOFF.md](ENGINEERING_HANDOFF.md). High-impact migration, persistence and release work stays with the lead; ordinary UI, parser and bounded performance tasks are prepared for general implementation engineers.
 
-- [ ] Complete [OMERA_MIGRATION.md](OMERA_MIGRATION.md): full identity rename, pre-1.0 legacy discovery, staged migration, and separately confirmed cleanup.
-- [ ] Validate signed updates and platform installer transitions, including skipped bridge releases. v0.5.0 is published with signed assets; the native installed-update matrix remains open in [#256](https://github.com/BerryUIKI/Omera/issues/256).
+- [x] Complete [OMERA_MIGRATION.md](OMERA_MIGRATION.md): full identity rename, pre-1.0 legacy discovery, staged migration, and separately confirmed cleanup. R0–R6 are complete and [#134](https://github.com/BerryUIKI/Omera/issues/134) is closed. The remaining obligation is standing pre-1.0 compatibility: every release before 1.0.0 keeps legacy discovery and supported import, and cleanup stays a separate explicit user decision.
+- [ ] Validate signed updates and platform installer transitions, including skipped bridge releases. [v0.6.0](https://github.com/BerryUIKI/Omera/releases/tag/v0.6.0) is published with signed assets, so the installed-update matrix in [#256](https://github.com/BerryUIKI/Omera/issues/256) is now executable against two consecutive signed stable releases (v0.5.2 → v0.6.0). It remains open until installed-to-next-version acceptance is recorded per platform.
 - [x] Complete review issues #98–#117 with regression coverage. All twenty issues are closed as completed and their regression suites run in CI.
-- [ ] Measure and implement [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md) without rewriting applied migrations.
+- [ ] Measure and implement [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md) without rewriting applied migrations. Baseline benchmarks currently cover gallery pagination and directory fingerprinting only; filtering, full-text search and sidebar aggregation still need p50/p95 measurements before any schema or index change.
 
 ### 🟡 Milestone 15: Video & Animation AIGC Ingestion & Playback (core features complete; extended facets pending)
 
@@ -164,7 +164,7 @@ Delivered in the v0.4.x line. The remaining facet work is limited to resolution,
 - [x] **Video Thumbnail Generation & Hover Scrubbing**: Capture frame thumbnails and scrub through video frames while hovering cards in Grid and Waterfall views.
 - [x] **Fullscreen Lightbox Video Player**: Seamless loop toggle, playback speed selector (0.25x–2x), frame-by-frame stepping (`.` / `,`), audio toggle, and sidecar prompt/workflow inspection.
 - [x] **Duration & Frame-Rate Facets**: Filter videos by duration range and frame rate, with an Images/Videos media-type filter.
-- [ ] **Remaining Video Facets**: Resolution, container-codec and motion-score filters are not implemented yet.
+- [ ] **Remaining Video Facets**: Resolution, container-codec and motion-score filters are not implemented yet. `width`, `height` and `video_codec` are already extracted into asset metadata and the existing duration/FPS facet pattern in `SearchCriteria`, `build_search_query`, `src/utils/search.ts` and `FilterDrawer.vue` is the wiring point. Motion score needs a new derived metric and its own schema decision.
 
 ### ✅ Milestone 16: Next-Gen Model Architectures & Ecosystem (complete)
 
@@ -174,10 +174,10 @@ Flux.1 / SD3.5 parsing and Civitai integration shipped in v0.5.0. The interactiv
 - [x] **Civitai Direct API Integration**: Remote model reverse lookups by AutoV2/SHA256, cached preview cards, version update badges, and one-click merge of trained trigger words into the local LoRA catalog.
 - [x] **ComfyUI Workflow Visualizer Enhancements**: On-demand interactive workflow graph viewer with prompt, sampler, ControlNet and LoRA categories, selection, search, keyboard navigation, connected-edge highlighting and pan/zoom.
 
-### 🟡 Milestone 17: Bi-Directional ComfyUI Studio, Live Queue & Prompt Diff (2 of 3 complete)
+### 🟡 Milestone 17: Bi-Directional ComfyUI Studio, Live Queue & Prompt Diff (3 of 3 complete; pipeline depth pending)
 - [x] **Real-Time ComfyUI WebSocket Monitor**: Explicit native HTTP/WebSocket connection, reconnect and bounded queue/history reconciliation; node progress, queue order, outcomes and VRAM in the studio, with status bar and Activity summaries. Qualified with local protocol fixtures only.
-- [ ] **Zero-Latency Ingestion Pipeline**: Stream newly generated images directly into Omera database and UI memory via IPC upon workflow completion, eliminating filesystem polling delay.
-  - Implemented packages: opt-in loopback completion events index a registered linked output folder or copy named outputs through an enabled copy-only pipeline, preserving sources and sidecars. Move/cleanup, remote outputs and reconnect history catch-up remain pending; see [COMFY_STUDIO.md](COMFY_STUDIO.md).
+- [x] **Completion-Driven Ingestion (first package)**: Opt-in loopback completion events index a registered linked output folder or copy named outputs through an enabled copy-only pipeline, preserving sources and sidecars. See [COMFY_STUDIO.md](COMFY_STUDIO.md).
+  - Still pending: remote output transfer, reconnect history replay (outputs missed while disconnected), video/custom-node output descriptors, move pipelines and cleanup, and queue-worker isolation.
 - [x] **Prompt Diff & Matrix Workbench**: Select A/B images in comparison mode; compare positive/negative and optional dual text-encoder prompts, explicit weights `(keyword:1.2)`, seeds, models, samplers and other generation parameters. Full details load on demand; long text has bounded section fallback and display limits.
 
 ### 🎯 Milestone 18: Local LAN Web Companion (Omera Remote)

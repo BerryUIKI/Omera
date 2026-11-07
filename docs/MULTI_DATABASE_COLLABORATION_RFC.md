@@ -2,7 +2,7 @@
 
 - **Author**: Omera Architecture Group
 - **Status**: Deferred proposal; not an implemented or supported runtime backend
-- **Target Release**: v0.4.0+
+- **Target Release**: None scheduled; deferred past 1.0 pending measurement
 - **Keywords**: MySQL 8.0, PostgreSQL 14+, Storage Abstraction, Keyset Cursor, Multi-User Collaboration, Cross-Platform Root Mapping
 
 ---

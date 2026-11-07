@@ -13,7 +13,7 @@ before release; the app does not send notes to a translation service.
 2. Run `node scripts/generate-release-notes.mjs --check`. CI and release preflight
    both reject missing versions, empty translations, and malformed boundaries.
 3. Preview the exact GitHub body with
-   `node scripts/generate-release-notes.mjs v0.5.1 --output <preview-file>`.
+   `node scripts/generate-release-notes.mjs v0.6.0 --output <preview-file>`.
 
 The release workflow generates its final GitHub body from this catalog. English
 is visible first, and each other language is in a labeled disclosure. Each
