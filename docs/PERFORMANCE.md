@@ -345,8 +345,10 @@ Installer size is a publication gate, checked before detached signing/upload and
 again against downloaded installers before a draft release can become public.
 `scripts/installer-budget.mjs` caps NSIS EXE and macOS DMG at 25 MiB, MSI/DEB/RPM
 at 40 MiB and Linux AppImage at 120 MiB (its portable runtime is included).
-The public v0.5.2 baselines were 16.95 MiB EXE, 33.29 MiB MSI, 18.08 MiB DMG,
-32.04 MiB DEB/RPM and 100.72 MiB AppImage. These limits allow bounded growth;
+The public v0.6.0 baselines were 17.10 MiB EXE, 33.56 MiB MSI, 18.34 MiB DMG,
+32.34 MiB DEB, 32.34 MiB RPM and 100.96 MiB AppImage. The published v0.5.2
+baselines were 16.95 MiB EXE, 33.29 MiB MSI, 18.08 MiB DMG, 32.04 MiB DEB/RPM
+and 100.72 MiB AppImage. These limits allow bounded growth;
 exceeding one requires reducing the artifact before publication. The workflow
 viewer uses existing Vue/HTML/SVG; no graph editor runtime, ComfyUI server or
 model weights are bundled for the studio features.
