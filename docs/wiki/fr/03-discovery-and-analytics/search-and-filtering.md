@@ -41,6 +41,9 @@ Omera analyse les jetons de recherche en une structure `SearchCriteria` en Rust 
 | `type:` | `type:image`, `type:video` | Filtre par type de conteneur média. |
 | `duration:` | `duration:>=5`, `duration:5..30` | Filtre la durée vidéo en secondes. |
 | `fps:` | `fps:>=30`, `fps:24..60` | Filtre la fréquence d'images par seconde (FPS). |
+| `width:` | `width:>=1920`, `width:1280..1920` | Filtre par largeur en pixels. |
+| `height:` | `height:>=1080`, `height:720..1080` | Filtre par hauteur en pixels. |
+| `codec:` | `codec:h264`, `codec:hevc`, `codec:av1` | Filtre par codec vidéo (`h264`, `hevc`, `vp8`, `vp9`, `av1` ; insensible à la casse). |
 
 ### Syntaxe des plages numériques
 - **Plage comprise entre (`min..max`)** : `steps:20..35` (entre 20 et 35 étapes incluses).
@@ -80,6 +83,8 @@ Si vous préférez une interface graphique plutôt que de taper une syntaxe de r
 │ [✓] Favoris uniquement     [ ] Sensible (NSFW)         │
 └────────────────────────────────────────────────────────┘
 ```
+
+Lorsque le type de média inclut des vidéos, des groupes supplémentaires apparaissent : **Résolution** (largeur et hauteur minimales et maximales, avec préréglages SD / HD / FHD+ / 4K+) et **Codec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
 
 Le tiroir de filtres comporte un compteur de filtres actifs qui vous permet de constater d'un seul coup d'œil combien de critères restreignent vos résultats actuels.
 

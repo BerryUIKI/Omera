@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Filter videos by pixel width and height (with SD / HD / FHD+ / 4K+ presets in
+  the filter drawer) and by codec (`h264`, `hevc`, `vp8`, `vp9`, `av1`). The
+  `width:`, `height:` and `codec:` query tokens share the existing range syntax,
+  codec matching ignores case, and no schema migration is needed because the
+  geometry and codec are already in stored metadata.
 - Optional completion-driven indexing for a local ComfyUI server: select a
   registered linked output folder when connecting, then saved image events index
   named files and refresh the gallery. Source files and existing ratings remain
