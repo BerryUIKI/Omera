@@ -75,6 +75,22 @@ pub struct SearchCriteria {
     /// Maximum video frame rate (fps).
     #[serde(default)]
     pub max_fps: Option<f64>,
+    /// Minimum pixel width, matched against the record's stored geometry.
+    #[serde(default)]
+    pub min_width: Option<u32>,
+    /// Maximum pixel width, matched against the record's stored geometry.
+    #[serde(default)]
+    pub max_width: Option<u32>,
+    /// Minimum pixel height, matched against the record's stored geometry.
+    #[serde(default)]
+    pub min_height: Option<u32>,
+    /// Maximum pixel height, matched against the record's stored geometry.
+    #[serde(default)]
+    pub max_height: Option<u32>,
+    /// Exact video codec identifier (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
+    /// Comparison is case-insensitive; other identifiers match verbatim.
+    #[serde(default)]
+    pub video_codec: Option<String>,
     /// Field to sort results by. Defaults to `ModifiedAt`.
     pub sort: Option<FileSortField>,
     /// Sort direction. Defaults to `Desc`.
