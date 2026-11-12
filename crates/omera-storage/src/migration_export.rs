@@ -178,6 +178,7 @@ CREATE TABLE IF NOT EXISTS `files` (
     `modified_at` BIGINT NOT NULL,
     `rating` TINYINT UNSIGNED NULL,
     `aesthetic_score` DOUBLE NULL,
+    `motion_score` DOUBLE NULL,
     `is_favorite` TINYINT(1) NOT NULL DEFAULT 0,
     `is_nsfw` TINYINT(1) NOT NULL DEFAULT 0,
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -259,6 +260,7 @@ CREATE TABLE IF NOT EXISTS "files" (
     "modified_at" BIGINT NOT NULL,
     "rating" SMALLINT NULL,
     "aesthetic_score" DOUBLE PRECISION NULL,
+    "motion_score" DOUBLE PRECISION NULL,
     "is_favorite" BOOLEAN NOT NULL DEFAULT FALSE,
     "is_nsfw" BOOLEAN NOT NULL DEFAULT FALSE,
     "is_deleted" BOOLEAN NOT NULL DEFAULT FALSE,
@@ -601,6 +603,7 @@ struct FileRow {
     modified_at: i64,
     rating: Option<i64>,
     aesthetic_score: Option<f64>,
+    motion_score: Option<f64>,
     is_favorite: bool,
     is_nsfw: bool,
     stack_id: Option<String>,
@@ -626,7 +629,7 @@ fn write_files<W: Write>(
 
     let mut stmt = conn.prepare(
         "SELECT id, path, container, size_bytes, modified_at, rating, aesthetic_score,
-                is_favorite, is_nsfw, stack_id, stack_order, metadata, version
+                motion_score, is_favorite, is_nsfw, stack_id, stack_order, metadata, version
          FROM files
          ORDER BY id ASC",
     )?;
@@ -640,12 +643,13 @@ fn write_files<W: Write>(
             modified_at: row.get(4)?,
             rating: row.get(5)?,
             aesthetic_score: row.get(6)?,
-            is_favorite: row.get::<_, i64>(7)? != 0,
-            is_nsfw: row.get::<_, i64>(8)? != 0,
-            stack_id: row.get(9)?,
-            stack_order: row.get(10)?,
-            metadata: row.get(11)?,
-            version: row.get::<_, Option<i64>>(12)?.unwrap_or(1),
+            motion_score: row.get(7)?,
+            is_favorite: row.get::<_, i64>(8)? != 0,
+            is_nsfw: row.get::<_, i64>(9)? != 0,
+            stack_id: row.get(10)?,
+            stack_order: row.get(11)?,
+            metadata: row.get(12)?,
+            version: row.get::<_, Option<i64>>(13)?.unwrap_or(1),
         })
     })?;
 
@@ -683,7 +687,7 @@ fn flush_files_batch<W: Write>(
     let mut sql = format!(
         "INSERT INTO {} (
     id, root_uuid, relative_path, file_name, file_extension, size_bytes, modified_at,
-    rating, aesthetic_score, is_favorite, is_nsfw, is_deleted, stack_id, stack_order,
+    rating, aesthetic_score, motion_score, is_favorite, is_nsfw, is_deleted, stack_id, stack_order,
     metadata_format, metadata_json, version, created_at, updated_at, updated_by
 ) VALUES\n",
         table
@@ -721,6 +725,11 @@ fn flush_files_batch<W: Write>(
             None => "NULL".to_string(),
         };
 
+        let motion_str = match row.motion_score {
+            Some(s) => format!("{:.4}", s),
+            None => "NULL".to_string(),
+        };
+
         let meta_json_str = match &row.metadata {
             Some(json) => {
                 if is_mysql {
@@ -738,7 +747,7 @@ fn flush_files_batch<W: Write>(
         };
 
         sql.push_str(&format!(
-            "({}, '{}', '{}', '{}', '{}', {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, '{}')",
+            "({}, '{}', '{}', '{}', '{}', {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, '{}')",
             row.id,
             escape_sql(target_root, is_mysql),
             escape_sql(&rel_path, is_mysql),
@@ -748,6 +757,7 @@ fn flush_files_batch<W: Write>(
             row.modified_at,
             rating_str,
             score_str,
+            motion_str,
             sql_bool(row.is_favorite, is_mysql),
             sql_bool(row.is_nsfw, is_mysql),
             sql_bool(false, is_mysql), // is_deleted
@@ -900,5 +910,64 @@ mod tests {
         assert!(pg_content.contains("BEGIN;"));
         assert!(pg_content.contains("CREATE TABLE IF NOT EXISTS \"files\""));
         assert!(pg_content.contains("nas_vault_01"));
+    }
+
+    #[test]
+    fn motion_score_exports_in_both_dialects() {
+        let conn = Connection::open_in_memory().unwrap();
+        for migration in crate::migrations::MIGRATIONS {
+            conn.execute_batch(migration).unwrap();
+        }
+
+        conn.execute("INSERT INTO folders (id, path) VALUES (1, '/Vault')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO files (id, folder_id, path, container, size_bytes, modified_at, motion_score, version)
+             VALUES (1, 1, '/Vault/busy.mp4', 'mp4', 2048, 1726000000, 73.25, 1),
+                    (2, 1, '/Vault/still.mp4', 'mp4', 1024, 1726000001, NULL, 1)",
+            [],
+        )
+        .unwrap();
+
+        for (dialect, quoted_column, ddl_marker) in [
+            (
+                "mysql",
+                "`motion_score`",
+                "CREATE TABLE IF NOT EXISTS `files`",
+            ),
+            (
+                "postgres",
+                "\"motion_score\"",
+                "CREATE TABLE IF NOT EXISTS \"files\"",
+            ),
+        ] {
+            let tmp = NamedTempFile::new().unwrap();
+            let dest = tmp.path().to_str().unwrap().to_string();
+            export_migration_sql(
+                &conn,
+                &MigrationOptions {
+                    target_dialect: dialect.to_string(),
+                    target_root_uuid: "vault".to_string(),
+                    destination: dest.clone(),
+                },
+            )
+            .unwrap();
+
+            let content = std::fs::read_to_string(&dest).unwrap();
+            assert!(content.contains(ddl_marker), "{dialect}: files DDL missing");
+            assert!(
+                content.contains(quoted_column),
+                "{dialect}: motion_score column missing from DDL"
+            );
+            // The measured value is written verbatim; the unmeasured row stays NULL.
+            assert!(
+                content.contains("73.2500"),
+                "{dialect}: measured score missing"
+            );
+            assert!(
+                content.contains("'still.mp4', 'mp4', 1024, 1726000001, NULL"),
+                "{dialect}: an unmeasured clip must export as NULL, not 0"
+            );
+        }
     }
 }
