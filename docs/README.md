@@ -26,6 +26,15 @@ overview.
 - [Stabilization execution](STABILIZATION_EXECUTION.md) — current review-fix ledger
 - [Legacy migration](OMERA_MIGRATION.md) — Berry-to-Omera discovery, import and cleanup policy
 
+## Design proposals
+
+Documents that settle an approach before implementation. They are not
+statements about shipped behavior.
+
+- [Motion score design](MOTION_SCORE_DESIGN.md) — algorithm, persistence and compute trigger for the last Milestone 15 facet
+- [Image transformation plan](IMAGE_TRANSFORM_PLAN.md) — export, import and batch transform phases
+- [Multi-database collaboration RFC](MULTI_DATABASE_COLLABORATION_RFC.md) — deferred remote database direction
+
 ## User wiki
 
 - [English wiki](wiki/en/Home.md)
