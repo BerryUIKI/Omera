@@ -116,8 +116,8 @@ impl PartialOrd for RankedMatch {
 
 /// SQL that inserts or updates a file row keyed by its unique path.
 const UPSERT_FILE_SQL: &str =
-    "INSERT INTO files (folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+    "INSERT INTO files (folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
      ON CONFLICT(path) DO UPDATE SET
          folder_id       = excluded.folder_id,
          container       = excluded.container,
@@ -126,6 +126,7 @@ const UPSERT_FILE_SQL: &str =
          metadata        = excluded.metadata,
          rating          = coalesce(excluded.rating, files.rating),
          aesthetic_score = coalesce(excluded.aesthetic_score, files.aesthetic_score),
+         motion_score    = coalesce(excluded.motion_score, files.motion_score),
          is_favorite     = files.is_favorite,
          is_nsfw         = files.is_nsfw,
          stack_id        = coalesce(excluded.stack_id, files.stack_id),
@@ -133,8 +134,8 @@ const UPSERT_FILE_SQL: &str =
 
 /// SQL that inserts or updates a file row keyed by its unique path, returning the affected row id.
 const UPSERT_FILE_RETURNING_ID_SQL: &str =
-    "INSERT INTO files (folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+    "INSERT INTO files (folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
      ON CONFLICT(path) DO UPDATE SET
          folder_id       = excluded.folder_id,
          container       = excluded.container,
@@ -143,6 +144,7 @@ const UPSERT_FILE_RETURNING_ID_SQL: &str =
          metadata        = excluded.metadata,
          rating          = coalesce(excluded.rating, files.rating),
          aesthetic_score = coalesce(excluded.aesthetic_score, files.aesthetic_score),
+         motion_score    = coalesce(excluded.motion_score, files.motion_score),
          is_favorite     = files.is_favorite,
          is_nsfw         = files.is_nsfw,
          stack_id        = coalesce(excluded.stack_id, files.stack_id),
@@ -470,6 +472,7 @@ impl Database {
                 metadata,
                 file.rating.map(|r| r as i64),
                 file.aesthetic_score,
+                file.motion_score,
                 file.is_favorite as i64,
                 file.is_nsfw as i64,
                 file.stack_id,
@@ -509,6 +512,7 @@ impl Database {
                     metadata,
                     file.rating.map(|r| r as i64),
                     file.aesthetic_score,
+                    file.motion_score,
                     file.is_favorite as i64,
                     file.is_nsfw as i64,
                     file.stack_id,
@@ -571,10 +575,11 @@ impl Database {
         let metadata: Option<String> = row.get(6)?;
         let rating: Option<i64> = row.get(7)?;
         let aesthetic_score: Option<f64> = row.get(8)?;
-        let is_favorite: i64 = row.get(9).unwrap_or(0);
-        let is_nsfw: i64 = row.get(10).unwrap_or(0);
-        let stack_id: Option<String> = row.get(11).unwrap_or(None);
-        let stack_order: i64 = row.get(12).unwrap_or(0);
+        let motion_score: Option<f64> = row.get(9).unwrap_or(None);
+        let is_favorite: i64 = row.get(10).unwrap_or(0);
+        let is_nsfw: i64 = row.get(11).unwrap_or(0);
+        let stack_id: Option<String> = row.get(12).unwrap_or(None);
+        let stack_order: i64 = row.get(13).unwrap_or(0);
 
         let container = Container::from_id(&container_id)
             .ok_or_else(|| DatabaseError::UnknownContainer(container_id))?;
@@ -592,6 +597,7 @@ impl Database {
             metadata,
             rating: rating.map(|r| r as u8),
             aesthetic_score,
+            motion_score,
             is_favorite: is_favorite != 0,
             is_nsfw: is_nsfw != 0,
             stack_id,
@@ -618,7 +624,7 @@ impl Database {
     /// Retrieve a file by its file path.
     pub fn get_file_by_path(&self, path: &str) -> Result<Option<ImageFile>, DatabaseError> {
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order
              FROM files WHERE path = ?1 LIMIT 1",
         )?;
         let mut rows = stmt.query_and_then([path], Self::map_row)?;
@@ -631,7 +637,7 @@ impl Database {
     /// Retrieve a file by its database row ID.
     pub fn get_file_by_id(&self, id: i64) -> Result<Option<ImageFile>, DatabaseError> {
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order
              FROM files WHERE id = ?1 LIMIT 1",
         )?;
         let mut rows = stmt.query_and_then([id], Self::map_row)?;
@@ -1128,7 +1134,7 @@ impl Database {
         };
 
         let sql = format!(
-            "SELECT id, folder_id, path, container, size_bytes, modified_at, {metadata_projection} AS metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order, COUNT(*) OVER() AS total_count
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, {metadata_projection} AS metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order, COUNT(*) OVER() AS total_count
              FROM files{where_clause} ORDER BY {order_clause}{limit_clause}"
         );
 
@@ -1138,7 +1144,7 @@ impl Database {
         let mut total = 0usize;
         while let Some(row) = rows.next()? {
             if files.is_empty() {
-                total = row.get::<_, i64>(13)? as usize;
+                total = row.get::<_, i64>(14)? as usize;
             }
             files.push(Self::map_row(row)?);
         }
@@ -1285,7 +1291,7 @@ impl Database {
         };
 
         let sql = format!(
-            "SELECT id, folder_id, path, container, size_bytes, modified_at, {metadata_projection} AS metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order, {total_projection} AS total_count
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, {metadata_projection} AS metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order, {total_projection} AS total_count
              FROM files{where_clause} ORDER BY {order_clause} LIMIT ?"
         );
 
@@ -1296,7 +1302,7 @@ impl Database {
 
         while let Some(row) = rows.next()? {
             if files.is_empty() && criteria.cursor.is_none() {
-                total = Some(row.get::<_, i64>(13)? as usize);
+                total = Some(row.get::<_, i64>(14)? as usize);
             }
             files.push(Self::map_row(row)?);
         }
@@ -2928,7 +2934,7 @@ impl Database {
         let mut files = Vec::new();
         for chunk in ids.chunks(400) {
             let placeholders = vec!["?"; chunk.len()].join(",");
-            let sql = format!("SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order FROM files WHERE id IN ({placeholders})");
+            let sql = format!("SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order FROM files WHERE id IN ({placeholders})");
             let mut statement = self.conn.prepare(&sql)?;
             let mut rows = statement.query(rusqlite::params_from_iter(chunk))?;
             while let Some(row) = rows.next()? {
@@ -3122,7 +3128,7 @@ impl Database {
         }
 
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order
              FROM files
              WHERE container IN ('png', 'jpg', 'webp')
              AND id NOT IN (SELECT file_id FROM file_embeddings WHERE model_id = ?1)
@@ -3270,7 +3276,7 @@ impl Database {
     /// Get all images belonging to a specific stack, ordered by stack_order ASC, id ASC.
     pub fn get_stack_members(&self, stack_id: &str) -> Result<Vec<ImageFile>, DatabaseError> {
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, is_favorite, is_nsfw, stack_id, stack_order
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order
              FROM files WHERE stack_id = ?1 ORDER BY stack_order ASC, id ASC",
         )?;
         let rows = stmt.query_and_then([stack_id], Self::map_row)?;
@@ -3730,6 +3736,87 @@ mod tests {
     }
 
     #[test]
+    fn v19_adds_a_nullable_indexed_motion_score() {
+        let conn = Connection::open_in_memory().unwrap();
+        for migration in crate::migrations::MIGRATIONS {
+            conn.execute_batch(migration).unwrap();
+        }
+
+        // The column exists, admits NULL, and carries an index for the facet.
+        let nullable: i64 = conn
+            .query_row(
+                "SELECT \"notnull\" FROM pragma_table_info('files') WHERE name = 'motion_score'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(nullable, 0, "motion_score must remain nullable");
+
+        let indexed: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type = 'index' AND tbl_name = 'files' AND name = 'idx_files_motion_score'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexed, 1);
+
+        // An unmeasured file reads back as NULL, not as zero.
+        conn.execute("INSERT INTO folders (id, path) VALUES (1, '/tmp/v')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO files (id, folder_id, path, container, size_bytes, modified_at)
+             VALUES (1, 1, '/tmp/v/a.mp4', 'mp4', 10, 100)",
+            [],
+        )
+        .unwrap();
+        let unmeasured: Option<f64> = conn
+            .query_row("SELECT motion_score FROM files WHERE id = 1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(unmeasured, None);
+    }
+
+    #[test]
+    fn upsert_preserves_an_existing_motion_score() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/tmp/motion").unwrap();
+
+        let mut file = image(folder.id, "/tmp/motion/clip.mp4");
+        file.container = Container::Mp4;
+        file.motion_score = Some(42.5);
+        db.upsert_file(&file).unwrap();
+        assert_eq!(
+            db.get_file_by_path("/tmp/motion/clip.mp4")
+                .unwrap()
+                .unwrap()
+                .motion_score,
+            Some(42.5)
+        );
+
+        // A rescan re-reads metadata and passes no score; the measurement
+        // must survive rather than being wiped by the upsert.
+        let mut rescan = image(folder.id, "/tmp/motion/clip.mp4");
+        rescan.container = Container::Mp4;
+        rescan.size_bytes = 99;
+        rescan.motion_score = None;
+        db.upsert_file(&rescan).unwrap();
+
+        let reloaded = db
+            .get_file_by_path("/tmp/motion/clip.mp4")
+            .unwrap()
+            .unwrap();
+        assert_eq!(reloaded.size_bytes, 99, "rescan should update size");
+        assert_eq!(
+            reloaded.motion_score,
+            Some(42.5),
+            "rescan must not clear a measured motion score"
+        );
+    }
+
+    #[test]
     fn file_database_persists_and_tracks_path() {
         let dir = std::env::temp_dir().join(format!("omera-storage-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -3764,6 +3851,7 @@ mod tests {
             metadata: None,
             rating: None,
             aesthetic_score: None,
+            motion_score: None,
             is_favorite: false,
             is_nsfw: false,
             stack_id: None,
@@ -6233,6 +6321,7 @@ mod tests {
             metadata: None,
             rating: Some(4),
             aesthetic_score: None,
+            motion_score: None,
             is_favorite: false,
             is_nsfw: false,
             stack_id: None,
@@ -6324,6 +6413,7 @@ mod tests {
             metadata: None,
             rating: None,
             aesthetic_score: None,
+            motion_score: None,
             is_favorite: false,
             is_nsfw: false,
             stack_id: None,
@@ -6376,6 +6466,7 @@ mod tests {
             metadata: None,
             rating: None,
             aesthetic_score: None,
+            motion_score: None,
             is_favorite: false,
             is_nsfw: false,
             stack_id: None,
@@ -6413,6 +6504,7 @@ mod tests {
             metadata: None,
             rating: None,
             aesthetic_score: None,
+            motion_score: None,
             is_favorite: false,
             is_nsfw: false,
             stack_id: None,

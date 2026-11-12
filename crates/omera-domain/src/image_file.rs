@@ -94,6 +94,13 @@ pub struct ImageFile {
     pub rating: Option<u8>,
     /// Calculated or extracted aesthetic score, if available.
     pub aesthetic_score: Option<f64>,
+    /// Derived motion score for video assets, on a 0–100 scale.
+    ///
+    /// `None` means the clip has not been measured, which is distinct from a
+    /// clip that measured as still. Only videos carry this value; see
+    /// [MOTION_SCORE_DESIGN.md](../../docs/MOTION_SCORE_DESIGN.md).
+    #[serde(default)]
+    pub motion_score: Option<f64>,
     /// Whether this file is marked as a favorite.
     #[serde(default)]
     pub is_favorite: bool,

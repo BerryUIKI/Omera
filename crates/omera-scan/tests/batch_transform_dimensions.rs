@@ -108,6 +108,7 @@ fn decoded_dimensions_survive_batch_transform_gallery_query_and_restart() {
                     metadata: omera_metadata::extract_metadata(Container::Png, &source),
                     rating: Some(8),
                     aesthetic_score: Some(7.5),
+                    motion_score: None,
                     is_favorite: true,
                     is_nsfw: true,
                     stack_id: Some("same-stack".into()),

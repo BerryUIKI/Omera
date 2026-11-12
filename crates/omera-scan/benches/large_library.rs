@@ -85,6 +85,7 @@ fn generate_mock_files(folder_id: i64, start_index: usize, count: usize) -> Vec<
                     None
                 },
                 aesthetic_score: Some(6.0 + ((i % 40) as f64) * 0.1),
+                motion_score: None,
                 is_favorite: i % 10 == 0,
                 is_nsfw: false,
                 stack_id: if i % 20 == 0 {

@@ -39,6 +39,7 @@ fn fixture() -> (TempDir, Database, i64, i64) {
             metadata: None,
             rating: Some(8),
             aesthetic_score: Some(6.0),
+            motion_score: None,
             is_favorite: true,
             is_nsfw: false,
             stack_id: Some("curated".into()),
