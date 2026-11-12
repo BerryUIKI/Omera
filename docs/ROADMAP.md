@@ -164,7 +164,7 @@ Delivered in the v0.4.x line, with the resolution and codec facets following in 
 - [x] **Video Thumbnail Generation & Hover Scrubbing**: Capture frame thumbnails and scrub through video frames while hovering cards in Grid and Waterfall views.
 - [x] **Fullscreen Lightbox Video Player**: Seamless loop toggle, playback speed selector (0.25x–2x), frame-by-frame stepping (`.` / `,`), audio toggle, and sidecar prompt/workflow inspection.
 - [x] **Duration, Frame-Rate, Resolution & Codec Facets**: Filter videos by duration range, frame rate, pixel width/height and video codec, with an Images/Videos media-type filter. Codec matching folds case so sidecars and older records still match, and the drawer offers SD / HD / FHD+ / 4K+ resolution presets.
-- [ ] **Motion Score Facet**: The remaining video filter. It needs a derived motion metric (frame-difference or optical-flow based), a decision on whether to persist it as a new column or compute it on demand, and a backfill strategy for existing records; nothing is implemented and no schema exists for it yet.
+- [ ] **Motion Score Facet**: The remaining video filter. [MOTION_SCORE_DESIGN.md](MOTION_SCORE_DESIGN.md) settles the algorithm (downsampled grayscale mean absolute difference over sampled frames), the storage shape (a nullable indexed `files.motion_score` column via a v19 migration) and the compute trigger (opportunistic on the existing WebView decode path plus an explicit batch action). Nothing is implemented yet, and the milestone stays open until the scoring pass is validated against the codec matrix.
 
 ### ✅ Milestone 16: Next-Gen Model Architectures & Ecosystem (complete)
 
