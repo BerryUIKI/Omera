@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Database schema v19 adds a nullable, indexed `files.motion_score` for the
+  derived video motion metric. No value is computed yet: the column and its
+  plumbing ship first so scoring can follow without another migration. Existing
+  rows report `NULL`, which means "not measured" rather than "still", and a
+  rescan preserves a score that has been written instead of clearing it.
 - Filter videos by pixel width and height (with SD / HD / FHD+ / 4K+ presets in
   the filter drawer) and by codec (`h264`, `hevc`, `vp8`, `vp9`, `av1`). The
   `width:`, `height:` and `codec:` query tokens share the existing range syntax,
