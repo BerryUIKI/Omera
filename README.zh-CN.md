@@ -92,7 +92,7 @@
 - **AIGC 视频元数据** — 解析 MP4/WebM 容器中的 ComfyUI AnimateDiff、Wan2.1、HunyuanVideo、CogVideoX、LTX-Video 与 SVD 工作流。
 - **悬浮擦洗** — 在网格与瀑布流卡片上直接拖动浏览视频帧。
 - **全屏播放器** — 循环、0.25x–2x 倍速、逐帧步进（`.` / `,`）、静音，并复用共享检查器。
-- **视频筛选** — 按时长、帧率（FPS）与媒体类型筛选；分辨率、容器编码与 motion score 筛选仍在规划中。
+- **视频筛选** — 按时长、帧率（FPS）、像素宽高、视频编码与媒体类型筛选；motion score 筛选仍在规划中。
 
 ### 🗃️ 多模式导入与智能连拍堆叠
 
@@ -244,7 +244,7 @@ pnpm tauri build
   <img alt="Omera v0.5.0 路线图状态：13 个里程碑已完成，视频与模型生态里程碑部分完成，里程碑 17–19 已规划" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15（视频）** 与 **Milestone 16（Flux.1 / SD3.5 + Civitai）** 已部分完成；剩余项为分辨率/编码/motion score 筛选与 ComfyUI 工作流可视化。Milestone 20（图片压缩）已交付；Milestone 17–19 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣与色彩分析。
+**Milestone 15（视频）** 只剩 motion score 筛选这一项；**Milestone 16（Flux.1 / SD3.5 + Civitai）** 已完全交付。Milestone 20（图片压缩）已交付；Milestone 17–19 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣与色彩分析。
 
 📖 查阅完整开发计划：[docs/ROADMAP.md](docs/ROADMAP.md)。
 

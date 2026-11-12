@@ -41,6 +41,9 @@ Omera parst Suchbegriffe in nativem Rust in strukturierte `SearchCriteria` und f
 | `type:` | `type:image`, `type:video` | Filtert nach dem Medientyp (Bild oder Video). |
 | `duration:` | `duration:>=5`, `duration:5..30` | Filtert nach Videodauer in Sekunden. |
 | `fps:` | `fps:>=30`, `fps:24..60` | Filtert nach der Bildwiederholrate (FPS). |
+| `width:` | `width:>=1920`, `width:1280..1920` | Filtert nach der Pixelbreite. |
+| `height:` | `height:>=1080`, `height:720..1080` | Filtert nach der Pixelhöhe. |
+| `codec:` | `codec:h264`, `codec:hevc`, `codec:av1` | Filtert nach dem Videocodec (`h264`, `hevc`, `vp8`, `vp9`, `av1`; Groß-/Kleinschreibung egal). |
 
 ### Syntax für numerische Wertebereiche
 - **Zwischen zwei Werten (`min..max`)**: `steps:20..35` (inklusive zwischen 20 und 35 Schritten).
@@ -80,6 +83,8 @@ Wenn Sie eine grafische Oberfläche gegenüber der manuellen Syntaxeingabe bevor
 │ [✓] Nur Favoriten    [ ] Nur sensible Inhalte (NSFW)   │
 └────────────────────────────────────────────────────────┘
 ```
+
+Sobald der Medientyp Videos einschließt, erscheinen zusätzliche Gruppen: **Auflösung** (minimale und maximale Breite und Höhe, mit Voreinstellungen SD / HD / FHD+ / 4K+) und **Codec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
 
 Das Filter-Bedienfeld verfügt über einen Zähler für aktive Filterkriterien, sodass Sie auf einen Blick sehen, wie viele Filter Ihre aktuellen Ergebnisse einschränken.
 

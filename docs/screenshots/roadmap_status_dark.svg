@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="title desc">
 <title id="title">Omera roadmap status at v0.6.0</title>
-<desc id="desc">Fourteen milestones are complete. Milestone 15 video and Milestone 17 ComfyUI studio are in progress. Milestone 18 and Milestone 19 are planned.</desc>
+<desc id="desc">Fourteen milestones are complete. Milestone 15 video is four of five packages done and Milestone 17 ComfyUI studio is in progress. Milestone 18 and Milestone 19 are planned.</desc>
 <rect width="1200" height="600" rx="24" fill="#0b0b0e"/>
 <rect x="1" y="1" width="1198" height="598" rx="23" fill="none" stroke="#2b2b35"/>
 <text x="48" y="58" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#f3f4f6" text-anchor="start">Omera roadmap</text>
@@ -31,7 +31,7 @@
 <circle cx="680" cy="208" r="22" fill="#f59e0b" stroke="#2b2b35" stroke-width="3"/>
 <text x="680" y="209" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">◐</text>
 <text x="680" y="254" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#f3f4f6" text-anchor="middle">Video</text>
-<text x="680" y="274" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle">Milestone 15 · 3/4</text>
+<text x="680" y="274" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle">Milestone 15 · 4/5</text>
 <circle cx="870" cy="208" r="22" fill="#f59e0b" stroke="#2b2b35" stroke-width="3"/>
 <text x="870" y="209" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">◐</text>
 <text x="870" y="254" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#f3f4f6" text-anchor="middle">ComfyUI studio</text>
@@ -43,9 +43,9 @@
 <rect x="48" y="304" width="530" height="212" rx="18" fill="#17171c" stroke="#2b2b35"/>
 <text x="72" y="342" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#f3f4f6" text-anchor="start">Milestone 15 · Video</text>
 <rect x="480" y="322" width="74" height="28" rx="14" fill="#1f1f26" stroke="#2b2b35"/>
-<text x="517.0" y="341" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle">3 / 4</text>
+<text x="517.0" y="341" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle">4 / 5</text>
 <rect x="72" y="364" width="482" height="10" rx="5" fill="#2a2a35"/>
-<rect x="72" y="364" width="361.5" height="10" rx="5" fill="#22c55e"/>
+<rect x="72" y="364" width="385.6" height="10" rx="5" fill="#22c55e"/>
 <circle cx="79" cy="403" r="9" fill="#22c55e" stroke="#22c55e" stroke-width="2"/>
 <text x="79" y="404" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">✓</text>
 <text x="98" y="408" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f3f4f6" text-anchor="start">AIGC video metadata extraction</text>
@@ -57,7 +57,7 @@
 <text x="98" y="468" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f3f4f6" text-anchor="start">Fullscreen player with loop, speed and frame step</text>
 <circle cx="79" cy="493" r="9" fill="#f59e0b" stroke="#f59e0b" stroke-width="2"/>
 <text x="79" y="494" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">◐</text>
-<text x="98" y="498" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f3f4f6" text-anchor="start">Facets: duration &amp; FPS done; resolution, codec, motion remain</text>
+<text x="98" y="498" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f3f4f6" text-anchor="start">Facets: duration, FPS, resolution, codec done; motion score remains</text>
 <rect x="622" y="304" width="530" height="212" rx="18" fill="#17171c" stroke="#2b2b35"/>
 <text x="646" y="342" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#f3f4f6" text-anchor="start">Milestone 17 · ComfyUI studio</text>
 <rect x="1054" y="322" width="74" height="28" rx="14" fill="#1f1f26" stroke="#2b2b35"/>

@@ -41,6 +41,9 @@ Omera analiza los tokens de búsqueda en estructuras `SearchCriteria` en código
 | `type:` | `type:image`, `type:video` | Filtrar por tipo de contenedor multimedia. |
 | `duration:` | `duration:>=5`, `duration:5..30` | Filtrar por duración de vídeo en segundos. |
 | `fps:` | `fps:>=30`, `fps:24..60` | Filtrar por tasa de fotogramas de vídeo. |
+| `width:` | `width:>=1920`, `width:1280..1920` | Filtra por ancho en píxeles. |
+| `height:` | `height:>=1080`, `height:720..1080` | Filtra por alto en píxeles. |
+| `codec:` | `codec:h264`, `codec:hevc`, `codec:av1` | Filtra por códec de vídeo (`h264`, `hevc`, `vp8`, `vp9`, `av1`; sin distinguir mayúsculas). |
 
 ### Sintaxis de rangos numéricos
 - **Rango entre valores (`min..max`)**: `steps:20..35` (entre 20 y 35 pasos inclusive).
@@ -80,6 +83,8 @@ Si prefiere una interfaz gráfica en lugar de escribir sintaxis de búsqueda, ha
 │ [✓] Solo favoritos     [ ] Solo contenido sensible     │
 └────────────────────────────────────────────────────────┘
 ```
+
+Cuando el tipo de medio incluye vídeos aparecen grupos adicionales: **Resolución** (ancho y alto mínimo y máximo, con preajustes SD / HD / FHD+ / 4K+) y **Códec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
 
 El panel de filtros cuenta con un contador que muestra de un vistazo cuántos criterios están limitando activamente los resultados.
 

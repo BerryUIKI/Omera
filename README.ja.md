@@ -92,7 +92,7 @@
 - **AIGC 動画メタデータ** — MP4/WebM コンテナ内の ComfyUI AnimateDiff、Wan2.1、HunyuanVideo、CogVideoX、LTX-Video、SVD ワークフローを解析。
 - **ホバースクラブ** — グリッドとウォーターフォールのカード上で動画フレームを直接スクラブ。
 - **全画面プレーヤー** — ループ、0.25x–2x 再生速度、コマ送り（`.` / `,`）、ミュート、共有インスペクター。
-- **動画ファセット** — 再生時間、フレームレート（FPS）、メディアタイプで絞り込み。解像度、コンテナコーデック、motion score は計画中。
+- **動画ファセット** — 再生時間、フレームレート（FPS）、ピクセル幅・高さ、動画コーデック、メディアタイプで絞り込み。motion score は計画中。
 
 ### 🗃️ マルチモード取り込み＆スマートスタッキング
 
@@ -244,7 +244,7 @@ pnpm tauri build
   <img alt="Omera v0.5.0 ロードマップ状況：13 マイルストーン完了、動画とモデルエコシステムは一部完了、マイルストーン 17–19 は計画中" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15（動画）** と **Milestone 16（Flux.1 / SD3.5 + Civitai）** は一部完了しています。残りは解像度/コーデック/motion score ファセットと ComfyUI ワークフロー可視化です。Milestone 20（画像圧縮）は提供済みで、Milestone 17–19 は ComfyUI リアルタイムワークフロー、LAN Web コンパニオン、カラー分析を対象とします。
+**Milestone 15（動画）** の残りは motion score ファセットのみで、**Milestone 16（Flux.1 / SD3.5 + Civitai）** は完了しています。Milestone 20（画像圧縮）は提供済みで、Milestone 17–19 は ComfyUI リアルタイムワークフロー、LAN Web コンパニオン、カラー分析を対象とします。
 
 📖 詳細は [docs/ROADMAP.md](docs/ROADMAP.md) をご覧ください。
 
