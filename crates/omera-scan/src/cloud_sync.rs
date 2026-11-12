@@ -279,6 +279,7 @@ mod tests {
             metadata: None,
             rating: None,
             aesthetic_score: None,
+            motion_score: None,
             is_favorite: false,
             is_nsfw: false,
             stack_id: None,

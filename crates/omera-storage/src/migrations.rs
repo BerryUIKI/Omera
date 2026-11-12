@@ -252,6 +252,13 @@ pub const MIGRATIONS: &[&str] = &[
 
     CREATE INDEX idx_civitai_cache_model ON civitai_cache(model_id);
     "#,
+    // v19: derived motion score for video assets, measured by the WebView
+    // decode path. Nullable with no default: NULL means "not measured yet".
+    r#"
+    ALTER TABLE files ADD COLUMN motion_score REAL;
+
+    CREATE INDEX idx_files_motion_score ON files(motion_score);
+    "#,
 ];
 
 /// The schema version the current code migrates databases to.

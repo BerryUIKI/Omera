@@ -40,6 +40,7 @@ fn fixture() -> (TempDir, Database, i64) {
         metadata: omera_metadata::extract_metadata(Container::Png, &source),
         rating: Some(8),
         aesthetic_score: Some(6.5),
+        motion_score: None,
         is_favorite: true,
         is_nsfw: true,
         stack_id: Some("curated-stack".into()),

@@ -77,6 +77,8 @@ export interface ImageFile {
   metadata: ExtractedMetadata | null;
   rating?: number | null;
   aesthetic_score?: number | null;
+  /** Derived 0–100 motion score; null or absent means not measured. */
+  motion_score?: number | null;
   is_favorite?: boolean;
   is_nsfw?: boolean;
   similarity_score?: number | null;
