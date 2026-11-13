@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Video motion scoring engine (`src/utils/motion-score.ts`): samples frames at
+  fixed positions across a clip, reduces each to a 64×64 grayscale buffer and
+  averages the mean absolute difference between consecutive samples onto a
+  0–100 scale. Resolution-independent by construction, insensitive to global
+  brightness ramps, and clamped to zero below a dead zone so compression grain
+  does not read as movement. Nothing calls it yet; wiring lands with the
+  compute package. Clips that cannot be decoded return no score rather than 0.
 - Database schema v19 adds a nullable, indexed `files.motion_score` for the
   derived video motion metric. No value is computed yet: the column and its
   plumbing ship first so scoring can follow without another migration. Existing

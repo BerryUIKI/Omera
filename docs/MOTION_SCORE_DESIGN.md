@@ -69,12 +69,21 @@ per-pixel absolute difference between consecutive samples.
 
 ```
 sample positions: t_k = duration * (k + 0.5) / N        for k in 0..N
-for each k: draw video frame at t_k into a W x H canvas (W = H = 64)
-            apply ctx.filter = "grayscale(1)" via a second pass
-            read the pixel buffer with getImageData
-motion_raw = mean over k in 1..N of  mean over pixels |frame[k] - frame[k-1]| / 255
-motion_score = round(motion_raw * 100)                 → 0..100, REAL
+for each k: seek the <video> to t_k, draw it into a 64x64 canvas
+            getImageData → reduce RGBA to grayscale (Rec. 601 luma,
+            averaged per destination cell, which low-passes the frame)
+per frame:  subtract the frame mean (a global brightness ramp is not motion)
+per pair:   mean over pixels |frame[k] - frame[k-1]| / 255
+            subtract the pair's own mean, so only spatially varying change counts
+motion_raw = mean over k in 1..N of the per-pair result
+motion_score = 0                              if motion_raw <= DEAD_ZONE (0.02)
+             = ceil((motion_raw - DEAD_ZONE) / (1 - DEAD_ZONE) * 100)  otherwise
+                                                 → 1..100, REAL
 ```
+
+Shipped as `src/utils/motion-score.ts`. The ceiling is deliberate rather than a
+rounding choice: rounding collapses a barely-moving clip back to 0, which would
+make a `motion:0` filter claim a clip is still when it is not.
 
 The parameters are not arbitrary:
 
@@ -99,7 +108,7 @@ enough that `N = 12` is affordable if the first pass proves too coarse.
 | Weakness | Mitigation |
 |---|---|
 | Global brightness ramps (fade in/out) read as motion because every pixel changes | Subtract the per-frame mean before differencing, so only spatially varying change counts |
-| Compression artifacts in near-static footage inflate the score | The 64×64 downsample already suppresses this; a small dead zone (scores below ~2 clamp to 0) keeps "static" meaning static |
+| Compression artifacts in near-static footage inflate the score | The 64×64 downsample already suppresses this; a dead zone (raw motion at or below 0.02 clamps the score to 0) keeps "static" meaning static |
 | A clip with one brief cut scores like uniformly busy footage | The average is over samples, so a single instantaneous cut contributes at most `1/N` of the total |
 | Sampling can miss motion entirely between samples | Accepted. The facet is a coarse triage band, not a measurement; users filter "basically still" vs "busy", not exact motion energy |
 
@@ -274,7 +283,7 @@ Four PRs, each landing on its own and each independently mergeable.
 | Package | Content | Gate |
 |---|---|---|
 | **M1 — Schema and plumbing** | v19 migration, `motion_score` on the DTO and row readers, upsert preservation, migration-export readers | Rust tests: migration idempotence, upsert preserves an existing score, export round-trip |
-| **M2 — Scoring engine** | The `N`-sample grayscale MAD routine in `src/utils/`, pure and unit-tested against synthetic canvases | Node tests: static frames score ~0, a hard cut scores high, brightness ramp stays low, resolution independence |
+| **M2 — Scoring engine** | The `N`-sample grayscale MAD routine in `src/utils/`, pure and unit-tested against synthetic frames. Shipped as `src/utils/motion-score.ts` with 20 regressions in `tests/motion-score.test.mjs`. | Node tests: static frames score ~0, a hard cut scores high, brightness ramp stays low, resolution independence |
 | **M3 — Compute and persist** | `onVideoLoadedData` hookup, `save_video_motion_score`, `list_unscored_videos`, batch action with progress and cancellation | IPC reference regenerated; a manual pass over a mixed library |
 | **M4 — Facet and UI** | `SearchCriteria`, SQL conditions, `motion:` token, drawer group, seven locales | Query round-trip tests; locale parity test |
 
