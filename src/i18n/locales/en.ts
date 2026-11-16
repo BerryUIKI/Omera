@@ -782,6 +782,13 @@ export const en = {
     calculating: "Calculating...",
     thumbnailsCount: "thumbnails",
     clearCache: "🗑️ Clear Thumbnail Cache",
+    motionScan: "🎬 Compute Motion Scores",
+    motionScanDesc: "Count how much each video moves, so it can be filtered by motion. Decoding uses the system video codecs; clips this machine cannot play stay unmeasured.",
+    motionScanStart: "Compute",
+    motionScanStop: "Stop",
+    motionScanCanceled: "Canceled.",
+    motionScanScored: "scored",
+    motionScanFailed: "could not be measured",
     clearing: "Clearing...",
     diagnostics: "Diagnostics",
 

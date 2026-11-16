@@ -784,6 +784,13 @@ export const fr: typeof en = {
     calculating: "Calcul en cours...",
     thumbnailsCount: "miniatures",
     clearCache: "🗑️ Vider le cache des miniatures",
+    motionScan: "🎬 Calculer les scores de mouvement",
+    motionScanDesc: "Mesure l\"ampleur du mouvement de chaque vidéo afin de pouvoir filtrer dessus. Le décodage utilise les codecs vidéo du système ; les clips que cette machine ne peut pas lire restent non mesurés.",
+    motionScanStart: "Calculer",
+    motionScanStop: "Arrêter",
+    motionScanCanceled: "Annulé.",
+    motionScanScored: "évalués",
+    motionScanFailed: "non mesurables",
     clearing: "Vidage en cours...",
     diagnostics: "Diagnostics",
 

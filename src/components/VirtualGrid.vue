@@ -23,6 +23,7 @@ import {
   THUMBNAIL_PRIORITY,
 } from "../utils/thumbnail";
 import { t } from "../i18n";
+import { shouldAttemptMotionScore, scoreVideoElement } from "../utils/motion-sweep";
 import { resolveStackHeroPaths } from "../utils/stack";
 import { calculateGalleryColumns, calculateGalleryTrackOffset } from "../utils/gallery-layout";
 import { hasActiveDialog, isEditableTarget } from "../utils/dialog";
@@ -474,6 +475,12 @@ function onVideoLoadedData(e: Event, file: ImageFile) {
   const video = e.target as HTMLVideoElement | null;
   if (!video) return;
   void captureAndSaveVideoThumbnail(file, video);
+  // Opportunistic motion scoring rides the decode that already happened for
+  // the thumbnail. It only fires for clips with no stored score, and a clip
+  // that fails is remembered for the session so hovering never re-decodes it.
+  if (shouldAttemptMotionScore(file)) {
+    void scoreVideoElement(file, video).catch(() => null);
+  }
 }
 
 function isStacked(file: ImageFile): boolean {

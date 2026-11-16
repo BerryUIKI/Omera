@@ -784,6 +784,13 @@ export const ja: typeof en = {
     calculating: "計算中...",
     thumbnailsCount: "枚のサムネイル",
     clearCache: "🗑️ サムネイルキャッシュを消去",
+    motionScan: "🎬 モーションスコアを計算",
+    motionScanDesc: "各動画の動きの大きさを計測し、モーションで絞り込めるようにします。デコードにはシステムの動画コーデックを使用し、再生できないクリップは未計測のまま残ります。",
+    motionScanStart: "計算する",
+    motionScanStop: "停止",
+    motionScanCanceled: "キャンセルしました。",
+    motionScanScored: "件を計測",
+    motionScanFailed: "件は計測できませんでした",
     clearing: "消去中...",
     diagnostics: "診断情報",
 
