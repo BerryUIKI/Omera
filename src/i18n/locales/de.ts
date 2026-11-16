@@ -784,6 +784,13 @@ export const de: typeof en = {
     calculating: "Wird berechnet...",
     thumbnailsCount: "Vorschaubilder",
     clearCache: "🗑️ Cache leeren",
+    motionScan: "🎬 Bewegungswerte berechnen",
+    motionScanDesc: "Misst, wie stark sich jedes Video bewegt, damit danach gefiltert werden kann. Das Dekodieren nutzt die Video-Codecs des Systems; Clips, die dieser Rechner nicht abspielen kann, bleiben ungemessen.",
+    motionScanStart: "Berechnen",
+    motionScanStop: "Stoppen",
+    motionScanCanceled: "Abgebrochen.",
+    motionScanScored: "bewertet",
+    motionScanFailed: "konnten nicht gemessen werden",
     clearing: "Wird geleert...",
     diagnostics: "Diagnose",
 

@@ -24,6 +24,7 @@ import {
   type ThumbnailCacheStats,
 } from "../utils/thumbnail";
 import { formatBytes } from "../utils/image";
+import { sweepMotionScores } from "../utils/motion-sweep";
 import { startCloudSyncWithConfirmation } from "../utils/cloud-sync-namespace";
 import {
   currentLocaleSetting,
@@ -426,6 +427,38 @@ const loadedConfig = ref<AppConfig | null>(null);
 const cacheStats = ref<ThumbnailCacheStats | null>(null);
 const clearingCache = ref(false);
 const cacheMessage = ref("");
+
+// Motion scoring sweep
+const motionScanning = ref(false);
+const motionMessage = ref("");
+let motionScanCancelled = false;
+
+async function handleMotionScan() {
+  if (motionScanning.value) {
+    motionScanCancelled = true;
+    return;
+  }
+  motionScanning.value = true;
+  motionScanCancelled = false;
+  motionMessage.value = "";
+  try {
+    const result = await sweepMotionScores({
+      shouldContinue: () => !motionScanCancelled,
+      onProgress: (progress) => {
+        motionMessage.value = `${progress.scored} / ${progress.scored + progress.failed}`;
+      },
+    });
+    if (result.canceled) {
+      motionMessage.value = t.value.settings.motionScanCanceled;
+    } else {
+      motionMessage.value = `✓ ${result.scored} ${t.value.settings.motionScanScored}, ${result.failed} ${t.value.settings.motionScanFailed}`;
+    }
+  } catch (e) {
+    motionMessage.value = String(e);
+  } finally {
+    motionScanning.value = false;
+  }
+}
 
 async function loadCacheStats() {
   try {
@@ -989,6 +1022,25 @@ async function saveSettings() {
                 </button>
               </div>
 
+            </div>
+
+            <div class="setting-row immediate-action-row">
+              <div class="row-info">
+                <span class="row-label">{{ t.settings.motionScan }}</span>
+                <span class="row-desc">
+                  {{ t.settings.motionScanDesc }}
+                  <span v-if="motionMessage" style="margin-left: 8px; color: #4ade80;">{{ motionMessage }}</span>
+                </span>
+              </div>
+              <div class="cache-actions" style="display: flex; gap: 8px;">
+                <button
+                  type="button"
+                  class="btn secondary"
+                  @click="handleMotionScan"
+                >
+                  {{ motionScanning ? t.settings.motionScanStop : t.settings.motionScanStart }}
+                </button>
+              </div>
             </div>
           </div>
 

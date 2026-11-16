@@ -1993,6 +1993,62 @@ pub struct BatchThumbnailItem {
     pub modified_at: i64,
 }
 
+/// Persist a motion score computed from decoded frames in the WebView.
+///
+/// The WebView is the only place this application can decode video (paths are
+/// served over the `asset:` protocol, so a `<video>` element is same-origin and
+/// its frames can be read back from a canvas). It proposes the number; the
+/// backend enforces the range and rejects a write that raced a file change.
+/// Returns `false` when the row no longer matches `modified_at`, which a
+/// background sweep treats as normal rather than as an error.
+#[tauri::command]
+pub async fn save_video_motion_score(
+    file_id: i64,
+    modified_at: i64,
+    motion_score: f64,
+    app_handle: AppHandle,
+) -> Result<bool, String> {
+    use tauri::Manager;
+    let data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {e}"))?;
+    let db_path = active_database_path(&data_dir)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let db = omera_storage::Database::connect(&db_path).map_err(|e| e.to_string())?;
+        db.set_file_motion_score(file_id, Some(modified_at), motion_score)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// One page of videos that still need a motion score, ordered by id.
+///
+/// `after_id` is the cursor: pass the last id from the previous page. It is
+/// required for progress, because a clip the platform cannot decode stays
+/// unscored forever and would otherwise be retried on every sweep.
+#[tauri::command]
+pub async fn list_unscored_videos(
+    after_id: Option<i64>,
+    limit: u32,
+    app_handle: AppHandle,
+) -> Result<Vec<omera_domain::ImageFile>, String> {
+    use tauri::Manager;
+    let data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {e}"))?;
+    let db_path = active_database_path(&data_dir)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let db = omera_storage::Database::connect(&db_path).map_err(|e| e.to_string())?;
+        db.list_unscored_videos(after_id, limit as usize)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Request background batch thumbnail generation with progress event emission.
 #[tauri::command]
 pub async fn batch_generate_thumbnails(

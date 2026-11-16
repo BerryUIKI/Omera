@@ -784,6 +784,13 @@ export const zhTW: typeof en = {
     calculating: "計算中...",
     thumbnailsCount: "張縮圖",
     clearCache: "🗑️ 清理縮圖快取",
+    motionScan: "🎬 計算運動評分",
+    motionScanDesc: "統計每個影片的運動幅度，以便依運動量篩選。解碼使用系統影片編解碼器；本機無法播放的片段會保持未測量。",
+    motionScanStart: "開始計算",
+    motionScanStop: "停止",
+    motionScanCanceled: "已取消。",
+    motionScanScored: "個已計算",
+    motionScanFailed: "個無法測量",
     clearing: "正在清理...",
     diagnostics: "診斷資訊",
 

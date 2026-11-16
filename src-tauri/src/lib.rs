@@ -244,6 +244,8 @@ pub fn run() {
             commands::open_external_url,
             commands::get_or_create_thumbnail,
             commands::save_video_thumbnail,
+            commands::save_video_motion_score,
+            commands::list_unscored_videos,
             commands::batch_generate_thumbnails,
             commands::cancel_thumbnail_requests,
             commands::get_thumbnail_queue_diagnostics,

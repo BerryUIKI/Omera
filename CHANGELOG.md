@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Motion scores are now computed and stored for video assets. Hovering a video
+  card scores it once, riding the decode the thumbnail already needed, and
+  Settings gains a bounded "Compute Motion Scores" sweep for the rest of the
+  library. The sweep pages by id cursor so a clip this machine cannot decode
+  does not block the ones behind it, stops after a run of consecutive failures
+  rather than grinding through an undecodable library, and can be cancelled
+  mid-run. A score is only written when the file's modification time still
+  matches the decode, and anything unmeasurable stays unscored rather than
+  being recorded as motionless.
 - Video motion scoring engine (`src/utils/motion-score.ts`): samples frames at
   fixed positions across a clip, reduces each to a 64×64 grayscale buffer and
   averages the mean absolute difference between consecutive samples onto a

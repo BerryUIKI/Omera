@@ -57,6 +57,8 @@ pub enum DatabaseError {
     FileAlreadyStacked { file_id: i64, stack_id: String },
     #[error("rating must be between 1 and 10, got {0}")]
     InvalidRating(u8),
+    #[error("motion score must be a finite value between 0 and 100, got {0}")]
+    InvalidMotionScore(f64),
     #[error("failed to open database at {path}: {source}")]
     Open {
         path: PathBuf,
@@ -1945,6 +1947,66 @@ impl Database {
         Ok(())
     }
 
+    /// Record a derived motion score (0–100) for a video file.
+    ///
+    /// `modified_at` guards against writing a measurement for a file that
+    /// changed while it was being decoded: if the row's modification time no
+    /// longer matches, the score describes different bytes and is dropped.
+    /// Passing `modified_at` as `None` skips that check.
+    ///
+    /// Returns `false` when the file no longer exists or has been modified,
+    /// which the caller should treat as normal for a background sweep.
+    pub fn set_file_motion_score(
+        &self,
+        file_id: i64,
+        modified_at: Option<i64>,
+        score: f64,
+    ) -> Result<bool, DatabaseError> {
+        if !score.is_finite() || !(0.0..=100.0).contains(&score) {
+            return Err(DatabaseError::InvalidMotionScore(score));
+        }
+        let affected = match modified_at {
+            Some(expected) => self.conn.execute(
+                "UPDATE files SET motion_score = ?1 WHERE id = ?2 AND modified_at = ?3",
+                params![score, file_id, expected],
+            )?,
+            None => self.conn.execute(
+                "UPDATE files SET motion_score = ?1 WHERE id = ?2",
+                params![score, file_id],
+            )?,
+        };
+        Ok(affected > 0)
+    }
+
+    /// List video files that have no motion score yet.
+    ///
+    /// Bounded by `limit` and paged by an `after_id` cursor so a large library
+    /// does not hand the WebView one enormous batch. The cursor matters: a clip
+    /// that fails to decode stays `NULL` forever, so a sweep that always
+    /// restarted at the beginning would keep retrying the same broken files and
+    /// never reach the rest of the library.
+    pub fn list_unscored_videos(
+        &self,
+        after_id: Option<i64>,
+        limit: usize,
+    ) -> Result<Vec<ImageFile>, DatabaseError> {
+        if limit == 0 {
+            return Err(DatabaseError::ZeroResultLimit);
+        }
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT id, folder_id, path, container, size_bytes, modified_at, metadata, rating, aesthetic_score, motion_score, is_favorite, is_nsfw, stack_id, stack_order
+             FROM files
+             WHERE container IN ('mp4', 'webm') AND motion_score IS NULL AND id > ?1
+             ORDER BY id ASC
+             LIMIT ?2",
+        )?;
+        let rows = stmt.query_and_then(
+            rusqlite::params![after_id.unwrap_or(0), limit as i64],
+            Self::map_row,
+        )?;
+        rows.collect()
+    }
+
     /// Set favorite status for multiple files in a single transaction.
     pub fn set_files_favorite(
         &self,
@@ -3814,6 +3876,128 @@ mod tests {
             Some(42.5),
             "rescan must not clear a measured motion score"
         );
+    }
+
+    #[test]
+    fn set_file_motion_score_rejects_out_of_range_values() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/tmp/motion-range").unwrap();
+        let mut file = image(folder.id, "/tmp/motion-range/a.mp4");
+        file.container = Container::Mp4;
+        let file_id = db.upsert_file(&file).unwrap();
+
+        for bad in [-0.1, 100.1, f64::NAN, f64::INFINITY] {
+            assert!(
+                matches!(
+                    db.set_file_motion_score(file_id, None, bad),
+                    Err(DatabaseError::InvalidMotionScore(_))
+                ),
+                "{bad} should be rejected"
+            );
+        }
+
+        // The boundaries themselves are valid.
+        assert!(db.set_file_motion_score(file_id, None, 0.0).unwrap());
+        assert!(db.set_file_motion_score(file_id, None, 100.0).unwrap());
+    }
+
+    #[test]
+    fn set_file_motion_score_drops_a_write_that_raced_a_file_change() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/tmp/motion-race").unwrap();
+        let mut file = image(folder.id, "/tmp/motion-race/clip.mp4");
+        file.container = Container::Mp4;
+        file.modified_at = 1000;
+        let file_id = db.upsert_file(&file).unwrap();
+
+        // The score was computed from the bytes at modified_at 1000; the row
+        // has since moved on, so the measurement describes different pixels.
+        assert!(!db.set_file_motion_score(file_id, Some(999), 55.0).unwrap());
+        assert_eq!(
+            db.get_file_by_id(file_id).unwrap().unwrap().motion_score,
+            None,
+            "a stale write must not be stored"
+        );
+
+        assert!(db.set_file_motion_score(file_id, Some(1000), 55.0).unwrap());
+        assert_eq!(
+            db.get_file_by_id(file_id).unwrap().unwrap().motion_score,
+            Some(55.0)
+        );
+    }
+
+    #[test]
+    fn list_unscored_videos_covers_only_videos_without_a_score() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/tmp/unscored").unwrap();
+
+        let mut scored_video = image(folder.id, "/tmp/unscored/scored.mp4");
+        scored_video.container = Container::Mp4;
+        scored_video.motion_score = Some(12.0);
+        db.upsert_file(&scored_video).unwrap();
+
+        let mut unscored_video = image(folder.id, "/tmp/unscored/unscored.webm");
+        unscored_video.container = Container::Webm;
+        db.upsert_file(&unscored_video).unwrap();
+
+        let mut unscored_video_two = image(folder.id, "/tmp/unscored/second.mp4");
+        unscored_video_two.container = Container::Mp4;
+        db.upsert_file(&unscored_video_two).unwrap();
+
+        // Images are never candidates, even without a score.
+        let mut still_image = image(folder.id, "/tmp/unscored/still.png");
+        still_image.container = Container::Png;
+        db.upsert_file(&still_image).unwrap();
+
+        let found = db.list_unscored_videos(None, 10).unwrap();
+        let paths: Vec<&str> = found.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(found.len(), 2);
+        assert!(paths.contains(&"/tmp/unscored/unscored.webm"));
+        assert!(paths.contains(&"/tmp/unscored/second.mp4"));
+        assert!(!paths.contains(&"/tmp/unscored/scored.mp4"));
+        assert!(!paths.contains(&"/tmp/unscored/still.png"));
+    }
+
+    #[test]
+    fn list_unscored_videos_advances_past_undecodable_clips() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/tmp/paging").unwrap();
+
+        for name in ["a.mp4", "b.mp4", "c.mp4"] {
+            let mut file = image(folder.id, &format!("/tmp/paging/{name}"));
+            file.container = Container::Mp4;
+            db.upsert_file(&file).unwrap();
+        }
+
+        // A clip that never decodes keeps motion_score NULL. Without a cursor
+        // the sweep would hand back a.mp4 forever and never reach b or c.
+        let first_page = db.list_unscored_videos(None, 1).unwrap();
+        assert_eq!(first_page.len(), 1);
+        assert_eq!(first_page[0].path, "/tmp/paging/a.mp4");
+
+        let second_page = db
+            .list_unscored_videos(Some(first_page[0].id.unwrap()), 1)
+            .unwrap();
+        assert_eq!(second_page[0].path, "/tmp/paging/b.mp4");
+
+        let third_page = db
+            .list_unscored_videos(Some(second_page[0].id.unwrap()), 1)
+            .unwrap();
+        assert_eq!(third_page[0].path, "/tmp/paging/c.mp4");
+
+        let past_end = db
+            .list_unscored_videos(Some(third_page[0].id.unwrap()), 1)
+            .unwrap();
+        assert!(past_end.is_empty(), "the cursor terminates the walk");
+    }
+
+    #[test]
+    fn list_unscored_videos_rejects_a_zero_limit() {
+        let db = Database::connect_in_memory().unwrap();
+        assert!(matches!(
+            db.list_unscored_videos(None, 0),
+            Err(DatabaseError::ZeroResultLimit)
+        ));
     }
 
     #[test]

@@ -784,6 +784,13 @@ export const zhCN: typeof en = {
     calculating: "计算中...",
     thumbnailsCount: "张缩略图",
     clearCache: "🗑️ 清理缩略图缓存",
+    motionScan: "🎬 计算运动评分",
+    motionScanDesc: "统计每个视频的运动幅度，以便按运动量筛选。解码使用系统视频编解码器；本机无法播放的片段会保持未测量。",
+    motionScanStart: "开始计算",
+    motionScanStop: "停止",
+    motionScanCanceled: "已取消。",
+    motionScanScored: "个已计算",
+    motionScanFailed: "个无法测量",
     clearing: "正在清理...",
     diagnostics: "诊断信息",
 
