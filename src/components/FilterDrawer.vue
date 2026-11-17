@@ -41,6 +41,8 @@ const maxWidth = ref<number | "">("");
 const minHeight = ref<number | "">("");
 const maxHeight = ref<number | "">("");
 const videoCodec = ref<string>("");
+const minMotion = ref<number | "">("");
+const maxMotion = ref<number | "">("");
 
 function setDurationPreset(min: number | "", max: number | "") {
   minDuration.value = min;
@@ -50,6 +52,26 @@ function setDurationPreset(min: number | "", max: number | "") {
 function setResolutionPreset(minWidthValue: number | "", maxWidthValue: number | "") {
   minWidth.value = minWidthValue;
   maxWidth.value = maxWidthValue;
+}
+
+/**
+ * Motion bands, expressed on the stored 0–100 scale. The labels describe how
+ * much of the frame changes between samples rather than any particular effect:
+ * "Still" is a near-static clip, "Dynamic" is one where most of the image moves.
+ */
+function motionPresets(): { key: string; label: string; title: string; min: number | ""; max: number | "" }[] {
+  const fd = t.value.filterDrawer;
+  return [
+    { key: "still", label: fd.motionStillTitle, title: fd.motionStillTitle, min: "", max: 10 },
+    { key: "subtle", label: fd.motionSubtleTitle, title: fd.motionSubtleTitle, min: 10, max: 30 },
+    { key: "lively", label: fd.motionLivelyTitle, title: fd.motionLivelyTitle, min: 30, max: 60 },
+    { key: "dynamic", label: fd.motionDynamicTitle, title: fd.motionDynamicTitle, min: 60, max: "" },
+  ];
+}
+
+function setMotionPreset(min: number | "", max: number | "") {
+  minMotion.value = min;
+  maxMotion.value = max;
 }
 
 /**
@@ -93,6 +115,8 @@ watch(
       minHeight.value = c.min_height ?? "";
       maxHeight.value = c.max_height ?? "";
       videoCodec.value = c.video_codec ?? "";
+      minMotion.value = c.min_motion ?? "";
+      maxMotion.value = c.max_motion ?? "";
     }
   },
   { immediate: true },
@@ -135,6 +159,8 @@ function apply() {
     min_height: minHeight.value !== "" ? Number(minHeight.value) : null,
     max_height: maxHeight.value !== "" ? Number(maxHeight.value) : null,
     video_codec: videoCodec.value || null,
+    min_motion: minMotion.value !== "" ? Number(minMotion.value) : null,
+    max_motion: maxMotion.value !== "" ? Number(maxMotion.value) : null,
   };
   emit("apply", criteria);
   close();
@@ -164,6 +190,8 @@ function reset() {
   minHeight.value = "";
   maxHeight.value = "";
   videoCodec.value = "";
+  minMotion.value = "";
+  maxMotion.value = "";
   emit("reset");
   close();
 }
@@ -528,6 +556,43 @@ function reset() {
           </select>
         </div>
 
+        <!-- Motion Score -->
+        <div v-if="mediaType !== 'image'" class="filter-group">
+          <label class="group-label">{{ t.filterDrawer.motionLabel }}</label>
+          <div class="range-inputs">
+            <input
+              v-model.number="minMotion"
+              type="number"
+              min="0"
+              max="100"
+              :placeholder="t.filterDrawer.minMotionPlaceholder"
+              class="form-input range-field"
+            />
+            <span class="range-sep">—</span>
+            <input
+              v-model.number="maxMotion"
+              type="number"
+              min="0"
+              max="100"
+              :placeholder="t.filterDrawer.maxMotionPlaceholder"
+              class="form-input range-field"
+            />
+          </div>
+          <div class="quick-chips">
+            <button
+              v-for="preset in motionPresets()"
+              :key="preset.key"
+              type="button"
+              class="quick-chip"
+              :title="preset.title"
+              @click="setMotionPreset(preset.min, preset.max)"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+          <p class="group-hint">{{ t.filterDrawer.motionHint }}</p>
+        </div>
+
         <!-- Prompt Substring -->
         <div class="filter-group">
           <label class="group-label">{{ t.preview.prompt }}</label>
@@ -728,6 +793,13 @@ function reset() {
   display: flex;
   gap: 0.4rem;
   margin-top: 0.3rem;
+}
+
+.group-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.72em;
+  line-height: 1.35;
+  color: rgba(128, 128, 128, 0.9);
 }
 
 .quick-chip {
