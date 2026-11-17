@@ -44,6 +44,7 @@ Omera analyse les jetons de recherche en une structure `SearchCriteria` en Rust 
 | `width:` | `width:>=1920`, `width:1280..1920` | Filtre par largeur en pixels. |
 | `height:` | `height:>=1080`, `height:720..1080` | Filtre par hauteur en pixels. |
 | `codec:` | `codec:h264`, `codec:hevc`, `codec:av1` | Filtre par codec vidéo (`h264`, `hevc`, `vp8`, `vp9`, `av1` ; insensible à la casse). |
+| `motion:` | `motion:>=60`, `motion:10..30`, `motion:0` | Filtre par score de mouvement dérivé (0–100). Les clips non évalués sont exclus. |
 
 ### Syntaxe des plages numériques
 - **Plage comprise entre (`min..max`)** : `steps:20..35` (entre 20 et 35 étapes incluses).
@@ -84,7 +85,7 @@ Si vous préférez une interface graphique plutôt que de taper une syntaxe de r
 └────────────────────────────────────────────────────────┘
 ```
 
-Lorsque le type de média inclut des vidéos, des groupes supplémentaires apparaissent : **Résolution** (largeur et hauteur minimales et maximales, avec préréglages SD / HD / FHD+ / 4K+) et **Codec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
+Lorsque le type de média inclut des vidéos, des groupes supplémentaires apparaissent : **Résolution** (largeur et hauteur minimales et maximales, avec préréglages SD / HD / FHD+ / 4K+), **Codec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`) et **Mouvement** (un score de 0 à 100 avec les paliers Immobile / Léger / Animé / Dynamique).
 
 Le tiroir de filtres comporte un compteur de filtres actifs qui vous permet de constater d'un seul coup d'œil combien de critères restreignent vos résultats actuels.
 

@@ -157,6 +157,19 @@ export function criteriaToQuery(c: SearchCriteria): string {
     parts.push(`codec:${c.video_codec}`);
   }
 
+  // Motion
+  if (c.min_motion != null && c.max_motion != null) {
+    if (c.min_motion === c.max_motion) {
+      parts.push(`motion:${c.min_motion}`);
+    } else {
+      parts.push(`motion:${c.min_motion}..${c.max_motion}`);
+    }
+  } else if (c.min_motion != null) {
+    parts.push(`motion:>=${c.min_motion}`);
+  } else if (c.max_motion != null) {
+    parts.push(`motion:<=${c.max_motion}`);
+  }
+
   return parts.join(" ");
 }
 
@@ -181,6 +194,7 @@ export function countActiveFilters(c: SearchCriteria): number {
   if (c.min_width != null || c.max_width != null) count++;
   if (c.min_height != null || c.max_height != null) count++;
   if (c.video_codec?.trim()) count++;
+  if (c.min_motion != null || c.max_motion != null) count++;
   return count;
 }
 
@@ -384,6 +398,16 @@ export function parseSearchQuery(query: string): SearchCriteria {
         case "codec":
           criteria.video_codec = val.trim().toLowerCase() || null;
           break;
+        case "motion": {
+          const [min, max] = parseRange(val);
+          // Clamp to the stored scale: a query asking for motion above 100 is
+          // not an error, it just cannot match anything.
+          const clamp = (n: number | null) =>
+            n == null ? null : Math.max(0, Math.min(100, n));
+          criteria.min_motion = clamp(min);
+          criteria.max_motion = clamp(max);
+          break;
+        }
         default:
           bareTerms.push(token);
           break;

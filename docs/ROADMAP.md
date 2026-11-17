@@ -5,7 +5,7 @@ This roadmap documents completed milestones and future engineering goals for **O
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/roadmap_status_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="screenshots/roadmap_status_light.svg">
-  <img alt="Omera roadmap status at v0.6.0: fourteen milestones complete, video and ComfyUI studio milestones in progress, and milestones 18–19 planned" src="screenshots/roadmap_status_dark.svg" width="100%">
+  <img alt="Omera roadmap status at v0.6.0: fifteen milestones complete, the ComfyUI studio milestone in progress, and milestones 18–19 planned" src="screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
 ---
@@ -156,15 +156,15 @@ Execution order and ownership: [DELIVERY_ROADMAP.md](DELIVERY_ROADMAP.md) and [E
 - [x] Complete review issues #98–#117 with regression coverage. All twenty issues are closed as completed and their regression suites run in CI.
 - [ ] Measure and implement [STORAGE_EVOLUTION.md](STORAGE_EVOLUTION.md) without rewriting applied migrations. Baseline benchmarks currently cover gallery pagination and directory fingerprinting only; filtering, full-text search and sidebar aggregation still need p50/p95 measurements before any schema or index change.
 
-### 🟡 Milestone 15: Video & Animation AIGC Ingestion & Playback (4 of 5 complete; motion score pending)
+### ✅ Milestone 15: Video & Animation AIGC Ingestion & Playback (complete)
 
-Delivered in the v0.4.x line, with the resolution and codec facets following in v0.6.x. The remaining facet work is limited to motion score.
+Delivered across the v0.4.x line for ingestion and playback, with the resolution, codec and motion facets following later. The motion facet's algorithm is settled and shipped; the validation items in [MOTION_SCORE_DESIGN.md](MOTION_SCORE_DESIGN.md) describe what real-media evidence is still worth recording.
 
 - [x] **AIGC Video Metadata Extraction**: Parse embedded generation workflows and prompts from MP4 and WebM video containers (ComfyUI AnimateDiff, Wan2.1, HunyuanVideo, CogVideoX, LTX-Video, and Stable Video Diffusion).
 - [x] **Video Thumbnail Generation & Hover Scrubbing**: Capture frame thumbnails and scrub through video frames while hovering cards in Grid and Waterfall views.
 - [x] **Fullscreen Lightbox Video Player**: Seamless loop toggle, playback speed selector (0.25x–2x), frame-by-frame stepping (`.` / `,`), audio toggle, and sidecar prompt/workflow inspection.
 - [x] **Duration, Frame-Rate, Resolution & Codec Facets**: Filter videos by duration range, frame rate, pixel width/height and video codec, with an Images/Videos media-type filter. Codec matching folds case so sidecars and older records still match, and the drawer offers SD / HD / FHD+ / 4K+ resolution presets.
-- [ ] **Motion Score Facet**: The remaining video filter. [MOTION_SCORE_DESIGN.md](MOTION_SCORE_DESIGN.md) settles the algorithm (downsampled grayscale mean absolute difference over sampled frames), the storage shape (a nullable indexed `files.motion_score` column via a v19 migration) and the compute trigger (opportunistic on the existing WebView decode path plus an explicit batch action). Nothing is implemented yet, and the milestone stays open until the scoring pass is validated against the codec matrix.
+- [x] **Motion Score Facet**: Filter videos by derived motion score (0–100). Scores are computed from decoded frames in the WebView, stored in an indexed column, and matched with the standard range grammar (`motion:>=60`, `motion:10..30`). The drawer offers Still / Subtle / Lively / Dynamic bands. Unscored clips are excluded from a motion filter rather than treated as motionless. See [MOTION_SCORE_DESIGN.md](MOTION_SCORE_DESIGN.md) for the algorithm and its open validation items.
 
 ### ✅ Milestone 16: Next-Gen Model Architectures & Ecosystem (complete)
 

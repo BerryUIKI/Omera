@@ -44,6 +44,7 @@ Omera parses search tokens into structured `SearchCriteria` in native Rust, quer
 | `width:` | `width:>=1920`, `width:1280..1920` | Filter by pixel width. |
 | `height:` | `height:>=1080`, `height:720..1080` | Filter by pixel height. |
 | `codec:` | `codec:h264`, `codec:hevc`, `codec:av1` | Filter by video codec (`h264`, `hevc`, `vp8`, `vp9`, `av1`; case-insensitive). |
+| `motion:` | `motion:>=60`, `motion:10..30`, `motion:0` | Filter by derived motion score (0–100). Unscored clips are excluded. |
 
 ### Numeric Range Syntax
 - **Between Range (`min..max`)**: `steps:20..35` (between 20 and 35 steps inclusive).
@@ -84,7 +85,7 @@ If you prefer a graphical interface over typing query syntax, click the **Filter
 └────────────────────────────────────────────────────────┘
 ```
 
-Video-only groups appear below when the media type includes videos: **Resolution** (minimum and maximum width and height, with SD / HD / FHD+ / 4K+ presets) and **Codec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
+Video-only groups appear below when the media type includes videos: **Resolution** (minimum and maximum width and height, with SD / HD / FHD+ / 4K+ presets), **Codec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`) and **Motion** (a 0–100 score with Still / Subtle / Lively / Dynamic bands).
 
 The filter drawer features an active filter badge counter so you can see at a glance how many criteria are currently narrowing your results.
 

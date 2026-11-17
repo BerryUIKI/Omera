@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Filter videos by derived motion score (0–100). The `motion:` token takes the
+  same range grammar as the other numeric facets (`motion:>=60`,
+  `motion:10..30`, `motion:0`), and the filter drawer offers Still / Subtle /
+  Lively / Dynamic bands. Scoring itself is unchanged; this makes the stored
+  value searchable. A clip that has not been measured holds `NULL` and no
+  comparison matches it, so it drops out of a motion-filtered result instead of
+  being counted as motionless.
 - Motion scores are now computed and stored for video assets. Hovering a video
   card scores it once, riding the decode the thumbnail already needed, and
   Settings gains a bounded "Compute Motion Scores" sweep for the rest of the

@@ -91,6 +91,16 @@ pub struct SearchCriteria {
     /// Comparison is case-insensitive; other identifiers match verbatim.
     #[serde(default)]
     pub video_codec: Option<String>,
+    /// Minimum derived motion score (0–100), matched against the stored column.
+    ///
+    /// Only videos that have been measured can match: an unscored clip holds
+    /// `NULL`, which no comparison satisfies, so it is absent from results
+    /// rather than being treated as motionless.
+    #[serde(default)]
+    pub min_motion: Option<f64>,
+    /// Maximum derived motion score (0–100), matched against the stored column.
+    #[serde(default)]
+    pub max_motion: Option<f64>,
     /// Field to sort results by. Defaults to `ModifiedAt`.
     pub sort: Option<FileSortField>,
     /// Sort direction. Defaults to `Desc`.
@@ -162,6 +172,8 @@ mod tests {
             min_height: Some(720),
             max_height: Some(1080),
             video_codec: Some("h264".to_string()),
+            min_motion: Some(20.0),
+            max_motion: Some(80.0),
             sort: Some(FileSortField::Rating),
             direction: Some(SortDirection::Desc),
             limit: Some(100),

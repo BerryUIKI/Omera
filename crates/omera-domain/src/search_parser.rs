@@ -94,6 +94,49 @@ pub fn parse_query(input: &str) -> SearchCriteria {
                     "sfw" => criteria.is_nsfw = Some(false),
                     _ => {}
                 },
+                // --- Video facets ---
+                // The frontend mirrors these tokens in `src/utils/search.ts`;
+                // both parsers must stay in step or a query typed by a user
+                // resolves differently depending on which path reads it.
+                "type" | "media_type" => {
+                    criteria.media_type = Some(val.to_ascii_lowercase());
+                }
+                "duration" => {
+                    if let Some((min, max)) = parse_f64_range(val) {
+                        criteria.min_duration = min;
+                        criteria.max_duration = max;
+                    }
+                }
+                "fps" => {
+                    if let Some((min, max)) = parse_f64_range(val) {
+                        criteria.min_fps = min;
+                        criteria.max_fps = max;
+                    }
+                }
+                "width" => {
+                    if let Some((min, max)) = parse_u32_range(val) {
+                        criteria.min_width = min;
+                        criteria.max_width = max;
+                    }
+                }
+                "height" => {
+                    if let Some((min, max)) = parse_u32_range(val) {
+                        criteria.min_height = min;
+                        criteria.max_height = max;
+                    }
+                }
+                "codec" => {
+                    criteria.video_codec = Some(val.to_ascii_lowercase());
+                }
+                "motion" => {
+                    if let Some((min, max)) = parse_f64_range(val) {
+                        // The stored scale is 0..=100. A query outside it is not
+                        // an error; it simply cannot match more than the bounds.
+                        let clamp = |n: Option<f64>| n.map(|v| v.clamp(0.0, 100.0));
+                        criteria.min_motion = clamp(min);
+                        criteria.max_motion = clamp(max);
+                    }
+                }
                 "album" | "album_id" => {
                     if let Ok(id) = val.parse::<i64>() {
                         criteria.album_id = Some(id);

@@ -513,6 +513,10 @@ export interface SearchCriteria {
   min_height?: number | null;
   max_height?: number | null;
   video_codec?: string | null;
+  /** Derived 0–100 motion score lower bound; unscored clips never match. */
+  min_motion?: number | null;
+  /** Derived 0–100 motion score upper bound. */
+  max_motion?: number | null;
   sort?: FileSortField | null;
   direction?: SortDirection | null;
   limit?: number | null;

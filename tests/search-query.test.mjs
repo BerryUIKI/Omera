@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { criteriaToQuery, parseSearchQuery } from "../src/utils/search.ts";
+import { countActiveFilters, criteriaToQuery, parseSearchQuery } from "../src/utils/search.ts";
 
 test("serializes model hashes without dropping the structured filter", () => {
   assert.equal(criteriaToQuery({ model_hash: "abc12345" }), "hash:abc12345");
@@ -69,3 +69,46 @@ test("criteriaToQuery preserves freeform text keyword when present", () => {
   assert.ok(query.includes("rating:>=4"));
 });
 
+
+test("serializes motion score criteria with the shared range grammar", () => {
+  assert.equal(criteriaToQuery({ min_motion: 60 }), "motion:>=60");
+  assert.equal(criteriaToQuery({ max_motion: 10 }), "motion:<=10");
+  assert.equal(criteriaToQuery({ min_motion: 10, max_motion: 30 }), "motion:10..30");
+  assert.equal(criteriaToQuery({ min_motion: 40, max_motion: 40 }), "motion:40");
+  // Zero is a real value, not "unset": a still clip is exactly 0.
+  assert.equal(criteriaToQuery({ min_motion: 0, max_motion: 0 }), "motion:0");
+});
+
+test("round-trips motion score through the query string", () => {
+  const parsed = parseSearchQuery(criteriaToQuery({ min_motion: 30, max_motion: 60 }));
+  assert.equal(parsed.min_motion, 30);
+  assert.equal(parsed.max_motion, 60);
+
+  const open = parseSearchQuery("motion:>=60");
+  assert.equal(open.min_motion, 60);
+  assert.equal(open.max_motion, null);
+});
+
+test("motion tokens are clamped to the stored 0-100 scale", () => {
+  // Asking for more than the scale allows is not an error; it just cannot
+  // match more than the maximum.
+  assert.equal(parseSearchQuery("motion:>=150").min_motion, 100);
+  assert.equal(parseSearchQuery("motion:150").min_motion, 100);
+  assert.equal(parseSearchQuery("motion:150").max_motion, 100);
+
+  // A band wider than the scale is clamped on both ends.
+  const band = parseSearchQuery("motion:0..250");
+  assert.equal(band.min_motion, 0);
+  assert.equal(band.max_motion, 100);
+
+  // Zero survives clamping: it is a real score, not an unset sentinel.
+  assert.equal(parseSearchQuery("motion:0").min_motion, 0);
+});
+
+test("countActiveFilters counts a motion band once", () => {
+  assert.equal(countActiveFilters({ min_motion: 60 }), 1);
+  assert.equal(countActiveFilters({ max_motion: 10 }), 1);
+  assert.equal(countActiveFilters({ min_motion: 10, max_motion: 30 }), 1);
+  assert.equal(countActiveFilters({ min_motion: 0 }), 1, "zero is an active filter");
+  assert.equal(countActiveFilters({}), 0);
+});
