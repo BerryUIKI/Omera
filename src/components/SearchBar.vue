@@ -58,14 +58,14 @@ function checkSyntax(text: string) {
     if (tok.includes(":")) {
       const [key, val] = tok.split(":", 2);
       const k = key.toLowerCase();
-      if (["steps", "rating", "duration", "fps"].includes(k) && val) {
+      if (["steps", "rating", "duration", "fps", "width", "height"].includes(k) && val) {
         const cleanVal = val.replace(/^[<>=]+/, "");
         if (cleanVal && !cleanVal.includes("..") && isNaN(Number(cleanVal))) {
           syntaxWarning.value = `Invalid numeric filter: "${tok}"`;
           return;
         }
       }
-      if (["cfg", "aesthetic"].includes(k) && val) {
+      if (["cfg", "aesthetic", "motion"].includes(k) && val) {
         const cleanVal = val.replace(/^[<>=]+/, "");
         if (cleanVal && !cleanVal.includes("..") && isNaN(parseFloat(cleanVal))) {
           syntaxWarning.value = `Invalid numeric filter: "${tok}"`;
