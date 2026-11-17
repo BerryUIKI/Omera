@@ -44,6 +44,7 @@ Omera analiza los tokens de búsqueda en estructuras `SearchCriteria` en código
 | `width:` | `width:>=1920`, `width:1280..1920` | Filtra por ancho en píxeles. |
 | `height:` | `height:>=1080`, `height:720..1080` | Filtra por alto en píxeles. |
 | `codec:` | `codec:h264`, `codec:hevc`, `codec:av1` | Filtra por códec de vídeo (`h264`, `hevc`, `vp8`, `vp9`, `av1`; sin distinguir mayúsculas). |
+| `motion:` | `motion:>=60`, `motion:10..30`, `motion:0` | Filtra por puntuación de movimiento derivada (0–100). Los clips sin evaluar se excluyen. |
 
 ### Sintaxis de rangos numéricos
 - **Rango entre valores (`min..max`)**: `steps:20..35` (entre 20 y 35 pasos inclusive).
@@ -84,7 +85,7 @@ Si prefiere una interfaz gráfica en lugar de escribir sintaxis de búsqueda, ha
 └────────────────────────────────────────────────────────┘
 ```
 
-Cuando el tipo de medio incluye vídeos aparecen grupos adicionales: **Resolución** (ancho y alto mínimo y máximo, con preajustes SD / HD / FHD+ / 4K+) y **Códec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`).
+Cuando el tipo de medio incluye vídeos aparecen grupos adicionales: **Resolución** (ancho y alto mínimo y máximo, con preajustes SD / HD / FHD+ / 4K+), **Códec** (`h264`, `hevc`, `vp8`, `vp9`, `av1`) y **Movimiento** (una puntuación de 0–100 con las bandas Quieto / Leve / Animado / Dinámico).
 
 El panel de filtros cuenta con un contador que muestra de un vistazo cuántos criterios están limitando activamente los resultados.
 

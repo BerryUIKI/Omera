@@ -244,7 +244,7 @@ pnpm tauri build
   <img alt="Omera v0.5.0 路线图状态：13 个里程碑已完成，视频与模型生态里程碑部分完成，里程碑 17–19 已规划" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15（视频）** 只剩 motion score 筛选这一项；**Milestone 16（Flux.1 / SD3.5 + Civitai）** 已完全交付。Milestone 20（图片压缩）已交付；Milestone 17–19 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣与色彩分析。
+**Milestone 15（视频）** 已全部完成；**Milestone 16（Flux.1 / SD3.5 + Civitai）** 也已交付。Milestone 20（图片压缩）已交付；Milestone 17–19 涵盖 ComfyUI 实时工作流、局域网 Web 伴侣与色彩分析。
 
 📖 查阅完整开发计划：[docs/ROADMAP.md](docs/ROADMAP.md)。
 

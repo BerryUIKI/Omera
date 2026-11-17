@@ -244,7 +244,7 @@ pnpm tauri build
   <img alt="Omera v0.5.0 ロードマップ状況：13 マイルストーン完了、動画とモデルエコシステムは一部完了、マイルストーン 17–19 は計画中" src="docs/screenshots/roadmap_status_dark.svg" width="100%">
 </picture>
 
-**Milestone 15（動画）** の残りは motion score ファセットのみで、**Milestone 16（Flux.1 / SD3.5 + Civitai）** は完了しています。Milestone 20（画像圧縮）は提供済みで、Milestone 17–19 は ComfyUI リアルタイムワークフロー、LAN Web コンパニオン、カラー分析を対象とします。
+**Milestone 15（動画）** は完了し、**Milestone 16（Flux.1 / SD3.5 + Civitai）** も完了しています。Milestone 20（画像圧縮）は提供済みで、Milestone 17–19 は ComfyUI リアルタイムワークフロー、LAN Web コンパニオン、カラー分析を対象とします。
 
 📖 詳細は [docs/ROADMAP.md](docs/ROADMAP.md) をご覧ください。
 

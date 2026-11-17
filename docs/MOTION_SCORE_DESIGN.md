@@ -205,6 +205,7 @@ Mirrors the resolution and codec facets that just shipped:
 | Layer | Change |
 |---|---|
 | `crates/omera-domain/src/search.rs` | `min_motion: Option<f64>`, `max_motion: Option<f64>` |
+| *(status)* | All four packages are implemented. The facet is reachable from both parsers (`search_parser.rs` and `src/utils/search.ts`); the real-media validation below is still unrecorded. |
 | `crates/omera-storage/src/db.rs` | Two conditions against the `files.motion_score` column (not `json_extract`) |
 | `src/types.ts` | `min_motion?: number \| null; max_motion?: number \| null;` |
 | `src/utils/search.ts` | `motion:` token with the shared range grammar; `criteriaToQuery` and `countActiveFilters` |
@@ -285,7 +286,7 @@ Four PRs, each landing on its own and each independently mergeable.
 | **M1 — Schema and plumbing** | v19 migration, `motion_score` on the DTO and row readers, upsert preservation, migration-export readers | Rust tests: migration idempotence, upsert preserves an existing score, export round-trip |
 | **M2 — Scoring engine** | The `N`-sample grayscale MAD routine in `src/utils/`, pure and unit-tested against synthetic frames. Shipped as `src/utils/motion-score.ts` with 20 regressions in `tests/motion-score.test.mjs`. | Node tests: static frames score ~0, a hard cut scores high, brightness ramp stays low, resolution independence |
 | **M3 — Compute and persist** | `onVideoLoadedData` hookup, `save_video_motion_score`, `list_unscored_videos`, batch action with progress and cancellation. Shipped as `src/utils/motion-sweep.ts`; the sweep pages by id cursor so undecodable clips cannot stall it. | IPC reference regenerated; a manual pass over a mixed library |
-| **M4 — Facet and UI** | `SearchCriteria`, SQL conditions, `motion:` token, drawer group, seven locales | Query round-trip tests; locale parity test |
+| **M4 — Facet and UI** | `SearchCriteria`, SQL conditions, `motion:` token, drawer group with Still / Subtle / Lively / Dynamic bands, seven locales. | Query round-trip tests; locale parity test |
 
 M1 must land before M3 writes anything; M2 and M4 can be developed in parallel
 with M1.
