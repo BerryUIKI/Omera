@@ -1075,6 +1075,20 @@ impl Database {
             params.push(rusqlite::types::Value::Text(codec.clone()));
         }
 
+        // Motion is a real column, not a metadata field, so these are plain
+        // comparisons against the index. An unscored clip holds NULL, which no
+        // comparison satisfies: it drops out of a motion filter instead of being
+        // counted as motionless.
+        if let Some(min_motion) = criteria.min_motion {
+            conditions.push("motion_score >= ?".to_string());
+            params.push(rusqlite::types::Value::Real(min_motion));
+        }
+
+        if let Some(max_motion) = criteria.max_motion {
+            conditions.push("motion_score <= ?".to_string());
+            params.push(rusqlite::types::Value::Real(max_motion));
+        }
+
         (conditions, params)
     }
 
@@ -4889,6 +4903,85 @@ mod tests {
             })
             .unwrap();
         assert!(av1_videos.is_empty());
+    }
+
+    #[test]
+    fn search_files_motion_facet_filters_on_the_stored_column() {
+        let db = Database::connect_in_memory().unwrap();
+        let folder = db.add_folder("/motion").unwrap();
+
+        // Three scored clips and one that was never measured.
+        for (name, score) in [
+            ("/motion/still.mp4", 2.0),
+            ("/motion/subtle.mp4", 22.0),
+            ("/motion/busy.mp4", 75.0),
+        ] {
+            let mut file = image(folder.id, name);
+            file.container = Container::Mp4;
+            let id = db.upsert_file(&file).unwrap();
+            db.set_file_motion_score(id, None, score).unwrap();
+        }
+        let mut unscored = image(folder.id, "/motion/unscored.mp4");
+        unscored.container = Container::Mp4;
+        db.upsert_file(&unscored).unwrap();
+
+        let paths = |criteria: SearchCriteria| -> Vec<String> {
+            let mut found: Vec<String> = db
+                .search_files(&criteria)
+                .unwrap()
+                .into_iter()
+                .map(|f| f.path)
+                .collect();
+            found.sort();
+            found
+        };
+
+        // A minimum keeps only clips at or above it.
+        assert_eq!(
+            paths(SearchCriteria {
+                min_motion: Some(20.0),
+                ..Default::default()
+            }),
+            vec!["/motion/busy.mp4", "/motion/subtle.mp4"]
+        );
+
+        // A maximum keeps only clips at or below it.
+        assert_eq!(
+            paths(SearchCriteria {
+                max_motion: Some(30.0),
+                ..Default::default()
+            }),
+            vec!["/motion/still.mp4", "/motion/subtle.mp4"]
+        );
+
+        // A band combines both.
+        assert_eq!(
+            paths(SearchCriteria {
+                min_motion: Some(10.0),
+                max_motion: Some(50.0),
+                ..Default::default()
+            }),
+            vec!["/motion/subtle.mp4"]
+        );
+
+        // The boundaries are inclusive.
+        assert_eq!(
+            paths(SearchCriteria {
+                min_motion: Some(75.0),
+                max_motion: Some(75.0),
+                ..Default::default()
+            }),
+            vec!["/motion/busy.mp4"]
+        );
+
+        // The unscored clip is NULL, and NULL satisfies no comparison: it is
+        // absent from every motion result rather than being counted as still.
+        let everything = paths(SearchCriteria {
+            min_motion: Some(0.0),
+            ..Default::default()
+        });
+        assert_eq!(everything.len(), 3, "the unscored clip must not match");
+        assert!(!everything.iter().any(|p| p.contains("unscored")));
     }
 
     #[test]
